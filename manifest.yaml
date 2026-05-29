@@ -1,0 +1,188 @@
+# content-radar — configuração
+
+project:
+  name: content-radar
+  slug: content-radar
+  version: 0.4.0-foundation
+  status: spec-only # foundation → implementation pendente
+
+# Empresa-alvo do radar — perfil/estratégia lidos do vault
+target_company:
+  slug: avanz-imoveis
+  vault_path: /srv/my-mind/Empresas/avanz-imoveis
+  manifest: /srv/my-mind/Empresas/avanz-imoveis/manifest.yaml
+  # Fatos estáveis da marca — copiados aqui pra evitar parsing repetido de brand.json
+  # nas skills 004 (visual_brief.must_have) e 007 (README do package).
+  # Fonte canônica: /srv/my-mind/Empresas/avanz-imoveis/identity/brand.json
+  # (campo brand.json#digital_behavior.conversion_logic).
+  brand_facts:
+    phone_display: "(31) 9 9077-4580"   # formato user-facing pro overlay da arte e CTA
+    phone_e164: "+5531990774580"        # formato canônico — bate com brand.json#main_number
+    phone_secondary_e164: "+5531971375793"   # brand.json#secondary_number
+    main_channel: "WhatsApp"            # brand.json#main_channel — alvo do CTA
+  always_load:
+    - identity/brand.md
+    - strategy/positioning.md
+    - strategy/content-pillars.md
+    - strategy/cadencia-editorial.md
+    - prompts/icp-modifiers.json
+    - ops/guardrails.md
+  per_pillar:
+    "1-imovel":
+      [
+        prompts/post-imovel.json,
+        prompts/visual-base.json,
+        strategy/content-bank/pilar-1-imovel-da-semana.md,
+      ]
+    "2-decisao":
+      [
+        prompts/post-mes.json,
+        strategy/content-bank/pilar-2-decisao-inteligente.md,
+      ]
+    "3-inteligencia":
+      [strategy/content-bank/pilar-3-inteligencia-imobiliaria.md]
+    "4-bastidor": [strategy/content-bank/pilar-4-bastidor.md]
+    "5-quem-comprou": [strategy/content-bank/pilar-5-quem-comprou.md]
+    "6-mercado-rmbh": [strategy/content-bank/pilar-6-mercado-rmbh.md]
+
+# Tipos de busca suportados (escopo do researcher)
+search_scopes:
+  trends:
+    label: "Tendências e notícias do mercado imobiliário"
+    sources:
+      ["fipezap", "abrainc", "valor", "globo-rural-imoveis", "exame-imoveis"]
+    pillars_alvo: ["6-mercado-rmbh", "2-decisao"]
+  competitors:
+    label: "Conteúdo de concorrentes (IG, blog)"
+    sources: ["instagram-publico", "blogs-imobiliarias-rmbh"]
+    pillars_alvo: ["1-imovel", "5-quem-comprou"]
+  seasonal:
+    label: "Datas comemorativas e ganchos sazonais"
+    sources: ["calendario-marketing", "calendario-real-estate"]
+    pillars_alvo: ["4-bastidor", "2-decisao"]
+  cases:
+    label: "Cases, dicas, regulamentação (educação)"
+    sources: ["caixa", "abecip", "secovi"]
+    pillars_alvo: ["2-decisao", "3-inteligencia"]
+  local:
+    label: "Notícias locais RMBH (zoneamento, infra, lançamentos)"
+    sources:
+      [
+        "prefeitura-mateus-leme",
+        "prefeitura-esmeraldas",
+        "estado-mg",
+        "hoje-em-dia",
+      ]
+    pillars_alvo: ["6-mercado-rmbh"]
+
+# Sistema downstream — Open Design (Smart Design @ design.consultorivandias.com.br)
+# IMPORTANTE: NÃO confundir com /srv/apps/design-engine — esse é predecessor desativado em 2026-05-17.
+# Auditoria operacional completa em ./INTEGRACAO-OPEN-DESIGN.md.
+open_design:
+  app_path: /srv/apps/open-design
+  url: https://design.consultorivandias.com.br
+  daemon_local_url: http://127.0.0.1:7457 # loopback no storage-web-server (não exposto)
+  daemon_api:
+    health: /api/health
+    chat: /api/chat # POST agentic run (SSE) — opção 3 spec 011
+    runs: /api/runs # GET /:id (status), GET /:id/events (re-attach SSE)
+    projects: /api/projects # PATCH /:id pra setar metadata.baseDir (§11.O)
+  auth:
+    method: basic-auth-nginx # htpasswd -B /etc/nginx/.htpasswd_design
+    # 1º slice (opção 1 de §8.3 da spec): NÃO autentica programaticamente.
+    # Humano usa credenciais dele na web UI. Daemon é loopback; sem auth nativa nele.
+    # Pra opção 3 (spec 011) o daemon continua sem auth — proteção é loopback.
+    # Se quisermos chamar via internet, exporiamos via nginx com Basic Auth nova.
+    service_account_user: radar-bot # só quando opção 3 sair pra internet
+    credentials_env: ./.local/open-design-basic-auth.txt # gitignored
+  # Projeto Avanz já existente no Open Design (ver INTEGRACAO-OPEN-DESIGN.md §4)
+  project_avanz:
+    id: "00da0d59-836a-432f-8d78-23aa75b44115"
+    name: "Avanz Imoveis-final"
+    kind: prototype
+    imported_from: claude-design
+    base_dir:
+      null # §11.O pendente — não setado hoje;
+      # default = pasta interna do daemon
+      # (PROJECTS_DIR/<id>/)
+  # Skills relevantes pra Avanz em /srv/apps/open-design/skills/
+  candidate_skills:
+    - ad-creative # headlines/copy/text — bom pra Pilar 2, 3, 6
+    - poster-hero # cartaz vertical 9:16 — adaptar pra 1:1
+    - social-x-post-card # card social — referência de composição
+    - social-spotify-card
+    - social-reddit-card
+  # Skill custom dedicada (spec 010)
+  custom_skill_planned: avanz-instagram-post
+
+# Cloudinary — storage de mídia hero (resposta §11.L + §11.N)
+cloudinary:
+  status: aguardando-provisionamento # owner cria conta nova dedicada Avanz (§11.N resolvido)
+  cloud_name: null # preencher após provisionar
+  folder: content-radar/avanz # estrutura prevista
+  credentials_env: ./.local/cloudinary.env # gitignored: CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+  upload_preset: null # opcional, se usar upload presets
+  purge_local_after_days: 30 # cache local de publicado/ é purgado após N dias
+
+# Volume alvo (resposta §11.H — clarificada em v0.4.0 da spec)
+funnel:
+  candidates_per_week_target:
+    10 # GERAÇÃO de candidatos por semana — alvo do radar-scan.
+    # NÃO é cadência de publicação. Volume alto serve
+    # pra absorver reprovação/reaproveitamento/descarte.
+  publication_per_week_reference:
+    4-7 # referência da Avanz (cadencia-editorial.md §4) —
+    # publicação efetiva depende da aprovação humana.
+
+# Distribuição editorial (base da Avanz — usada pelo planner pra atribuir slots)
+cadence:
+  pillars_by_day_base: # base de 7/sem da Avanz
+    segunda: ["3-inteligencia"]
+    terca: ["1-imovel"]
+    quarta: [] # Pilar 4 (stories) — fora do escopo do radar
+    quinta: ["6-mercado-rmbh", "2-decisao"] # alterna semana a semana
+    sexta: [] # Pilar 4 stories — fora do escopo
+    sabado: ["1-imovel"]
+    domingo: [] # Pilar 5 — humano-only no 1º slice
+  extra_slots_strategy: stack-pillar-1 # excedente alocado em Pilar 1 (imóvel da semana)
+
+# Anti-repetição + scoring (spec 003 §5 — resolveu §11.I)
+anti_repetition:
+  match_score_min: 0.55 # resolveu §11.I — defendido em spec 003 §5
+  match_score_weights: # somam 1.0; fórmula = weighted sum (spec 003 §5)
+    pillar_fit: 0.30 # filtro estrutural — pilar Avanz claro
+    foco_editorial_fit: 0.25 # lotes/sítios/chácaras vs casa pronta
+    geografia_fit: 0.20 # RMBH vs resto
+    icp_fit: 0.15 # comprador (default) | investidor | proprietario
+    freshness: 0.10 # decay por dias desde published_at
+  match_score_caps: # caps independentes — derrubam antes da agregação
+    pillar_fit_min: 0.30 # se pilar não fica claro, descarta
+    foco_and_geo_combined_min: 0.50 # se foco<0.20 E geo<0.50, descarta
+    icp_ambiguous_cap: 0.45 # se ICP ambíguo, default=comprador mas cap em 0.45
+  redundant_policy: skip # §11.J: redundantes não viram brief
+  windows:
+    in_flight_check: all # pendente-aprovacao + pendente-publicacao
+    publicado_days: 90
+    rejeitado_days: 30
+    pillar_icp_redundant_days: 14
+  dual_check: # spec 003 §8 + spec 001 §5
+    matcher_uses: title # checagem rápida (estágio 2)
+    briefer_uses: headline # checagem definitiva (estágio 4)
+
+# Persistência (decisão §11.G + §11.K)
+storage:
+  briefs_root: ./store/briefs
+  briefs_dirs:
+    pendente_aprovacao: pendente-aprovacao
+    pendente_publicacao: pendente-publicacao
+    publicado: publicado
+    rejeitado: rejeitado
+  media_root: ./store/media # GITIGNORED — Cloudinary é fonte da verdade
+  media_dirs:
+    pendente_aprovacao: pendente-aprovacao
+    pendente_publicacao: pendente-publicacao
+    publicado: publicado
+    rejeitado: rejeitado # vazio por padrão
+  packages_root: ./store/packages # pacotes do radar-handoff (humano → Smart Design)
+  calendar: ./store/calendar
+  ledger: ./store/ledger.jsonl

@@ -1,0 +1,26 @@
+# store: TEXTO É VERSIONADO (§11.E)
+# Apenas mídia e credenciais ficam fora.
+
+# Mídia: binários — Cloudinary é fonte da verdade após upload (§11.L)
+store/media/
+
+# Packages: contêm cópias locais de mídia + brief simplificado;
+# o brief canônico em store/briefs/ já está versionado, e a mídia tá no Cloudinary.
+# Manter packages fora do git evita duplicação.
+store/packages/
+
+# Secrets locais
+.local/                       # cloudinary.env, open-design-basic-auth.txt, etc
+!.local/*.example             # exceção: templates de env são versionados
+.env
+.env.local
+*.local.yaml
+*.local.json
+
+# Logs
+*.log
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
