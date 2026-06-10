@@ -661,10 +661,14 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 | N | Conta Cloudinary | ✅ Conta nova dedicada Avanz — owner provisiona, repassa credenciais via `.local/cloudinary.env` |
 | O | `metadata.baseDir` do projeto Avanz no Open Design (`00da0d59-836a-432f-8d78-23aa75b44115`) | ✅ **Deferido pra spec 010** — mantém como está (não setado → cwd cai em `PROJECTS_DIR/<id>/`). Não bloqueia o 1º slice (opção 1 = package handoff manual). Decisão final entra junto da spec 010, quando o contexto da skill custom `avanz-instagram-post` estiver concreto. |
 | P | **Agregadores nas allowlists** (ex: `portas.com.br` republicando release ABRAINC) | ✅ **Aceitar secundárias**, mas priorizar primárias via `source_key` canônico + marcar repasses no `relevance_hint`. Researcher (spec 002) marca como repasse quando consegue inferir a fonte original; matcher (spec 003) usa `source_key` canônico para dedup intra-batch e dá menor peso a republicações. |
+| Q | `handoff_at` ausente no `radar-mark-published` ([spec 008](./008-mark-published.md#21-por-que-handoff_at--null-é-só-warning-e-não-erro)) | ✅ **Warning + prossegue** (não bloqueia) — publicação é asserção humana, prevalece sobre instrumentação interna. Resolvido 2026-06-10. |
+| R | Default de `published_at` ([spec 008 §3](./008-mark-published.md#3-argumentos-da-skill)) | ✅ **`now`** (`date -Iseconds`) com override via `--published-at` para publicação retroativa. Resolvido 2026-06-10. |
+| S | Granularidade do registro do post publicado | ✅ Gravar **só `ig_post_url`** (+ `published_at`). `ig_post_id`/métricas/tipo ficam para futura `radar-metrics` ([spec 008 §11.1](./008-mark-published.md#111-o-que-não-entra-na-spec-008)). Resolvido 2026-06-10. |
+| T | Timezone canônico de `published_at` | ✅ **`-03:00` (America/Sao_Paulo)**, alinhado ao frontmatter dos briefs. Resolvido 2026-06-10. |
 
 ### Ainda pendentes
 
-_(nenhuma — todas resolvidas em 2026-05-27)_
+_(nenhuma — A–P resolvidas em 2026-05-27; Q–T em 2026-06-10 junto da spec 008.)_
 
 ## 12. Próximos passos concretos
 
