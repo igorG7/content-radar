@@ -9,9 +9,11 @@ store/media/
 # Manter packages fora do git evita duplicação.
 store/packages/
 
-# Secrets locais
-.local/                       # cloudinary.env, open-design-basic-auth.txt, etc
-!.local/*.example             # exceção: templates de env são versionados
+# Secrets locais (cloudinary.env, open-design-basic-auth.txt, etc)
+# NB: comentário só vale em linha própria — inline (.local/ # ...) vira parte do padrão e não casa nada.
+.local/
+# exceção: templates de env são versionados
+!.local/*.example
 .env
 .env.local
 *.local.yaml
