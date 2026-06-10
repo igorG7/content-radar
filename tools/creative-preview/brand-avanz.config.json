@@ -1,0 +1,55 @@
+{
+  "_purpose": "Config canônica pro toolkit de preview de criativo da Avanz (content-radar). Tokens de marca + fontes + logo + rodapé + formatos. Consumido por build-footer.sh e render-card.sh.",
+  "_scope_caveat": "EXPERIMENTAL — gera PREVIEW de criativo local pra validar direção visual de um brief. NÃO faz parte do pipeline spec'd do content-radar (que entrega brief.md + package). NÃO publica no IG, NÃO chama Open Design API, NÃO sobe pro Cloudinary. A arte oficial continua saindo do Smart Design (Open Design), operada por humano (spec 001 §8.3 opção 1).",
+  "_brand_source": "/srv/my-mind/Empresas/avanz-imoveis/identity/brand.json (visual_identity) + identity/logo/ + archive/.../arte-final.png (referência de layout real)",
+
+  "formats": {
+    "feed_4x5": { "w": 1080, "h": 1350, "note": "formato real dos posts Avanz (ver arte-final.png)" },
+    "feed_1x1": { "w": 1080, "h": 1080, "note": "alternativa quadrada" }
+  },
+
+  "colors": {
+    "navy":        "#0F172A",
+    "navy_2":      "#1B2A48",
+    "navy_3":      "#0a0f1c",
+    "navy_4":      "#1E293B",
+    "orange":      "#F97316",
+    "orange_logo": "#F94D1C",
+    "white":       "#FFFFFF",
+    "light_gray":  "#E5E7EB",
+    "medium_gray": "#64748B",
+    "ink":         "#475569"
+  },
+
+  "fonts": {
+    "inter_bold":     "/usr/share/fonts/opentype/inter/Inter-Bold.otf",
+    "inter_semibold": "/usr/share/fonts/opentype/inter/Inter-SemiBold.otf",
+    "inter_medium":   "/usr/share/fonts/opentype/inter/Inter-Medium.otf",
+    "_note": "Inter = fonte primária (brand.json). Montserrat (secundária) não está instalada no servidor."
+  },
+
+  "logo": {
+    "source_brandbook": "/srv/my-mind/Empresas/avanz-imoveis/identity/logo/logo.png",
+    "white_asset": "assets/avanz-logo-white.png",
+    "_gap1": "Logo branca foi EXTRAÍDA do brandbook PNG (trim + recolor navy→branco), não é vetorial. GAP 1 do audit criativos-gap-analysis-2026-05-04.md: não existe logo-mono-white.svg limpa. Substituir quando o SVG existir."
+  },
+
+  "footer": {
+    "phone_display": "(31) 9 9077-4580",
+    "whatsapp_label": "WhatsApp",
+    "tagline": "Entender para atender",
+    "creci": "CRECI 8638",
+    "bg": "#0a0f1c",
+    "bar_height": 150,
+    "composite_y": 1200,
+    "_note": "Rodapé é COMPOSTO via ImageMagick (build-footer.sh), não via CSS. Ver render.known_issues."
+  },
+
+  "render": {
+    "engine": "chromium-headless (conteúdo) + imagemagick (composição do rodapé)",
+    "known_issues": [
+      "Chromium headless neste servidor renderiza elementos ancorados no rodapé do viewport (position:fixed/absolute bottom:0, flex margin-top:auto, grid auto/1fr/auto) deslocados pra baixo do canvas — o rodapé fica cortado. Por isso o conteúdo é renderizado SEM rodapé e o rodapé é desenhado/composto via ImageMagick (determinístico). NÃO tente mover o rodapé pro HTML.",
+      "Cache de file:// do Chromium pode reusar render antigo — render-card.sh usa --user-data-dir efêmero pra evitar."
+    ]
+  }
+}

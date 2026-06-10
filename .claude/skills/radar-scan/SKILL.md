@@ -51,8 +51,13 @@ Carregue (via Read):
 
 ## Fluxo
 
-Segue spec 005 §5 (10 passos). Após cada passo:
+Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
 
+- **Passo 0 (housekeeping, piggyback)**: após validar args e antes de preparar contexto, invocar a skill
+  `radar-housekeeping` (best-effort) pra purgar cache local expirado de `media/publicado/`. Falha **não
+  aborta** o scan (loga warning e segue). Em `--dry-run`, invocar `radar-housekeeping --dry-run` (nada
+  apagado). O sweep grava seu próprio `housekeeping-finished` no ledger (`trigger: "piggyback-radar-scan"`).
+  Detalhes: spec 009 §8 + spec 005 §5.1.1.
 - **Estágio 1**: `Task(subagent_type='market-researcher', prompt=<bloco com scope, pillar_filter, window_days,
   target_count, max_per_source, allowed_sources, vault_paths>)`. Validar JSON (§5.5).
 - **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], paths absolutos

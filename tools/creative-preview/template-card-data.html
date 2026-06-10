@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  Template de card de DADO (Pilar 2/3/6) — Avanz Imóveis.
+  Variáveis ${...} são substituídas por render-card.sh (envsubst) a partir de um content .env.
+  O rodapé NÃO está aqui de propósito — é composto via ImageMagick (ver README §Chromium gotcha).
+  Edite o BLOCO DE CONTEÚDO via .env; o chrome de marca (logo, geometria, cores) fica fixo.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;}
+  body{font-family:'Inter','Inter Display',sans-serif;background:#0F172A;color:#fff;
+    position:relative;overflow:hidden;-webkit-font-smoothing:antialiased;}
+
+  /* geometria de assinatura (painéis angulares navy + acento laranja) */
+  .geo1{position:absolute;top:0;right:0;width:560px;height:430px;background:#1B2A48;
+    clip-path:polygon(28% 0,100% 0,100% 100%,0 0);opacity:.9;}
+  .geo2{position:absolute;top:0;right:0;width:560px;height:360px;background:#0a0f1c;
+    clip-path:polygon(55% 0,100% 0,100% 100%);}
+  .geo-orange{position:absolute;top:0;right:150px;width:120px;height:300px;background:#F97316;
+    clip-path:polygon(60% 0,100% 0,40% 100%,0% 100%);opacity:.95;}
+
+  .content{position:relative;z-index:2;padding:52px 72px 0;}
+
+  header{display:flex;align-items:center;justify-content:space-between;}
+  header img{height:88px;width:auto;}
+  .pill{font-size:20px;font-weight:600;letter-spacing:3px;text-transform:uppercase;
+    color:#0F172A;background:#F97316;padding:11px 20px;border-radius:999px;}
+
+  main{margin-top:84px;}
+  .kicker{font-size:24px;font-weight:600;letter-spacing:.5px;color:#E5E7EB;margin-bottom:8px;}
+  .kicker b{color:#F97316;}
+  .title{font-size:44px;line-height:1.12;font-weight:800;letter-spacing:-1px;color:#fff;
+    margin-bottom:32px;max-width:800px;}
+
+  .panel{background:#fff;border-radius:28px;padding:44px 52px 40px;color:#0F172A;
+    box-shadow:0 36px 80px -28px rgba(0,0,0,.6);}
+  .eyebrow{font-size:21px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
+    color:#64748B;margin-bottom:22px;}
+  .num{font-size:80px;line-height:.95;font-weight:800;color:#F97316;letter-spacing:-2px;}
+  .num small{font-size:38px;font-weight:700;}
+  .label{font-size:27px;font-weight:600;color:#0F172A;margin-top:8px;}
+  .sub{font-size:20px;color:#64748B;margin-top:4px;}
+  .divider{height:1px;background:#E5E7EB;margin:24px 0;}
+  .note{font-size:19px;line-height:1.45;color:#475569;margin-top:24px;}
+  .note b{color:#0F172A;font-weight:600;}
+  .src{display:block;margin-top:10px;font-size:15px;letter-spacing:1.5px;
+    text-transform:uppercase;color:#94a3b8;}
+</style>
+</head>
+<body>
+  <div class="geo1"></div>
+  <div class="geo2"></div>
+  <div class="geo-orange"></div>
+
+  <div class="content">
+    <header>
+      <img src="${LOGO_WHITE}" alt="Avanz Imóveis">
+      <span class="pill">${PILL}</span>
+    </header>
+
+    <main>
+      <div class="kicker">${KICKER}</div>
+      <div class="title">${TITLE}</div>
+      <div class="panel">
+        <div class="eyebrow">${EYEBROW}</div>
+        <div class="num">${STAT1_NUM}</div>
+        <div class="label">${STAT1_LABEL}</div>
+        <div class="sub">${STAT1_SUB}</div>
+        <div class="divider"></div>
+        <div class="num">${STAT2_NUM}</div>
+        <div class="label">${STAT2_LABEL}</div>
+        <div class="note">${NOTE}<span class="src">${SOURCE}</span></div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
