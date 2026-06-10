@@ -175,6 +175,21 @@ Algoritmo linear. Cada passo numerado:
 4. Confirmar que `target_company.manifest` existe e é legível (sanity check).
 5. Em caso de erro: abort com mensagem pro humano. **Não toca ledger** (nenhum evento criado).
 
+### 5.1.1 Passo 0 — sweep de housekeeping (piggyback, best-effort)
+
+Após validar args (§5.1) e **antes** de preparar contexto (§5.2), dispara a
+skill `radar-housekeeping` para purgar cache local expirado de
+`media/publicado/` ([spec 009 §8](./009-housekeeping.md#8-piggyback-no-radar-scan-integração)):
+
+1. Invocar `radar-housekeeping` — purga o elegível (30d após `published_at`,
+   hero já no Cloudinary; **guarda anti-placeholder** da [009 §3.1](./009-housekeeping.md#31-guarda-anti-placeholder-crítica)).
+2. **Best-effort**: falha do housekeeping **não aborta** o scan — loga warning
+   e segue para §5.2.
+3. **Herda `--dry-run`**: scan em `--dry-run` → `radar-housekeeping --dry-run`
+   (nada apagado). Roda antes do early-return do §5.2 passo 6.
+4. O sweep grava seu próprio `housekeeping-finished` no ledger
+   (`trigger: "piggyback-radar-scan"`), distinto do `scan-started` (§5.3).
+
 ### 5.2 Preparação de contexto
 
 1. **Calcular `week_key`** (ISO 8601):
