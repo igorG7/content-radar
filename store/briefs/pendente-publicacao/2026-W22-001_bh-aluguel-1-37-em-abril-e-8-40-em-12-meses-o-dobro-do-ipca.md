@@ -2,7 +2,7 @@
 brief_id: 2026-W22-001
 slug: 2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca
 created_at: 2026-05-28T19:58:00-03:00
-updated_at: 2026-05-29T13:42:00-03:00
+updated_at: 2026-06-10T15:40:10-03:00
 
 # Origem
 scope: trends
@@ -77,8 +77,8 @@ hero_image_candidates:
     source_url: https://exame.com/mercado-imobiliario/aluguel-residencial-tem-maior-alta-em-um-ano-nordeste-lidera-valorizacao/
     image_url: https://classic.exame.com/wp-content/uploads/2026/05/a93bf9caa5ae96774321f3c1aa4df0f2.jpg
     local_path: ./store/media/pendente-publicacao/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca__0.jpg
-    cloud_url: "<PENDING_CLOUDINARY>"
-    cloudinary_public_id: "<PENDING_CLOUDINARY>"
+    cloud_url: "https://res.cloudinary.com/daunh8p25/image/upload/v1781116792/content-radar/avanz/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca.jpg"
+    cloudinary_public_id: "content-radar/avanz/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca"
     alt: "Aluguel residencial"
     license_hint: "og:image — direito autoral do veículo Exame, uso editorial sob crédito"
     extracted_from: og:image
@@ -120,9 +120,9 @@ ledger_ref: ./store/ledger.jsonl
 review_notes: ""
 
 # Handoff (preenchido pela radar-handoff, spec 007)
-handoff_at: 2026-05-29T13:42:00-03:00
+handoff_at: 2026-06-10T15:40:10-03:00
 package_path: ./store/packages/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca/README.md
-handoff_mode: placeholder    # spec 007 §14 — Cloudinary não provisionado ainda
+handoff_mode: real    # spec 007 §8 — signed upload Cloudinary (--force, ex-placeholder)
 
 # Publicação (preenchido pela radar-mark-published, spec 008)
 published_at: null
