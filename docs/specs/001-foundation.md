@@ -196,7 +196,8 @@ store/
   corresponde ao índice em `hero_image_candidates[]` do brief.
 - Mídia local serve como buffer até upload Cloudinary; após `radar-handoff`,
   `cloud_url` no brief vira fonte da verdade. Cache local de `publicado/`
-  é purgado após 30 dias (cron simples no §9).
+  é purgado após 30 dias (purga **lazy/on-demand** — spec 009, decisão §11.U;
+  **não** cron de sistema).
 
 ## 4. Lifecycle de uma pauta
 
@@ -591,7 +592,7 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 | 6  | Skill `radar-review`                | revisão  | spec → 006-skill-review.md |
 | 7  | Skill `radar-handoff` + Cloudinary  | publicação | ✅ [spec 007](./007-handoff.md) — impl pendente; modo `--placeholder-mode` permite rodar sem credenciais |
 | 8  | Skill `radar-mark-published`        | fechamento ciclo | spec → 008-mark-published.md |
-| 9  | Cron de purga `media/publicado/` (30d) | manutenção | spec → 009-housekeeping.md |
+| 9  | Purga lazy/on-demand de `media/publicado/` (30d) — skill `radar-housekeeping` | manutenção | spec → 009-housekeeping.md |
 | 10 | Skill custom `avanz-instagram-post` no Open Design | reduzir fricção do humano | spec → 010-od-skill.md |
 | 11 | Agente `editorial-planner` + skill `radar-plan` | distribuição multi-pauta | spec → 011-planner.md |
 | 12 | API REST direta no daemon Open Design (§8.3 opção 3) | automação total | spec → 012-od-api-direct.md |
@@ -665,10 +666,11 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 | R | Default de `published_at` ([spec 008 §3](./008-mark-published.md#3-argumentos-da-skill)) | ✅ **`now`** (`date -Iseconds`) com override via `--published-at` para publicação retroativa. Resolvido 2026-06-10. |
 | S | Granularidade do registro do post publicado | ✅ Gravar **só `ig_post_url`** (+ `published_at`). `ig_post_id`/métricas/tipo ficam para futura `radar-metrics` ([spec 008 §11.1](./008-mark-published.md#111-o-que-não-entra-na-spec-008)). Resolvido 2026-06-10. |
 | T | Timezone canônico de `published_at` | ✅ **`-03:00` (America/Sao_Paulo)**, alinhado ao frontmatter dos briefs. Resolvido 2026-06-10. |
+| U | Mecanismo de purga de `media/publicado/` (esboço "cron simples" em §9/§3.3) | ✅ **Lazy/on-demand**: skill `radar-housekeeping` (manual + piggyback no `radar-scan`, passo 0 best-effort), com **guarda anti-placeholder** inviolável. **Sem** cron de sistema; `systemd --user` timer é fallback futuro. Coerente com §11.D (local, sob demanda). [Spec 009](./009-housekeeping.md). Resolvido 2026-06-10. |
 
 ### Ainda pendentes
 
-_(nenhuma — A–P resolvidas em 2026-05-27; Q–T em 2026-06-10 junto da spec 008.)_
+_(nenhuma — A–P resolvidas em 2026-05-27; Q–U em 2026-06-10 junto das specs 008/009.)_
 
 ## 12. Próximos passos concretos
 
