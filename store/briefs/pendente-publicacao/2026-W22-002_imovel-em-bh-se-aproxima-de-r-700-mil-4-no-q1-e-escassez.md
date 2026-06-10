@@ -2,7 +2,7 @@
 brief_id: 2026-W22-002
 slug: 2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez
 created_at: 2026-05-29T14:50:00-03:00
-updated_at: 2026-05-29T15:01:52+00:00
+updated_at: 2026-06-10T15:45:30-03:00
 
 # Origem
 scope: trends
@@ -65,8 +65,8 @@ hero_image_candidates:
     source_url: https://www.secovimg.com.br/noticia-detalhes.php?noticia=418
     image_url: https://www.secovimg.com.br/cms_imagens/noticia_418.jpg
     local_path: ./store/media/pendente-publicacao/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez__0.jpg
-    cloud_url: "<PENDING_CLOUDINARY>"
-    cloudinary_public_id: "<PENDING_CLOUDINARY>"
+    cloud_url: "https://res.cloudinary.com/daunh8p25/image/upload/v1781117115/content-radar/avanz/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez.jpg"
+    cloudinary_public_id: "content-radar/avanz/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez"
     alt: "Mercado imobiliário de Belo Horizonte"
     license_hint: "unknown"
     extracted_from: og:image
@@ -99,9 +99,9 @@ suggested_slot: null
 ledger_ref: ./store/ledger.jsonl
 review_notes: ""
 
-handoff_at: 2026-05-29T15:10:00-03:00
+handoff_at: 2026-06-10T15:45:30-03:00
 package_path: ./store/packages/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez/README.md
-handoff_mode: placeholder    # spec 007 §14 — Cloudinary não provisionado ainda
+handoff_mode: real    # spec 007 §8 — signed upload Cloudinary (--force, ex-placeholder)
 
 published_at: null
 ig_post_url: null
