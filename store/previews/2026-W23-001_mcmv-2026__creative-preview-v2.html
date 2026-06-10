@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:1080px;height:1350px;}
+  body{font-family:'Inter','Inter Display',sans-serif;background:#0F172A;color:#fff;
+    position:relative;overflow:hidden;-webkit-font-smoothing:antialiased;}
+
+  .geo1{position:absolute;top:0;right:0;width:560px;height:430px;background:#1B2A48;
+    clip-path:polygon(28% 0,100% 0,100% 100%,0 0);opacity:.9;}
+  .geo2{position:absolute;top:0;right:0;width:560px;height:360px;background:#0a0f1c;
+    clip-path:polygon(55% 0,100% 0,100% 100%);}
+  .geo-orange{position:absolute;top:0;right:150px;width:120px;height:300px;background:#F97316;
+    clip-path:polygon(60% 0,100% 0,40% 100%,0% 100%);opacity:.95;}
+
+  .content{position:relative;z-index:2;padding:52px 72px 0;}
+
+  header{display:flex;align-items:center;justify-content:space-between;}
+  header img{height:88px;width:auto;}
+  .pill{font-size:20px;font-weight:600;letter-spacing:3px;text-transform:uppercase;
+    color:#0F172A;background:#F97316;padding:11px 20px;border-radius:999px;}
+
+  main{margin-top:84px;}
+  .kicker{font-size:24px;font-weight:600;letter-spacing:.5px;color:#E5E7EB;margin-bottom:8px;}
+  .kicker b{color:#F97316;}
+  .title{font-size:44px;line-height:1.12;font-weight:800;letter-spacing:-1px;color:#fff;
+    margin-bottom:32px;max-width:800px;}
+
+  .panel{background:#fff;border-radius:28px;padding:44px 52px 40px;color:#0F172A;
+    box-shadow:0 36px 80px -28px rgba(0,0,0,.6);}
+  .eyebrow{font-size:21px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
+    color:#64748B;margin-bottom:22px;}
+  .num{font-size:80px;line-height:.95;font-weight:800;color:#F97316;letter-spacing:-2px;}
+  .num small{font-size:38px;font-weight:700;}
+  .label{font-size:27px;font-weight:600;color:#0F172A;margin-top:8px;}
+  .sub{font-size:20px;color:#64748B;margin-top:4px;}
+  .divider{height:1px;background:#E5E7EB;margin:24px 0;}
+  .note{font-size:19px;line-height:1.45;color:#475569;margin-top:24px;}
+  .note b{color:#0F172A;font-weight:600;}
+  .src{display:block;margin-top:10px;font-size:15px;letter-spacing:1.5px;
+    text-transform:uppercase;color:#94a3b8;}
+
+  footer{position:fixed;left:0;right:0;bottom:0;background:#0a0f1c;padding:30px 72px;
+    display:flex;align-items:center;justify-content:space-between;}
+  .contact{display:flex;align-items:center;gap:18px;}
+  .phone-ic{width:62px;height:62px;border-radius:50%;background:#F97316;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .phone-ic svg{width:32px;height:32px;fill:#fff;}
+  .lbl{font-size:16px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#F97316;}
+  .pnum{font-size:32px;font-weight:700;color:#fff;line-height:1.1;}
+  .tagline{text-align:right;}
+  .tagline .t{font-size:23px;font-weight:600;color:#fff;}
+  .tagline .s{font-size:16px;letter-spacing:3px;text-transform:uppercase;color:#64748B;margin-top:2px;}
+</style>
+</head>
+<body>
+  <div class="geo1"></div>
+  <div class="geo2"></div>
+  <div class="geo-orange"></div>
+
+  <div class="content">
+    <header>
+      <img src="file:///tmp/avanz-2026-W23-001/logo-white.png" alt="Avanz Imóveis">
+      <span class="pill">Decisão Inteligente</span>
+    </header>
+
+    <main>
+      <div class="kicker">Quem sonha em <b>sair do aluguel</b> na RMBH precisa ver isso</div>
+      <div class="title">O MCMV mudou em 2026 — e mais gente entra na conta</div>
+      <div class="panel">
+        <div class="eyebrow">O que mudou no programa</div>
+        <div class="num">R$ 13 mil</div>
+        <div class="label">novo teto de renda familiar</div>
+        <div class="sub">antes: R$ 9,6 mil por mês</div>
+        <div class="divider"></div>
+        <div class="num">0,99% <small>ao mês</small></div>
+        <div class="label">nova taxa de juros do financiamento</div>
+        <div class="note">
+          <b>2,3 milhões de moradias já contratadas</b>, com meta de 3 milhões até o fim de 2026.
+          O que define se faz sentido pra você é a simulação — não a manchete.
+          <span class="src">Fonte: Caixa Econômica Federal</span>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

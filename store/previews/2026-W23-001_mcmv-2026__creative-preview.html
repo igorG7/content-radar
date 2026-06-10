@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1080px; height:1080px; }
+  body{
+    font-family:'Inter','Inter Display',sans-serif;
+    background:
+      radial-gradient(120% 90% at 82% 8%, #16233f 0%, #0F172A 55%) ,
+      #0F172A;
+    color:#fff;
+    padding:74px 76px 64px 76px;
+    display:flex; flex-direction:column;
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* faixa de acento sutil no topo */
+  .accent-bar{ position:absolute; top:0; left:0; height:8px; width:100%;
+    background:linear-gradient(90deg,#F97316 0%,#F97316 38%,transparent 38%); }
+
+  header{ display:flex; align-items:center; gap:14px; }
+  .dot{ width:12px; height:12px; border-radius:50%; background:#F97316; }
+  .pillar{ font-size:23px; font-weight:600; letter-spacing:3.5px;
+    text-transform:uppercase; color:#E5E7EB; }
+  .pillar b{ color:#F97316; font-weight:700; }
+
+  main{ flex:1; display:flex; flex-direction:column; justify-content:center; }
+
+  .card{
+    background:#FFFFFF; border-radius:36px; padding:60px 62px 54px;
+    box-shadow:0 40px 90px -30px rgba(0,0,0,.55);
+  }
+  .eyebrow{ font-size:22px; font-weight:600; letter-spacing:2.5px;
+    text-transform:uppercase; color:#64748B; margin-bottom:30px; }
+
+  .stat{ display:flex; flex-direction:column; }
+  .stat .num{ font-size:104px; line-height:.98; font-weight:800;
+    color:#F97316; letter-spacing:-2px; }
+  .stat .label{ font-size:31px; font-weight:600; color:#0F172A; margin-top:12px; }
+  .stat .sub{ font-size:23px; font-weight:400; color:#64748B; margin-top:6px; }
+
+  .divider{ height:1px; background:#E5E7EB; margin:38px 0; }
+
+  .foot-note{ font-size:21px; line-height:1.45; color:#64748B; margin-top:40px; }
+  .foot-note b{ color:#1E293B; font-weight:600; }
+  .src{ display:inline-block; margin-top:10px; font-size:18px; letter-spacing:1px;
+    text-transform:uppercase; color:#94a3b8; }
+
+  footer{ display:flex; align-items:flex-end; justify-content:space-between; margin-top:30px; }
+  .contact .ch{ font-size:19px; font-weight:600; letter-spacing:1.5px;
+    text-transform:uppercase; color:#F97316; }
+  .contact .phone{ font-size:34px; font-weight:700; color:#fff; margin-top:4px; }
+  .tag{ font-size:21px; color:#E5E7EB; font-weight:400; margin-top:10px; }
+
+  .wordmark{ text-align:right; }
+  .wordmark .mark{ font-size:42px; font-weight:800; letter-spacing:-1px; color:#fff; }
+  .wordmark .mark span{ color:#F97316; }
+  .wordmark .kicker{ font-size:17px; font-weight:500; letter-spacing:6px;
+    text-transform:uppercase; color:#64748B; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="accent-bar"></div>
+
+  <header>
+    <span class="dot"></span>
+    <span class="pillar">Decisão Inteligente · <b>Avanz</b></span>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="eyebrow">O que mudou no MCMV em 2026</div>
+
+      <div class="stat">
+        <div class="num">R$ 13 mil</div>
+        <div class="label">novo teto de renda familiar</div>
+        <div class="sub">antes: R$ 9,6 mil por mês</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="stat">
+        <div class="num">0,99% <span style="font-size:54px;font-weight:700;">ao mês</span></div>
+        <div class="label">nova taxa de juros do financiamento</div>
+      </div>
+
+      <div class="foot-note">
+        <b>2,3 milhões de moradias já contratadas</b>, com meta de 3 milhões até o fim de 2026.
+        O que define se faz sentido pra você é a simulação — não a manchete.
+        <span class="src">Fonte: Caixa Econômica Federal</span>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="contact">
+      <div class="ch">WhatsApp</div>
+      <div class="phone">(31) 9 9077-4580</div>
+      <div class="tag">Casa MCMV com simulação Caixa antes da visita.</div>
+    </div>
+    <div class="wordmark">
+      <div class="mark">Avan<span>z</span></div>
+      <div class="kicker">Imóveis</div>
+    </div>
+  </footer>
+</body>
+</html>
