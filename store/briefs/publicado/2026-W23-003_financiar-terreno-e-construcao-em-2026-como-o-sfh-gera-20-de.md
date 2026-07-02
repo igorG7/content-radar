@@ -2,7 +2,7 @@
 brief_id: 2026-W23-003
 slug: 2026-W23-003_financiar-terreno-e-construcao-em-2026-como-o-sfh-gera-20-de
 created_at: 2026-06-01T16:15:00-03:00
-updated_at: 2026-06-01T16:15:00-03:00
+updated_at: 2026-06-22T11:24:04-03:00
 
 scope: seasonal
 source_finding_id: f_009
@@ -42,12 +42,12 @@ format: post_feed_instagram
 od_skill_ref: ad-creative
 od_skill_alternatives: [social-x-post-card, poster-hero]
 template_ref_avanz: post-mes
-headline: "Financiar terreno e construção em 2026: como o SFH gera 20% de equity na largada"
+headline: "Financiar terreno e construção em 2026: como o SFH gera 20% de patrimônio na largada"
 hook: "Construir sai mais barato que comprar pronto em 2026 — e o banco libera o dinheiro por etapas, conforme a obra anda."
 caption_draft: |
   Construir sai mais barato que comprar pronto em 2026 — e o banco libera o dinheiro por etapas, conforme a obra anda.
 
-  A conta é simples: quando você compra uma casa pronta, o preço já inclui o lucro do incorporador. Quando financia terreno + construção, esse lucro fica com você na forma de patrimônio. Na média, dá pra começar com até 20% de equity no dia 1 — sem mágica, é o repasse do que seria margem do construtor.
+  A conta é simples: quando você compra uma casa pronta, o preço já inclui o lucro do incorporador. Quando financia terreno + construção, esse lucro fica com você na forma de patrimônio. Na média, no dia 1 até 20% do imóvel já é seu — sem mágica, é o repasse do que seria margem do construtor.
 
   O desenho do SFH (Sistema Financeiro da Habitação) ajuda: imóveis até R$ 2,25 milhões entram em taxas subsidiadas, hoje na casa de 11,19% ao ano na Caixa — muito abaixo da Selic atual de 14,75%. E o FGTS pode entrar como entrada do terreno, entrada da obra, ou pra amortizar o saldo devedor ao longo do contrato.
 
@@ -77,7 +77,7 @@ visual_brief:
     Composição clean e didática: bloco institucional inferior em azul marinho #0F172A com logo
     Avanz canto inferior direito + telefone em laranja #F97316. Imagem hero (casal/casa) em
     destaque na metade superior, com tratamento profissional de luz e respiro. Overlay
-    tipográfico curto com headline em peso semibold (Inter), reforço de "20% de equity" em
+    tipográfico curto com headline em peso semibold (Inter), reforço de "20% de patrimônio" em
     laranja como número-chave. Visual aspiracional acolhedor (visual_mood.comprador) — vida
     real começando, sem estética corporativa fria.
   must_have:
@@ -98,18 +98,18 @@ suggested_slot: null
 ledger_ref: ./store/ledger.jsonl
 review_notes: ""
 
-handoff_at: null
-package_path: null
+handoff_at: 2026-06-15T23:59:56-03:00
+package_path: ./store/packages/2026-W23-003_financiar-terreno-e-construcao-em-2026-como-o-sfh-gera-20-de/README.md
 
-published_at: null
-ig_post_url: null
+published_at: 2026-06-19T12:00:00-03:00
+ig_post_url: "https://www.instagram.com/p/DZsg7uzvNa0/"
 ---
 
-# Financiar terreno e construção em 2026: como o SFH gera 20% de equity na largada
+# Financiar terreno e construção em 2026: como o SFH gera 20% de patrimônio na largada
 
 Construir sai mais barato que comprar pronto em 2026 — e o banco libera o dinheiro por etapas, conforme a obra anda.
 
-A conta é simples: quando você compra uma casa pronta, o preço já inclui o lucro do incorporador. Quando financia terreno + construção, esse lucro fica com você na forma de patrimônio. Na média, dá pra começar com até 20% de equity no dia 1 — sem mágica, é o repasse do que seria margem do construtor.
+A conta é simples: quando você compra uma casa pronta, o preço já inclui o lucro do incorporador. Quando financia terreno + construção, esse lucro fica com você na forma de patrimônio. Na média, no dia 1 até 20% do imóvel já é seu — sem mágica, é o repasse do que seria margem do construtor.
 
 O desenho do SFH (Sistema Financeiro da Habitação) ajuda: imóveis até R$ 2,25 milhões entram em taxas subsidiadas, hoje na casa de 11,19% ao ano na Caixa — muito abaixo da Selic atual de 14,75%. E o FGTS pode entrar como entrada do terreno, entrada da obra, ou pra amortizar o saldo devedor ao longo do contrato.
 

@@ -2,7 +2,7 @@
 brief_id: 2026-W24-006
 slug: 2026-W24-006_no-dia-dos-namorados-casal-escolhendo-junto-o-terreno-do-futuro
 created_at: 2026-06-09T19:08:49-03:00
-updated_at: 2026-06-09T19:10:00-03:00
+updated_at: 2026-06-15T09:56:46-03:00
 
 scope: seasonal
 source_finding_id: manual-ideacao        # criado na conversa, SEM pipeline researcher/matcher
@@ -90,8 +90,8 @@ review_notes: ""
 handoff_at: 2026-06-09T19:13:00-03:00
 package_path: ./store/packages/2026-W24-006_no-dia-dos-namorados-casal-escolhendo-junto-o-terreno-do-futuro/README.md
 
-published_at: null
-ig_post_url: null
+published_at: 2026-06-12T12:00:00-03:00
+ig_post_url: https://www.instagram.com/p/DZfYvtYN3_N/
 ---
 
 # No Dia dos Namorados, tem casal escolhendo junto o terreno do futuro

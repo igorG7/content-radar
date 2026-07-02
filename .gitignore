@@ -9,6 +9,10 @@ store/media/
 # Manter packages fora do git evita duplicação.
 store/packages/
 
+# Renders/previews: artefatos gerados (mesma natureza de store/media/) — cache local, não versionar
+store/previews/
+w-view/
+
 # Secrets locais (cloudinary.env, open-design-basic-auth.txt, etc)
 # NB: comentário só vale em linha própria — inline (.local/ # ...) vira parte do padrão e não casa nada.
 .local/

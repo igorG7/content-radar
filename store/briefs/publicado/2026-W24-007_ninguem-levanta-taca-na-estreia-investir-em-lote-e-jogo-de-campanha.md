@@ -2,7 +2,7 @@
 brief_id: 2026-W24-007
 slug: 2026-W24-007_ninguem-levanta-taca-na-estreia-investir-em-lote-e-jogo-de-campanha
 created_at: 2026-06-09T21:17:52-03:00
-updated_at: 2026-06-09T21:20:00-03:00
+updated_at: 2026-06-15T09:56:46-03:00
 
 scope: seasonal
 source_finding_id: manual-ideacao        # criado na conversa, SEM pipeline researcher/matcher
@@ -86,8 +86,8 @@ review_notes: ""
 handoff_at: 2026-06-09T21:22:00-03:00
 package_path: ./store/packages/2026-W24-007_ninguem-levanta-taca-na-estreia-investir-em-lote-e-jogo-de-campanha/README.md
 
-published_at: null
-ig_post_url: null
+published_at: 2026-06-13T12:00:00-03:00
+ig_post_url: https://www.instagram.com/p/DZh8M6UALER/
 ---
 
 # Ninguém levanta taça na estreia: investir em lote é jogo de campanha

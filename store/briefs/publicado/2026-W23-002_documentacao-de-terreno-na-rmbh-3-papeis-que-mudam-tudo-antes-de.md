@@ -2,7 +2,7 @@
 brief_id: 2026-W23-002
 slug: 2026-W23-002_documentacao-de-terreno-na-rmbh-3-papeis-que-mudam-tudo-antes-de
 created_at: 2026-06-01T16:07:00-03:00
-updated_at: 2026-06-01T16:07:00-03:00
+updated_at: 2026-07-02T20:12:34-03:00
 
 scope: seasonal
 source_finding_id: f_007
@@ -100,11 +100,11 @@ suggested_slot: null
 ledger_ref: ./store/ledger.jsonl
 review_notes: ""
 
-handoff_at: null
-package_path: null
+handoff_at: 2026-06-22T13:26:00-03:00
+package_path: ./store/packages/2026-W23-002_documentacao-de-terreno-na-rmbh-3-papeis-que-mudam-tudo-antes-de/README.md
 
-published_at: null
-ig_post_url: null
+published_at: 2026-07-02T20:12:34-03:00
+ig_post_url: "https://www.instagram.com/p/DZ-Q94AFOsr/?img_index=1"
 ---
 
 # Documentação de terreno na RMBH: 3 papéis que mudam tudo antes de assinar

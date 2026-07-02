@@ -2,7 +2,7 @@
 brief_id: 2026-W22-002
 slug: 2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez
 created_at: 2026-05-29T14:50:00-03:00
-updated_at: 2026-06-10T15:45:30-03:00
+updated_at: 2026-06-22T11:24:04-03:00
 
 # Origem
 scope: trends
@@ -64,7 +64,7 @@ hero_image_candidates:
   - index: 0
     source_url: https://www.secovimg.com.br/noticia-detalhes.php?noticia=418
     image_url: https://www.secovimg.com.br/cms_imagens/noticia_418.jpg
-    local_path: ./store/media/pendente-publicacao/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez__0.jpg
+    local_path: ./store/media/publicado/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez__0.jpg
     cloud_url: "https://res.cloudinary.com/daunh8p25/image/upload/v1781117115/content-radar/avanz/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez.jpg"
     cloudinary_public_id: "content-radar/avanz/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez"
     alt: "Mercado imobiliário de Belo Horizonte"
@@ -103,8 +103,8 @@ handoff_at: 2026-06-10T15:45:30-03:00
 package_path: ./store/packages/2026-W22-002_imovel-em-bh-se-aproxima-de-r-700-mil-4-no-q1-e-escassez/README.md
 handoff_mode: real    # spec 007 §8 — signed upload Cloudinary (--force, ex-placeholder)
 
-published_at: null
-ig_post_url: null
+published_at: 2026-06-18T12:00:00-03:00
+ig_post_url: "https://www.instagram.com/p/DZsfmeavFM0/"
 ---
 
 # Imóvel em BH se aproxima de R$ 700 mil: +4% no Q1 e escassez de lançamentos

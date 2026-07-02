@@ -2,7 +2,7 @@
 brief_id: 2026-W22-001
 slug: 2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca
 created_at: 2026-05-28T19:58:00-03:00
-updated_at: 2026-06-10T15:40:10-03:00
+updated_at: 2026-06-22T11:24:04-03:00
 
 # Origem
 scope: trends
@@ -55,7 +55,7 @@ caption_draft: |
 
   Na prática: cada mês que você renova o contrato de aluguel, a parcela sobe mais que a inflação. E enquanto isso, o lote que você pensa em comprar na RMBH segue rendendo do outro lado da conta — o seu, não do proprietário.
 
-  A gente não vende aluguel: ajuda você a entender se já está na hora de sair dele. O passo a passo começa com uma simulação simples, sem compromisso e com documentação ok desde o início.
+  Não vendemos aluguel: ajuda você a entender se já está na hora de sair dele. O passo a passo começa com uma simulação simples, sem compromisso e com documentação ok desde o início.
 
   Quer entender se esse caminho é pra você? Manda no WhatsApp que a gente conversa sem compromisso.
 hashtags:
@@ -76,7 +76,7 @@ hero_image_candidates:
   - index: 0
     source_url: https://exame.com/mercado-imobiliario/aluguel-residencial-tem-maior-alta-em-um-ano-nordeste-lidera-valorizacao/
     image_url: https://classic.exame.com/wp-content/uploads/2026/05/a93bf9caa5ae96774321f3c1aa4df0f2.jpg
-    local_path: ./store/media/pendente-publicacao/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca__0.jpg
+    local_path: ./store/media/publicado/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca__0.jpg
     cloud_url: "https://res.cloudinary.com/daunh8p25/image/upload/v1781116792/content-radar/avanz/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca.jpg"
     cloudinary_public_id: "content-radar/avanz/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-12-meses-o-dobro-do-ipca"
     alt: "Aluguel residencial"
@@ -125,8 +125,8 @@ package_path: ./store/packages/2026-W22-001_bh-aluguel-1-37-em-abril-e-8-40-em-1
 handoff_mode: real    # spec 007 §8 — signed upload Cloudinary (--force, ex-placeholder)
 
 # Publicação (preenchido pela radar-mark-published, spec 008)
-published_at: null
-ig_post_url: null
+published_at: 2026-06-17T12:00:00-03:00
+ig_post_url: "https://www.instagram.com/p/DZsXNncAKML/"
 ---
 
 # BH: aluguel +1,37% em abril e +8,40% em 12 meses — o dobro do IPCA
@@ -137,7 +137,7 @@ O Índice FipeZAP de Locação Residencial mostrou que o aluguel em Belo Horizon
 
 Na prática: cada mês que você renova o contrato de aluguel, a parcela sobe mais que a inflação. E enquanto isso, o lote que você pensa em comprar na RMBH segue rendendo do outro lado da conta — o seu, não do proprietário.
 
-A gente não vende aluguel: ajuda você a entender se já está na hora de sair dele. O passo a passo começa com uma simulação simples, sem compromisso e com documentação ok desde o início.
+Não vendemos aluguel: ajuda você a entender se já está na hora de sair dele. O passo a passo começa com uma simulação simples, sem compromisso e com documentação ok desde o início.
 
 Quer entender se esse caminho é pra você? Manda no WhatsApp que a gente conversa sem compromisso.
 
