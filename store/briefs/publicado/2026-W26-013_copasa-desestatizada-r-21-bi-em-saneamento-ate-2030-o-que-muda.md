@@ -2,7 +2,7 @@
 brief_id: 2026-W26-013
 slug: 2026-W26-013_copasa-desestatizada-r-21-bi-em-saneamento-ate-2030-o-que-muda
 created_at: 2026-06-25T16:14:38-03:00
-updated_at: 2026-06-25T16:14:38-03:00
+updated_at: 2026-07-13T15:20:34+00:00
 
 scope: local
 scan_id: 2026-W26-scan-006
@@ -30,13 +30,13 @@ source_relevance_hints:
   - component: foco_editorial_fit
     evidence: "saneamento mexe valor de lote/chácara — foco-chefe Avanz; ângulo de terra/infra (não casa pronta)"
   - component: geografia_fit
-    evidence: "Esmeraldas e Ribeirão das Neves nomeadas na meta de universalização — cidades-foco Avanz"
+    evidence: "Esmeraldas e Ribeirão das Neves entre municípios da RMBH atendidos pela Copasa — cidades-foco Avanz (obs: não confirmado por fonte independente que estejam citadas nominalmente na meta)"
   - component: freshness
     evidence: "publicado 2026-06-16 (~9 dias) → 0.74"
 why_match: |
   Pilar 6 (Mercado RMBH) — fato regulatório macro com leitura local. A desestatização da Copasa
-  destrava R$ 21 bi de investimento em saneamento até 2030, com Esmeraldas e Ribeirão das Neves
-  (cidades-foco Avanz) nomeadas na meta de universalização até 2033. Casa direto com o tema 10 do
+  abre um plano de ~R$ 21 bi de investimento em saneamento até 2030, atingindo municípios da RMBH
+  atendidos pela Copasa — incluindo Esmeraldas e Ribeirão das Neves (cidades-foco Avanz). Casa direto com o tema 10 do
   content-bank do Pilar 6 (saneamento como marco silencioso de valorização). Ângulo distinto do
   W26-008 (implantação local em comunidades específicas de Esmeraldas): aqui é o gancho
   regulatório/macro que abre o ciclo. Geografia 0.90, foco editorial 0.75, ICP ambíguo
@@ -53,9 +53,9 @@ hook: "Saneamento é o marco silencioso que mexe valor de terra — e a RMBH aca
 caption_draft: |
   Saneamento é o marco silencioso que mexe valor de terra — e a RMBH acabou de entrar numa nova fase.
 
-  O Governo de Minas concluiu a desestatização da Copasa (operação de R$ 8,38 bi, com Estado mantendo golden share). A nova fase prevê R$ 21 bilhões em obras de saneamento até 2030, com meta de universalização de água e esgoto em 636 municípios até 2033 — alinhado ao Novo Marco Legal (Lei 14.026/2020).
+  O Governo de Minas concluiu a desestatização da Copasa (operação de R$ 8,38 bi, com o Estado mantendo golden share). O plano da companhia prevê investir cerca de R$ 21 bilhões em saneamento até 2030, dentro da meta de universalização de água e esgoto em mais de 600 municípios até 2033 — alinhada ao Novo Marco Legal (Lei 14.026/2020).
 
-  No nome dessa meta estão Esmeraldas e Ribeirão das Neves — duas cidades-foco onde a Avanz acompanha lote e chácara de perto. Tarifa segue controlada pela Arsae-MG, e os municípios têm até setembro para aderir à nova Copasa.
+  Entre os municípios da RMBH atendidos pela Copasa estão Esmeraldas e Ribeirão das Neves — duas cidades-foco onde a Avanz acompanha lote e chácara de perto. A tarifa segue controlada pela Arsae-MG, e os municípios têm até setembro para aderir à nova Copasa.
 
   Pra quem está pensando em comprar terreno na região, a leitura simples é: lote com previsão de rede de água e esgoto no horizonte tende a valorizar mais e ter mais liquidez na revenda. É o tipo de movimento que não aparece no anúncio, mas entra na decisão certa.
 
@@ -89,7 +89,7 @@ hero_choice: null
 visual_brief:
   base_template: post-mes
   composition_notes: |
-    Composição ad-creative 1:1, registro didático-acolhedor (ICP comprador). Hero: foto da agência
+    Composição ad-creative 3:4, registro didático-acolhedor (ICP comprador). Hero: foto da agência
     (cerimônia/B3) tratada com filtro azul-marinho da paleta Avanz e leve vinheta, para não soar
     "corporativa fria" — ou substituir por arte/aérea de loteamento RMBH se a foto institucional não
     couber. Overlay tipográfico Inter/Montserrat: chamada em duas linhas, destaque-chave
@@ -102,8 +102,8 @@ visual_brief:
     - "paleta oficial Azul Marinho #0F172A + Laranja #F97316 + Branco #FFFFFF"
     - "tipografia Inter (primária) / Montserrat (secundária)"
     - "destaque numérico 'R$ 21 bi' e prazo 'até 2030'"
-    - "menção a Esmeraldas e Ribeirão das Neves (cidades-foco da meta)"
-    - "formato 1080x1080 (feed Instagram)"
+    - "menção a Esmeraldas e Ribeirão das Neves (cidades-foco Avanz na RMBH)"
+    - "formato 1080x1440 (feed Instagram)"
   avoid_visual:
     - "infográficos densos"
     - "gráficos de barras/linhas"
@@ -118,20 +118,31 @@ review_notes: |
   série "saneamento na RMBH" ou empurrar pra W27. Atenção à licença da hero institucional: confirmar
   uso ou trocar por arte gerada antes de publicar.)
 
-handoff_at: null
-package_path: null
+  Verificação de fonte (2026-07-06): a URL original da Agência Minas saiu do ar (302 → /comunicado).
+  Núcleo da notícia confirmado por fontes independentes (Poder360, Diário do Comércio, CNN, Exame,
+  Gazeta do Povo, Itabira Online): desestatização em 16/06, R$ 8,38 bi, Equatorial 30% por R$ 5,59 bi,
+  Estado 5% + golden share, Arsae-MG mantida, adesão até 28/09, +600 municípios, universalização 2033.
+  Correções aplicadas: (1) "R$ 21 bi" é PLANO de investimento 2026–2030 (a Copasa interrompeu a
+  divulgação dessas projeções durante a privatização) — copy passou a dizer "plano prevê investir",
+  não "obras garantidas"; (2) "636 municípios" → "mais de 600" (número exato não confirmado);
+  (3) removida a afirmação de que Esmeraldas/Ribeirão das Neves estão "nomeadas na meta de
+  universalização" (não corroborado; fontes independentes só citam as cidades em contexto de
+  interrupção de água) — agora descritas como municípios da RMBH atendidos pela Copasa.
 
-published_at: null
-ig_post_url: null
+handoff_at: 2026-07-06T18:16:33+00:00
+package_path: ./store/packages/2026-W26-013_copasa-desestatizada-r-21-bi-em-saneamento-ate-2030-o-que-muda/README.md
+
+published_at: 2026-07-10T12:00:00-03:00
+ig_post_url: https://www.instagram.com/p/DanXcl-ORCZ/
 ---
 
 # Copasa desestatizada: R$ 21 bi em saneamento até 2030 — o que muda no lote da RMBH
 
 Saneamento é o marco silencioso que mexe valor de terra — e a RMBH acabou de entrar numa nova fase.
 
-O Governo de Minas concluiu a desestatização da Copasa (operação de R$ 8,38 bi, com Estado mantendo golden share). A nova fase prevê R$ 21 bilhões em obras de saneamento até 2030, com meta de universalização de água e esgoto em 636 municípios até 2033 — alinhado ao Novo Marco Legal (Lei 14.026/2020).
+O Governo de Minas concluiu a desestatização da Copasa (operação de R$ 8,38 bi, com o Estado mantendo golden share). O plano da companhia prevê investir cerca de R$ 21 bilhões em saneamento até 2030, dentro da meta de universalização de água e esgoto em mais de 600 municípios até 2033 — alinhada ao Novo Marco Legal (Lei 14.026/2020).
 
-No nome dessa meta estão Esmeraldas e Ribeirão das Neves — duas cidades-foco onde a Avanz acompanha lote e chácara de perto. Tarifa segue controlada pela Arsae-MG, e os municípios têm até setembro para aderir à nova Copasa.
+Entre os municípios da RMBH atendidos pela Copasa estão Esmeraldas e Ribeirão das Neves — duas cidades-foco onde a Avanz acompanha lote e chácara de perto. A tarifa segue controlada pela Arsae-MG, e os municípios têm até setembro para aderir à nova Copasa.
 
 Pra quem está pensando em comprar terreno na região, a leitura simples é: lote com previsão de rede de água e esgoto no horizonte tende a valorizar mais e ter mais liquidez na revenda. É o tipo de movimento que não aparece no anúncio, mas entra na decisão certa.
 
@@ -143,7 +154,7 @@ Quer entender se esse caminha pra você? Manda no WhatsApp (31) 9 9077-4580 que 
 
 > Score: **0.764** · Pilar 6 (Mercado RMBH) · ICP comprador (cap 0.45 — ICP ambíguo, camada investidor secundária)
 >
-> Fato regulatório macro com âncora local: Esmeraldas e Ribeirão das Neves nomeadas na meta de universalização (geografia 0.90). Saneamento como vetor de valorização de terra → foco editorial 0.75. Freshness 0.74 (~9 dias). Ângulo distinto do W26-008 (implantação local) — aqui é o gancho regulatório que abre o ciclo de R$ 21 bi.
+> Fato regulatório macro com âncora local: Esmeraldas e Ribeirão das Neves entre os municípios da RMBH atendidos pela Copasa (geografia 0.90). Saneamento como vetor de valorização de terra → foco editorial 0.75. Freshness 0.74 (~9 dias). Ângulo distinto do W26-008 (implantação local) — aqui é o gancho regulatório que abre o ciclo de ~R$ 21 bi (plano de investimento 2026–2030).
 
 ## Visual brief (resumo)
 
