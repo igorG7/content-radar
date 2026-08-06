@@ -18,7 +18,7 @@ combinadas por soma ponderada:
 |---|---|---|---|
 | **`pillar_fit`** | **0.30** | Encaixe em um pilar editorial Avanz (1, 2, 3, 5, 6 — nunca 4) | `title` + `summary` |
 | **`foco_editorial_fit`** | **0.25** | Alinhamento com o produto Avanz: lotes/sítios/chácaras (alto), MCMV+simulação Caixa (médio), casa pronta/luxo (baixo) | menção a tipo de imóvel |
-| **`geografia_fit`** | **0.20** | Aderência à RMBH (cidades canônicas > RMBH ampla > MG > Brasil > exterior) | `geo_hints[]` + lista em `positioning.md` |
+| **`geografia_fit`** | **0.20** | Aderência à RMBH (cidades canônicas > RMBH ampla > MG > Brasil > exterior). **Piso 0.50** pra macro nacional reancorável (calibração §11.V) | `geo_hints[]` + lista em `positioning.md` |
 | **`icp_fit`** | **0.15** | Clareza do público (comprador/investidor/proprietario); default `comprador` | keywords/dores do overlay |
 | **`freshness`** | **0.10** | Decay exponencial `exp(-dias/30)` desde `published_at` | data |
 
@@ -47,18 +47,26 @@ Ver [003 §5.6](./specs/003-matcher.md#56-fórmula-de-agregação), passo 3 do m
 Esses caps são o que define "fora de escopo": um post sobre cobertura de luxo
 em SP morre no cap de `pillar_fit`, sem nem calcular o agregado.
 
-### 2. Threshold (depois de agregar)
+### 2. Threshold + tier borderline (depois de agregar)
 
-Ver [003 §5.7](./specs/003-matcher.md#57-threshold-escolhido--055-resolve-11i):
+Ver [003 §5.7 + §5.7.1](./specs/003-matcher.md#57-threshold-escolhido--055-resolve-11i):
 
-- `match_score >= 0.55` → **`promote-to-brief`** (vira brief)
-- `match_score < 0.55` sem cap acionado → **`skip-low-score`**
+- `match_score >= 0.55` → **`promote-to-brief`** (vira brief, `borderline: false`)
+- `0.48 <= match_score < 0.55` e **sem cap** → **`promote-borderline`** (vira brief
+  marcado `borderline: true` — o **editor humano** decide; calibração §11.V)
+- `match_score < 0.48` sem cap → **`skip-low-score`**
 
 **Detalhe de design:** `pillar_fit` + `foco_editorial_fit` somam **0.55** dos
 pesos — exatamente o threshold. Logo, esses dois sozinhos, no máximo, empatam
 com o corte; qualquer pauta precisa de **pelo menos mais uma dimensão decente**
 (geo, icp ou freshness) pra passar. É o mecanismo que impede o radar de virar
 "feed genérico de mercado imobiliário".
+
+O tier **borderline** (calibração 2026-07-03, [docs/calibracao-matcher.md](./calibracao-matcher.md))
+não relaxa esse filtro: caps continuam matando o que é fora de foco/geografia
+**antes** de qualquer coisa. Ele só reabre a faixa 0.48–0.55 que morria por
+*agregação* (não por cap), delegando a chamada marginal ao humano em vez de
+descartá-la silenciosamente.
 
 ## Como decide redundante ou não
 
@@ -89,14 +97,15 @@ Dois refinamentos:
   dois findings sobre o mesmo fato na mesma resposta → promove o de maior
   `match_score`, os outros viram `redundant`.
 
-## As 4 decisões possíveis
+## As 5 decisões possíveis
 
-Todo finding sai do matcher com uma de quatro etiquetas:
+Todo finding sai do matcher com uma de cinco etiquetas:
 
-- **`promote-to-brief`** — passou score e não é redundante → vira `.md` em `pendente-aprovacao/`
+- **`promote-to-brief`** — score ≥ 0.55, não redundante → vira `.md` em `pendente-aprovacao/`
+- **`promote-borderline`** — score 0.48–0.549, sem cap, não redundante → vira `.md` com `borderline: true` pro humano decidir (calibração §11.V)
 - **`skip-redundant`** — colidiu com pauta existente (silencioso, §11.J)
 - **`skip-out-of-scope`** — cap acionado (pilar/foco/geo/Pilar-4)
-- **`skip-low-score`** — passou os caps mas ficou abaixo de 0.55
+- **`skip-low-score`** — passou os caps mas ficou abaixo de 0.48
 
 ## Calibração
 

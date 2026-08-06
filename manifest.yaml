@@ -66,12 +66,33 @@ search_scopes:
     pillars_alvo: ["2-decisao", "3-inteligencia"]
   local:
     label: "Notícias locais RMBH (zoneamento, infra, lançamentos)"
+    # Mapeamento chave→domínio (verificado fetchável em 2026-07-06; descoberta p/ cobrir
+    # cidades-foco sem fonte dedicada — Ribeirão das Neves, Jaboticatubas, Juatuba, Caetanópolis):
+    #   prefeitura-mateus-leme        → mateusleme.mg.gov.br
+    #   prefeitura-esmeraldas         → esmeraldas.mg.gov.br
+    #   estado-mg                     → agenciaminas.mg.gov.br
+    #   hoje-em-dia                   → hojeemdia.com.br
+    #   otempo-rmbh                   → otempo.com.br/cidades  (catch-all regional; cobre as 4 cidades novas)
+    #   noticias-ribeirao-neves-net   → ribeiraodasneves.net (categoria /35-noticias/cidade; dedicada, fresca)
+    #   prefeitura-ribeirao-das-neves → ribeiraodasneves.mg.gov.br
+    #   prefeitura-jaboticatubas      → jaboticatubas.mg.gov.br (valor: Plano Diretor / loteamentos / zoneamento)
+    #   prefeitura-juatuba            → juatuba.mg.gov.br/portal/noticias (atos oficiais / regularização)
+    #   prefeitura-caetanopolis       → caetanopolis.mg.gov.br (atos oficiais / licitação)
+    # Descartadas (verificadas inúteis pro researcher): setelagoas.com.br e gazetadasemana.com.br (403
+    # anti-bot), estadodeminas.lugarcerto.com.br (agregador de anúncio), cmjuatuba.mg.gov.br/noticias (404).
+    # Lead a confirmar: social.mg.gov.br (Sedese — habitação/Favela 3D em Ribeirão das Neves; URLs testadas deram 404).
     sources:
       [
         "prefeitura-mateus-leme",
         "prefeitura-esmeraldas",
         "estado-mg",
         "hoje-em-dia",
+        "otempo-rmbh",
+        "noticias-ribeirao-neves-net",
+        "prefeitura-ribeirao-das-neves",
+        "prefeitura-jaboticatubas",
+        "prefeitura-juatuba",
+        "prefeitura-caetanopolis",
       ]
     pillars_alvo: ["6-mercado-rmbh"]
 
@@ -146,16 +167,28 @@ cadence:
     domingo: [] # Pilar 5 — humano-only no 1º slice
   extra_slots_strategy: stack-pillar-1 # excedente alocado em Pilar 1 (imóvel da semana)
 
-# Anti-repetição + scoring (spec 003 §5 — resolveu §11.I)
+# Anti-repetição + scoring (spec 003 §5 — resolveu §11.I; calibração 2026-07-02 §11.V)
 anti_repetition:
-  match_score_min: 0.55 # resolveu §11.I — defendido em spec 003 §5
-  match_score_weights: # somam 1.0; fórmula = weighted sum (spec 003 §5)
+  match_score_min: 0.55 # resolveu §11.I — defendido em spec 003 §5; threshold do promote-to-brief pleno
+  # Tier borderline (calibração §11.V / docs/calibracao-matcher.md alavanca 2c):
+  # findings em [borderline_min, match_score_min) e SEM cap acionado viram
+  # `promote-borderline` — geram brief com `borderline: true` no frontmatter e
+  # vão pro humano decidir (o editor é o portão de qualidade, alinhado §11.H).
+  # Abaixo de borderline_min → skip-low-score silencioso como antes.
+  borderline_min: 0.48 # piso do tier borderline; < isso segue skip-low-score
+  match_score_weights: # somam 1.0; fórmula = weighted sum (spec 003 §5) — INALTERADOS na calibração §11.V
     pillar_fit: 0.30 # filtro estrutural — pilar Avanz claro
     foco_editorial_fit: 0.25 # lotes/sítios/chácaras vs casa pronta
     geografia_fit: 0.20 # RMBH vs resto
     icp_fit: 0.15 # comprador (default) | investidor | proprietario
     freshness: 0.10 # decay por dias desde published_at
-  match_score_caps: # caps independentes — derrubam antes da agregação
+  # Piso de geografia pra macro nacional REANCORÁVEL (calibração §11.V / alavanca 2a):
+  # dado nacional imobiliário com implicação clara pra RMBH (financiamento, índices
+  # SBPE/CBIC, intenção de compra, MCMV/Caixa) recebe geografia_fit >= este piso em
+  # vez do 0.40 default de "Brasil amplo" — o briefer reancora pra RMBH (spec 003 §9 gotcha #3).
+  # Exterior / outro estado sem ponte RMBH clara NÃO se beneficia (segue escala §5.4).
+  geografia_reframe_floor: 0.50
+  match_score_caps: # caps independentes — derrubam antes da agregação (INALTERADOS na calibração §11.V)
     pillar_fit_min: 0.30 # se pilar não fica claro, descarta
     foco_and_geo_combined_min: 0.50 # se foco<0.20 E geo<0.50, descarta
     icp_ambiguous_cap: 0.45 # se ICP ambíguo, default=comprador mas cap em 0.45

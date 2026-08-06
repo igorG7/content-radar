@@ -667,10 +667,11 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 | S | Granularidade do registro do post publicado | ✅ Gravar **só `ig_post_url`** (+ `published_at`). `ig_post_id`/métricas/tipo ficam para futura `radar-metrics` ([spec 008 §11.1](./008-mark-published.md#111-o-que-não-entra-na-spec-008)). Resolvido 2026-06-10. |
 | T | Timezone canônico de `published_at` | ✅ **`-03:00` (America/Sao_Paulo)**, alinhado ao frontmatter dos briefs. Resolvido 2026-06-10. |
 | U | Mecanismo de purga de `media/publicado/` (esboço "cron simples" em §9/§3.3) | ✅ **Lazy/on-demand**: skill `radar-housekeeping` (manual + piggyback no `radar-scan`, passo 0 best-effort), com **guarda anti-placeholder** inviolável. **Sem** cron de sistema; `systemd --user` timer é fallback futuro. Coerente com §11.D (local, sob demanda). [Spec 009](./009-housekeeping.md). Resolvido 2026-06-10. |
+| V | **Calibração anti-escassez do matcher** — volume de briefs baixo pelas classificações; queríamos mais briefs sem perder qualidade | ✅ **Pacote cirúrgico** (diagnóstico + previsão em [`docs/calibracao-matcher.md`](../calibracao-matcher.md)): (1) tier **`promote-borderline`** — findings em `[0.48, 0.55)` sem cap viram brief marcado `borderline: true` pro editor decidir (§11.H); (2) **piso `geografia_reframe_floor = 0.50`** pra macro nacional reancorável (SBPE/CBIC/MCMV com implicação RMBH), corrigindo bom conteúdo que morria em geo antes do briefer reancorar (gotcha #3 da 003); (3) ativar escopo `cases` na rotação (operacional). **Threshold 0.55, pesos e caps INALTERADOS.** Diagnóstico: 25% de aproveitamento, ~11/22 skip-low-score na faixa 0.45–0.549. Detalhes na [spec 003 §5.4 + §5.7.1](./003-matcher.md). **Medir 2 ciclos** antes de consolidar. Resolvido 2026-07-03. |
 
 ### Ainda pendentes
 
-_(nenhuma — A–P resolvidas em 2026-05-27; Q–U em 2026-06-10 junto das specs 008/009.)_
+_(nenhuma — A–P resolvidas em 2026-05-27; Q–U em 2026-06-10 junto das specs 008/009; V em 2026-07-03 junto da calibração do matcher.)_
 
 ## 12. Próximos passos concretos
 

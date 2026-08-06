@@ -2,13 +2,14 @@
 spec_id: 003-matcher
 title: "content-radar — Subagente avanz-matcher: scoring, filtragem e enriquecimento"
 status: draft
-version: 0.2.0
-data: 2026-05-28
+version: 0.3.0
+data: 2026-07-03
 autor: claude
 empresa_alvo: avanz-imoveis
 escopo: detalhamento do estágio (2) do pipeline — matcher
 resolves:
   - "§11.I da spec 001 (match_score mínimo)"
+  - "§11.V da spec 001 (calibração anti-escassez: tier borderline + piso geo reancorável)"
 related:
   - /srv/apps/content-radar/docs/specs/001-foundation.md
   - /srv/apps/content-radar/docs/specs/002-researcher.md
@@ -22,6 +23,7 @@ related:
   - /srv/my-mind/Empresas/avanz-imoveis/prompts/icp-modifiers.json
   - /srv/my-mind/Empresas/avanz-imoveis/ops/guardrails.md
 changelog:
+  - "v0.3.0 (2026-07-03): calibração anti-escassez (resolve §11.V da 001; diagnóstico em docs/calibracao-matcher.md). (a) Novo tier de decisão `promote-borderline` (§5.7.1): findings em [0.48, 0.55) SEM cap acionado viram brief marcado `borderline: true`, delegando a decisão marginal ao editor humano (§11.H) em vez de descartar silencioso — ataca os ~11/22 skip-low-score observados na faixa 0.45–0.549. (b) Piso de geografia reancorável (§5.4): dado nacional imobiliário com implicação clara pra RMBH recebe `geografia_fit >= 0.50` (manifest `geografia_reframe_floor`) em vez de 0.40 — corrige o padrão em que macro nacional bom (SBPE/CBIC/MCMV) morria em geo antes do briefer poder reancorar (gotcha #3). Threshold 0.55, pesos e caps INALTERADOS. Enum de `decision` (§4) ganha `promote-borderline`. Medição prevista: 2 ciclos (§11 critério 3 + docs/calibracao-matcher.md §5)."
   - "v0.2.0 (2026-05-28): após audit cruzado, alinha input (§3.1) ao schema real do output da 002 — renomeia `source` → `source_key`; documenta os campos propagados intactos (source_domain, language, content_type, image_candidates, relevance_hint) vs os usados no scoring. No output (§4), renomeia `topic_hash` → `topic_hash_matcher` (deixa claro que é title-based, distinto do headline-based no brief) e adiciona `source_relevance_hints[]` (derivado do `match_score_breakdown`) — alinha ao input esperado pelo briefer (004 §3)."
   - "v0.1.0 (2026-05-27): primeira versão; cobre §5 (algoritmo de breakdown), §7 (5 exemplos calibrados), §8 (anti-repetição) e §11 (resolve threshold §11.I = 0.55)."
 ---
@@ -44,9 +46,11 @@ lista bruta de findings do `market-researcher` e, para cada finding, decide:
    `null` quando não-pessoal).
 3. Que **score de match** (0..1) sintetiza 5 dimensões avaliadas
    independentemente (§5).
-4. Que **decisão final** tomar: `promote-to-brief`,
-   `skip-redundant` (anti-repetição), `skip-low-score` (abaixo do
-   threshold), `skip-out-of-scope` (geografia/foco editorial inviável).
+4. Que **decisão final** tomar: `promote-to-brief` (score ≥ 0.55),
+   `promote-borderline` (0.48 ≤ score < 0.55, sem cap — vira brief marcado
+   `borderline: true` pro humano decidir; §5.7.1, calibração §11.V),
+   `skip-redundant` (anti-repetição), `skip-low-score` (abaixo de 0.48),
+   `skip-out-of-scope` (geografia/foco editorial inviável — cap acionado).
 
 Esta spec resolve **§11.I** da foundation (threshold) fixando-o em
 **`0.55`** após o exercício de calibração com 5 exemplos reais em §7. Saída
@@ -157,6 +161,9 @@ O matcher só lê frontmatter (`source_urls`, `topic_hash`, `pillar`, `icp`,
       "redundant": false,
       "decision": "promote-to-brief",
       "decision_reason": "score >= threshold (0.55) e não-redundante."
+      // decision ∈ {promote-to-brief, promote-borderline, skip-redundant,
+      //             skip-low-score, skip-out-of-scope} — promote-borderline
+      //             adicionado na calibração §11.V (0.48 ≤ score < 0.55, sem cap)
     }
   ],
   "meta": {
@@ -351,6 +358,16 @@ Sabará) entra como "raio operacional".
 **Edge cases:**
 - **Geografia ausente** (notícia macro de Brasil sem ancoragem em região)
   → 0.40 default (espaço pra Pilar 2 educacional reformatar).
+- **Macro nacional REANCORÁVEL** (calibração §11.V — piso
+  `geografia_reframe_floor = 0.50`): dado nacional imobiliário com implicação
+  clara pra RMBH — financiamento (SBPE, taxa Caixa), índices de mercado
+  (FipeZap/CBIC nacional), intenção de compra, política MCMV/Caixa — recebe
+  `geografia_fit >= 0.50` (em vez do 0.40 de "Brasil amplo"). Justificativa:
+  é exatamente o conteúdo que o briefer reancora via gotcha #3, e o diagnóstico
+  (docs/calibracao-matcher.md §1.3) mostrou macro bom morrendo em geo antes de
+  chegar ao briefer. **Não se aplica** a exterior nem a outro estado sem ponte
+  RMBH (SP/RJ/Sul seguem a escala 0.20–0.39). O cap `foco_and_geo_combined_min`
+  continua valendo por cima.
 - **Múltiplas geografias** com pelo menos uma RMBH → usar a maior.
 - **Geografia errada mas tema universal** (ex.: "Como evitar fraude em
   compra de terreno em SP") → cap em 0.55 (tema OK, geografia incidental,
@@ -471,6 +488,45 @@ match_score =
    reais do editor. Se taxa de aprovação humana > 80% → ok; se < 50% →
    subir threshold pra 0.60; se editor reclamar de vazio → descer pra 0.50.
 
+### 5.7.1 Tier `promote-borderline` — calibração anti-escassez (resolve §11.V)
+
+**Contexto:** o diagnóstico em [`docs/calibracao-matcher.md`](../calibracao-matcher.md)
+mostrou que ~11 dos 22 `skip-low-score` observados caíam na faixa **0.45–0.549**
+— metade da maior perda do funil a menos de 0.10 do corte, morrendo
+predominantemente em `geografia_fit` (dado nacional bom sem cidade-foco).
+Baixar o threshold cego (0.55 → 0.50) recuperaria volume mas deixaria passar
+itens fracos sem gate. A solução preserva o threshold e **delega a decisão
+marginal ao humano**, coerente com §11.H da foundation ("gerar 10, humano
+aprova 4–7 — o editor é o portão de qualidade").
+
+**Regra:**
+
+| Faixa de `match_score` | Cap acionado? | `decision` | Vira brief? |
+|---|---|---|---|
+| `>= 0.55` | não | `promote-to-brief` | sim (`borderline: false`) |
+| `[0.48, 0.55)` | **não** | `promote-borderline` | sim (`borderline: true`) |
+| `[0.48, 0.55)` | **sim** | `skip-out-of-scope` | não (cap manda) |
+| `< 0.48` | não | `skip-low-score` | não |
+
+- `borderline_min = 0.48` é config em
+  [`manifest.yaml#anti_repetition.borderline_min`](../../manifest.yaml).
+- `promote-borderline` segue **todo** o resto do fluxo de um promote: vai pro
+  briefer, baixa mídia, materializa `.md` em `pendente-aprovacao/`. A única
+  diferença é o frontmatter `borderline: true` + `borderline_reason` (qual
+  dimensão segurou o score), carimbado pelo orquestrador (spec 005).
+- **Caps têm precedência absoluta**: um finding fora de foco/geografia (cap
+  `pillar_fit_min` ou `foco_and_geo_combined_min`) **nunca** vira borderline —
+  continua `skip-out-of-scope`. O tier só reabre a faixa que morria por
+  agregação, não a que morria por cap. Qualidade estrutural preservada.
+- **Anti-repetição tem precedência**: redundante → `skip-redundant`, nunca
+  borderline.
+
+**Medição (2 ciclos / ~4 semanas):** separar no ledger a taxa de aprovação
+humana de `promote-to-brief` (esperado manter ~67%) vs `promote-borderline`
+(esperado 40–55% — a reprovação aqui é o filtro humano funcionando). Se a
+aprovação do tier pleno cair, o problema não é o borderline. Critérios
+completos em [`docs/calibracao-matcher.md`](../calibracao-matcher.md) §5.
+
 ## 6. Prompt do subagente — `.claude/agents/avanz-matcher.md`
 
 > Texto literal (já formatado em frontmatter + markdown) que vai pro
@@ -526,7 +582,8 @@ Carregue (via Read):
    - `pillar_fit` (decisor: title + summary)
    - `icp_fit` (default comprador, cap 0.45 quando ambíguo)
    - `foco_editorial_fit` (lotes/sítios/chácaras = alto; casa pronta = baixo; MCMV+Caixa = médio)
-   - `geografia_fit` (lista canônica RMBH no positioning.md)
+   - `geografia_fit` (lista canônica RMBH no positioning.md; piso reancorável 0.50 pra macro
+     nacional com implicação RMBH — calibração §11.V / §5.4)
    - `freshness` (exp decay TAU=30 a partir de published_at; ausente → 30 dias default)
 
 3. **Caps obrigatórios**:
@@ -537,9 +594,10 @@ Carregue (via Read):
 4. **Agregação** (weighted sum):
    `match_score = 0.30*pillar_fit + 0.15*icp_fit + 0.25*foco_editorial_fit + 0.20*geografia_fit + 0.10*freshness`
 
-5. **Decisão final**:
+5. **Decisão final** (tier borderline — calibração §11.V / §5.7.1):
    - `match_score >= 0.55` E não-redundante → `promote-to-brief`
-   - `match_score < 0.55` (sem cap acionado) → `skip-low-score`
+   - `0.48 <= match_score < 0.55` E sem cap E não-redundante → `promote-borderline`
+   - `match_score < 0.48` (sem cap acionado) → `skip-low-score`
 
 6. **`why_match`**: 1–3 frases citando evidência **textual** do finding (trecho de `summary` ou
    `title`) que justifica o score. Nunca invente. Se a evidência não estiver no finding, baixe
@@ -549,12 +607,17 @@ Carregue (via Read):
 
 - **Nunca invente fato** que não esteja em `title`, `summary`, `raw_excerpts` ou `geo_hints`.
 - **Sempre cite trecho** ao justificar — `why_match` deve referenciar texto do finding.
-- **Pilar 4 nunca** sai do matcher como promote (ver CLAUDE.md).
+- **Pilar 4 nunca** sai do matcher como promote (`promote-to-brief` nem `promote-borderline`; ver CLAUDE.md).
+- **`decision` ∈** `{promote-to-brief, promote-borderline, skip-redundant, skip-low-score, skip-out-of-scope}`.
 - **Default ICP = comprador** quando ambíguo (cap 0.45 no icp_fit).
 - **Saída JSON estrita** no schema do §4 da spec 003. Sem markdown ao redor, sem comentários YAML.
 - **Foco editorial declarado**: lotes/sítios/chácaras > MCMV-com-simulação > outros.
 - **Persona = editor Avanz**: priorize coerência editorial sobre "fofura" ou "viralidade".
 ```
+
+> **Nota (v0.3.0):** o arquivo `.claude/agents/avanz-matcher.md` é a fonte
+> canônica do prompt em produção; este bloco §6 é o espelho documental. A
+> calibração §11.V já está aplicada em ambos. Ao editar o agente, reflita aqui.
 
 ## 7. Calibração com exemplos reais
 

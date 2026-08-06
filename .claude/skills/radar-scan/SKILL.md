@@ -62,8 +62,18 @@ Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
   target_count, max_per_source, allowed_sources, vault_paths>)`. Validar JSON (§5.5).
 - **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], paths absolutos
   do vault e dos 4 dirs de briefs>)`. Validar JSON (§5.7).
-- **Estágio 4**: pra cada `promote-to-brief`, `Task(subagent_type='instagram-briefer', prompt=<bloco
-  spec 004 §3>)`. Validar JSON (§5.8). Materializar `.md` + ledger.
+- **Estágio 4**: pra cada `promote-to-brief` **e cada `promote-borderline`**,
+  `Task(subagent_type='instagram-briefer', prompt=<bloco spec 004 §3>)`. Validar JSON (§5.8).
+  Materializar `.md` + ledger.
+  - **Tier borderline (calibração §11.V / manifest `anti_repetition.borderline_min`)**: quando o
+    matcher devolveu `decision: promote-borderline`, após o briefer retornar `create-brief`,
+    acrescente ao frontmatter do `.md`: `borderline: true` e
+    `borderline_reason: <decision_reason do matcher>`. Para `promote-to-brief` pleno, escreva
+    `borderline: false`. O flag sinaliza ao editor humano que foi um match marginal (0.48–0.55) —
+    ele é o portão de qualidade (§11.H). Nenhum outro campo muda; borderline **vira brief normal**
+    em `pendente-aprovacao/`.
+  - Se o briefer devolver `skip-redundant` (checagem definitiva headline-based), respeite — vale
+    para borderline também.
 
 ## Saída
 
@@ -75,6 +85,11 @@ roda no session principal, output é pro humano.
 Append `store/ledger.jsonl` (JSONL append-only). Eventos: `scan-started`, `scan-aborted`,
 `scan-finished`, `brief-created`, `skip-redundant`, `skip-validation-failed`, `skip-low-score`,
 `skip-out-of-scope`, `brief-schema-invalid`. Schema canônico em spec 005 §18.
+
+- **Borderline (calibração §11.V)**: `promote-borderline` gera um `brief-created` normal, com
+  `extra.borderline: true` (e `extra.match_score` + `extra.borderline_reason`) — assim a métrica
+  de aprovação humana pode separar borderline de promote pleno nos 2 ciclos de medição
+  (docs/calibracao-matcher.md §5). `promote-to-brief` grava `extra.borderline: false`.
 
 ## NÃO faça
 

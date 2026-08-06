@@ -1,7 +1,9 @@
 # Calibração do matcher — diagnóstico de escassez e plano
 
-> **Status:** proposta / diagnóstico. Ainda **não aplicado** — aguardando decisão.
-> **Data:** 2026-07-01. **Autor:** claude (análise a pedido do owner).
+> **Status:** ✅ **APLICADO em 2026-07-03** (pacote cirúrgico §3, alavancas 1 + 2a + 2c).
+> Registrado como decisão §11.V na [spec 001](./specs/001-foundation.md) + [spec 003 v0.3.0](./specs/003-matcher.md).
+> Falta apenas **medir 2 ciclos** (§5) antes de consolidar/reverter.
+> **Data diagnóstico:** 2026-07-01. **Data aplicação:** 2026-07-03. **Autor:** claude (a pedido do owner).
 > **Problema:** volume de briefs baixo ("escassez") por causa das classificações;
 > queremos **mais briefs mantendo qualidade e alinhamento editorial**.
 >
@@ -134,7 +136,65 @@ A instrumentação pra medir tudo isso já existe no [ledger](../store/ledger.js
 
 ## 6. Próximo passo
 
-Decisão pendente do owner: aplicar o **pacote cirúrgico** (§3) ou começar pela
-**alternativa conservadora** (só Alavanca 1). Após decidir, aplicar edições da
-§4 e registrar como decisão nova na [spec 003](./specs/003-matcher.md) (bump de
-versão + changelog) e no `manifest.yaml`.
+✅ **Feito (2026-07-03):** aplicado o **pacote cirúrgico** (§3, alavancas 1 + 2a + 2c).
+Edições da §4 executadas; decisão registrada como §11.V na
+[spec 001](./specs/001-foundation.md) e na [spec 003 v0.3.0](./specs/003-matcher.md)
+(§5.4 piso geo + §5.7.1 tier borderline); `manifest.yaml` com `borderline_min: 0.48`
+e `geografia_reframe_floor: 0.50`.
+
+**Pendente:** rodar `radar-scan` incluindo o escopo `cases` na rotação e **medir
+2 ciclos** (§5 + §7). A alavanca 1 é operacional — depende de disparar scans de
+`cases`/`seasonal`, não de mais edição de código.
+
+## 7. Previsão de resultados pós-calibração
+
+> Modelo a partir das taxas reais do ledger (14 scans, 22 low-scores com nota).
+> **Projeção com intervalos, não promessa** — n pequeno; ±20–30%, maior na Alavanca 1.
+
+### 7.1 Baseline observado
+
+| Métrica | Valor atual |
+|---|---|
+| Findings por scan | ~5,1 |
+| Taxa de promoção | 25% |
+| **Briefs gerados/semana** | **~3,6** (18 briefs / ~5 semanas W22–W26) |
+| Aprovação humana (`mv-approved` ÷ `brief-created`) | ~67% (acima do piso de 60% → há folga de qualidade) |
+| Aprovados/semana | ~2,4 |
+
+### 7.2 Premissas por alavanca
+
+- **2a (piso geo 0.40→0.50):** +0,02 a +0,044 no agregado; resgata ~3–4 findings
+  hoje na faixa 0,50–0,549 (CBIC 0,538, Seinfra 0,523, licenciamento 0,544).
+  Taxa de promoção 25% → **~29–30%**.
+- **2c (tier borderline 0,48–0,549):** ~7–8 findings/período entram em
+  `pendente-aprovacao` flagados; humano aprova ~40–55% deles. **+~10pp** na taxa
+  que chega ao editor.
+- **1 (ativar `cases`+`seasonal`):** +30–40% de findings brutos/scan; conteúdo
+  educacional Pilar 2 promove a taxa igual/maior que a média.
+
+### 7.3 Projeção
+
+| Cenário | Briefs gerados/sem | Aprovados/sem | Δ vs hoje |
+|---|---|---|---|
+| **Hoje** | 3,6 | 2,4 | — |
+| Conservador (só Alavanca 1) | ~4,9 | ~3,3 | +36% |
+| **Pacote cirúrgico (1 + 2a + 2c)** | **~7–9** | **~4,5–6** | **+95–150%** |
+
+O pacote leva a geração pra perto do alvo de **10/semana** (§11.H) e os aprovados
+pra dentro da cadência Avanz de **4–7/sem** — onde o sistema foi desenhado pra operar.
+
+### 7.4 Efeito na qualidade (o que a previsão preserva)
+
+- Aprovação humana **blended** cai de ~67% → **~58–62%** (segue acima do piso de 50%).
+  A queda vem do tier borderline, onde ~45% de reprovação é o *filtro humano funcionando*.
+- **`skip-out-of-scope` inalterado** — caps intactos; nada de comercial/luxo SP/US furando.
+- **`skip-redundant` inalterado** — anti-repetição igual.
+- Mix de pilares mais equilibrado: Alavanca 1 alimenta **Pilar 2/3** (hoje subnutridos);
+  2a resgata macro **Pilar 6/3**.
+
+### 7.5 Sinais que confirmam/refutam (nos 2 ciclos)
+
+1. `brief-created`/semana entra em **8–14**. < 6 → subdimensionado; > 16 → afrouxou demais.
+2. Aprovação blended **≥ 58%**. < 50% → recuar 2c ou subir threshold.
+3. Aprovação **só do tier pleno (≥0,55)** deve manter ~67%. Se cair, o problema não é o borderline.
+4. Zero aumento de reclamação de "fora de foco" do owner.
