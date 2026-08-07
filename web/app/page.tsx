@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BRIEF_STATES, loadManifest, resolvePaths, type BriefState } from "@/lib/manifest";
 import { listAllStates, type Brief } from "@/lib/store/briefs";
 import { readLedger } from "@/lib/store/ledger";
@@ -33,13 +34,23 @@ export default async function Dashboard() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10 font-sans">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold">content-radar</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {manifest.funnel.candidates_per_week_target} candidatos/semana ·
-          threshold {manifest.anti_repetition.match_score_min} · borderline a partir de{" "}
-          {manifest.anti_repetition.borderline_min}
-        </p>
+      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">content-radar</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            {manifest.funnel.candidates_per_week_target} candidatos/semana ·
+            threshold {manifest.anti_repetition.match_score_min} · borderline a partir de{" "}
+            {manifest.anti_repetition.borderline_min}
+          </p>
+        </div>
+        {queue.length > 0 && (
+          <Link
+            href="/fila"
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            Revisar fila ({queue.length})
+          </Link>
+        )}
       </header>
 
       {failures.length > 0 && (
@@ -71,8 +82,17 @@ export default async function Dashboard() {
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Fila de aprovação
+          <Link href="/fila" className="hover:underline">
+            Fila de aprovação →
+          </Link>
         </h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Esta lista é só leitura. Os botões de aprovar e rejeitar estão em{" "}
+          <Link href="/fila" className="underline">
+            /fila
+          </Link>
+          .
+        </p>
         <ul className="space-y-3">
           {queue.map((brief) => (
             <li

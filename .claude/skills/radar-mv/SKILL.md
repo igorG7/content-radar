@@ -11,68 +11,73 @@ argument-hint: |
 
 # radar-mv
 
-> Transição de estado pós-revisão humana. Lê o frontmatter do brief em pendente-aprovacao/, valida
-> hero_choice (approve) ou aceita o reject, faz `mv` do .md, remaneja mídia, escreve no ledger.
+> Transição de estado pós-revisão humana. **Esta skill não executa os passos à mão** — ela delega
+> para `web/lib/transitions/mv.ts`, a mesma implementação que a interface web usa. Uma regra, dois
+> pontos de entrada.
 
-## Princípios duros
+## Como executar
 
-1. **hero_choice EXPLÍCITO.** No `approve`, o campo `hero_choice` precisa existir no frontmatter
-   (`null`, `0`, `1`, ...). null permitido com warning ao humano. Default implícito → erro. Spec
-   001 §11.C + spec 004 §8.3.
-2. **rejeitado/ é terminal e sem mídia.** No `reject`, apagar TODOS os arquivos
-   `media/pendente-aprovacao/<slug>__*`. Spec 001 §3.3 + §11.K.
-3. **Approve mantém só a foto escolhida.** No `approve`, mover `<slug>__N.<ext>` (N = hero_choice)
-   pra `media/pendente-publicacao/` e apagar os outros candidatos. Economiza cache e deixa claro
-   pro próximo estágio o que importa.
-4. **Pendente-publicacao/, publicado/, rejeitado/ são read-only via esta skill.** Quem está nesses
-   dirs não passa por radar-mv. Approve só funciona em pendente-aprovacao/.
-5. **`--dry-run` é sagrado.** Sem `mv`, sem ledger.
+A partir da raiz do repositório:
+
+```bash
+web/node_modules/.bin/tsx web/scripts/radar-mv.mts <slug> approve|reject [--reason="<motivo>"] [--dry-run]
+```
+
+Repasse a saída do comando ao humano. **Não reimplemente o fluxo com `mv`, `rm` e `Edit`** — o
+módulo já faz a validação, a movimentação, o remanejo de mídia e o append no ledger, com
+`actor: "skill:radar-mv"`.
+
+Se o comando falhar por dependência ausente, rode `npm install` dentro de `web/` e tente de novo.
 
 ## Args
 
-- `<slug>` (obrig.): slug completo ou prefixo único (resolução por glob em `pendente-aprovacao/`).
+- `<slug>` (obrig.): slug completo ou **prefixo único** (resolvido em `pendente-aprovacao/`;
+  prefixo ambíguo lista os candidatos e aborta).
 - `approve|reject` (obrig.): direção.
-- `--reason="<string>"` (opc.): vai pro `review_notes` (reject) ou pro `extra.reason` do ledger.
-- `--dry-run` (opc.): plano apenas.
+- `--reason="<string>"` (opc.): vai pro `review_notes` (reject) e pro `extra.reason` do ledger.
+- `--dry-run` (opc.): imprime o plano; não escreve nada.
 
-## Fluxo approve
+## Princípios duros
 
-Spec 005 §15.1 (8 passos). Resumo:
-1. Resolver slug → path único em pendente-aprovacao/.
-2. Validar `hero_choice` (null ou int ∈ range).
-3. Validar arquivo de mídia escolhida existe (warning se não — §16.6).
-4. `mv` brief: pendente-aprovacao/ → pendente-publicacao/.
-5. Atualizar `updated_at` no frontmatter.
-6. `mv` mídia escolhida; apagar candidatos restantes em pendente-aprovacao/.
-7. Append no ledger (`event: mv-approved`).
-8. Reportar pro humano.
+O módulo garante cada um destes, e há teste automatizado para todos
+(`web/lib/transitions/mv.test.ts`). Eles seguem valendo como contrato — se algum deixar de valer,
+é bug do módulo, não licença pra contornar por fora.
 
-## Fluxo reject
+1. **hero_choice EXPLÍCITO.** No `approve`, o campo precisa existir no frontmatter (`null`, `0`,
+   `1`, ...). `null` é caminho válido (Smart Design gera a arte) e emite warning. Campo ausente →
+   erro. Spec 001 §11.C + spec 004 §8.3.
+2. **rejeitado/ é terminal e sem mídia.** No `reject`, apaga TODOS os
+   `media/pendente-aprovacao/<slug>__*`. Spec 001 §3.3 + §11.K.
+3. **Approve mantém só a foto escolhida.** Move `<slug>__N.<ext>` pra `media/pendente-publicacao/`
+   e apaga os demais candidatos.
+4. **Só sai de pendente-aprovacao/.** Brief em outro diretório → erro apontando a skill correta.
+5. **`--dry-run` é sagrado.** Sem `mv`, sem ledger, sem alteração de frontmatter.
 
-Spec 005 §15.2 (8 passos). Resumo:
-1. Resolver slug.
-2. Validar pré-condições (brief em pendente-aprovacao/).
-3. Ler frontmatter.
-4. `mv` brief: pendente-aprovacao/ → rejeitado/.
-5. Atualizar `updated_at` + append em `review_notes` com `--reason`.
-6. Apagar TODOS os `media/pendente-aprovacao/<slug>__*`.
-7. Append no ledger (`event: mv-rejected`).
-8. Reportar.
+## Cuidado conhecido: `hero_choice: null` por default
+
+O briefer grava `hero_choice: null` por padrão (spec 004 §8.3). No arquivo, isso é
+**indistinguível** de "o humano decidiu não usar foto". Um `approve` cego num brief que nunca
+passou por revisão apaga as candidatas em cache — e nada foi pro Cloudinary ainda, então é
+irreversível.
+
+Antes de aprovar, confirme com o humano se o `null` é decisão dele. A interface web resolve isso
+exigindo escolha explícita na sessão; no terminal, a confirmação é sua.
 
 ## Edge cases
 
-Ver spec 005 §16:
-- brief já em outro estado → erro com sugestão da skill correta.
-- slug ambíguo → lista matches + abort.
+Tratados pelo módulo (spec 005 §16):
+
+- brief em outro estado → erro com sugestão da skill correta.
+- slug ambíguo → lista matches + aborta.
 - slug não encontrado → erro.
-- hero_choice fora de range → erro.
-- mídia ausente → warning + pergunta ao humano.
-- `mv` cru sem skill → aceitar silenciosamente; ledger inconsistente (gotcha conhecido).
+- `hero_choice` sem candidata correspondente → erro.
+- mídia escolhida ausente do cache → warning; o brief avança sem mídia.
+- `mv` cru feito por fora → não há evento no ledger (gotcha conhecido; o módulo não detecta).
 
 ## NÃO faça
 
+- ❌ Reimplementar o fluxo com `mv`/`rm`/`Edit` em vez de chamar o comando.
 - ❌ Chamar Open Design API.
 - ❌ Subir foto pro Cloudinary (radar-handoff faz).
-- ❌ Re-mover brief de pendente-publicacao/ → publicado/ (radar-mark-published faz; spec 008).
+- ❌ Mover brief de pendente-publicacao/ → publicado/ (radar-mark-published faz; spec 008).
 - ❌ Apagar `.md` (rejeitado/ preserva o arquivo — anti-repetição precisa dele 30d).
-- ❌ Confiar que humano fez `mv` cru — pode ter feito; ledger não tem evento.
