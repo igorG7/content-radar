@@ -2,7 +2,7 @@
 brief_id: 2026-W26-012
 slug: 2026-W26-012_tokenizacao-de-imoveis-ate-2030-passaporte-e-matricula
 created_at: 2026-06-22T16:20:00-03:00
-updated_at: 2026-06-22T16:20:00-03:00
+updated_at: 2026-08-07T15:20:37+00:00
 
 scope: cases
 source_finding_id: f_002
@@ -96,7 +96,9 @@ visual_brief:
 
 suggested_slot: null
 ledger_ref: ./store/ledger.jsonl
-review_notes: "Pilar 3 (autoridade tech). Tokenização é TENDÊNCIA de futuro (projeção 2030) — copy enquadra como visão de mercado, sem prometer que cliente tokeniza lote nem sugerir cripto. Cifras atribuídas ao estudo Citi/ABECIP. Hero é imagem de terceiro — considerar arte própria no handoff."
+review_notes: |
+  Pilar 3 (autoridade tech). Tokenização é TENDÊNCIA de futuro (projeção 2030) — copy enquadra como visão de mercado, sem prometer que cliente tokeniza lote nem sugerir cripto. Cifras atribuídas ao estudo Citi/ABECIP. Hero é imagem de terceiro — considerar arte própria no handoff.
+  [REJECT @ 2026-08-07T15:20:37+00:00] Assunto não produtivo
 
 handoff_at: null
 package_path: null
