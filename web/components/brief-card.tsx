@@ -3,30 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export interface QueueCandidate {
-  index: number;
-  fileName: string | null;
-  exists: boolean;
-  alt?: string;
-  licenseHint?: string;
-  licensable?: boolean;
-}
-
-export interface QueueBrief {
-  slug: string;
-  briefId: string;
-  headline?: string;
-  hook?: string;
-  pillar?: string;
-  icp?: string;
-  matchScore?: number;
-  borderline: boolean;
-  borderlineReason?: string;
-  whyMatch?: string;
-  sourceUrls: string[];
-  storedHeroChoice: number | null | undefined;
-  candidates: QueueCandidate[];
-}
+import Link from "next/link";
+import { BriefDetail } from "./brief-detail";
+import type { QueueBrief } from "./queue-types";
 
 /** `undefined` means the human has not chosen in this session. A hero_choice
  *  already in the file does not count: the briefer writes `null` by default
@@ -41,6 +20,7 @@ export function BriefCard({ brief }: { brief: QueueBrief }) {
   const [showReject, setShowReject] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const cached = brief.candidates.filter((candidate) => candidate.exists && candidate.fileName);
   const hasPhotos = cached.length > 0;
@@ -90,155 +70,165 @@ export function BriefCard({ brief }: { brief: QueueBrief }) {
         : `foto ${brief.storedHeroChoice}`;
 
   return (
-    <li className="rounded border border-zinc-200 p-4 dark:border-zinc-800">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-        <span className="font-mono">{brief.briefId}</span>
-        {brief.pillar && <span>· {brief.pillar}</span>}
-        {brief.icp && <span>· {brief.icp}</span>}
-        {brief.matchScore !== undefined ? <span>· score {brief.matchScore}</span> : <span>· sem score</span>}
-        {brief.borderline && (
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-900 dark:text-amber-100">
-            borderline
-          </span>
-        )}
+    <li className="panel overflow-hidden">
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-sm muted">
+            <span className="font-mono">{brief.briefId}</span>
+            {brief.pillar && <span>{brief.pillar}</span>}
+            {brief.icp && <span>{brief.icp}</span>}
+            {brief.matchScore !== undefined ? <span>score {brief.matchScore}</span> : <span>sem score</span>}
+            {brief.borderline && <span className="pill pill-warning px-2 py-1">borderline</span>}
+          </div>
+
+          <h2 className="mt-3 text-2xl font-semibold leading-snug text-[var(--text-strong)]">
+            {brief.headline ?? brief.slug}
+          </h2>
+          {brief.hook && <p className="mt-2 max-w-2xl text-base leading-6 muted">{brief.hook}</p>}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowDetail(true)}
+              className="text-link text-base"
+            >
+              Ver pop-up
+            </button>
+            <Link href={`/fila/${brief.slug}`} className="text-link text-base">
+              Abrir página
+            </Link>
+            <span className="text-sm muted">arte gravada: {storedLabel}</span>
+          </div>
+
+          {showDetail && <BriefDetail brief={brief} onClose={() => setShowDetail(false)} />}
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold uppercase muted">Arte candidata</p>
+          <div className="grid grid-cols-3 gap-2">
+            {cached.map((candidate) => (
+              <button
+                key={candidate.index}
+                type="button"
+                disabled={busy}
+                onClick={() => savePick(candidate.index)}
+                className={`group relative aspect-square overflow-hidden rounded-lg border bg-[color:var(--surface-soft-strong)] ${
+                  pick === candidate.index
+                    ? "border-[color:var(--text-accent)] shadow-[0_0_0_3px_rgba(116,140,171,0.22)]"
+                    : "border-[color:var(--line)] hover:border-[#748CAB]"
+                }`}
+                title={candidate.licenseHint ?? undefined}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/media/pendente-aprovacao/${encodeURIComponent(candidate.fileName!)}`}
+                  alt={candidate.alt ?? `candidata ${candidate.index}`}
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute left-1.5 top-1.5 rounded bg-[rgba(13,19,33,0.78)] px-1.5 py-0.5 font-mono text-[10px] text-white">
+                  {candidate.index}
+                </span>
+                {candidate.licensable === false && (
+                  <span className="absolute inset-x-1.5 bottom-1.5 rounded bg-[#fff4cf] px-1.5 py-0.5 text-[10px] font-semibold text-[#7b4b12]">
+                    referencial
+                  </span>
+                )}
+              </button>
+            ))}
+            {!hasPhotos && (
+              <div className="col-span-3 rounded-lg border border-dashed border-[color:var(--line-strong)] bg-[color:var(--surface-soft-strong)] p-4 text-base muted">
+                Nenhuma candidata em cache. O Smart Design gera a arte.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <h3 className="mt-1 font-medium">{brief.headline ?? brief.slug}</h3>
-      {brief.hook && <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{brief.hook}</p>}
-
-      {brief.whyMatch && (
-        <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-xs text-zinc-500">por que casou</summary>
-          <p className="mt-1 whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">{brief.whyMatch}</p>
-        </details>
-      )}
-
-      <div className="mt-4">
-        <div className="mb-2 text-xs text-zinc-500">
-          Escolha a arte · gravado no arquivo: {storedLabel}
-        </div>
-
-        <div className="flex flex-wrap items-start gap-3">
-          {cached.map((candidate) => (
-            <button
-              key={candidate.index}
-              type="button"
-              disabled={busy}
-              onClick={() => savePick(candidate.index)}
-              className={`rounded border-2 p-1 ${
-                pick === candidate.index
-                  ? "border-blue-600"
-                  : "border-transparent hover:border-zinc-300"
-              }`}
-              title={candidate.licenseHint ?? undefined}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/media/pendente-aprovacao/${encodeURIComponent(candidate.fileName!)}`}
-                alt={candidate.alt ?? `candidata ${candidate.index}`}
-                className="h-24 w-24 rounded object-cover"
-              />
-              {candidate.licensable === false && (
-                <span className="mt-1 block text-[10px] text-amber-700 dark:text-amber-500">
-                  uso referencial
-                </span>
-              )}
-            </button>
-          ))}
-
-          {!hasPhotos && (
-            <p className="text-sm text-zinc-500">
-              Nenhuma candidata em cache — a arte gerada é o único caminho.
-            </p>
-          )}
-        </div>
-
-        <div className="mt-3">
+      <div className="border-t border-[color:var(--line)] bg-[color:var(--surface-soft-alpha)] px-5 py-4">
+        <div className="flex flex-wrap items-center gap-2">
           {confirmingNone ? (
-            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950">
+            <div className="alert-warning w-full p-3 text-base">
               <p>
                 Aprovar sem foto apaga {cached.length} candidata(s) do cache local. Como nada foi para o
                 Cloudinary ainda, isso é irreversível.
               </p>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-3 flex gap-2">
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => savePick("none")}
-                  className="rounded bg-amber-600 px-3 py-1 text-white disabled:opacity-50"
+                  className="button-primary px-3 py-1.5 text-base"
                 >
-                  Confirmar
+                  Confirmar sem foto
                 </button>
-                <button type="button" onClick={() => setConfirmingNone(false)} className="px-3 py-1">
+                <button
+                  type="button"
+                  onClick={() => setConfirmingNone(false)}
+                  className="button-secondary px-3 py-1.5 text-base"
+                >
                   Cancelar
                 </button>
               </div>
             </div>
           ) : (
+            <>
+              <button
+                type="button"
+                disabled={busy || pick === undefined}
+                onClick={() => transition("approve")}
+                className="button-primary px-4 py-2 text-base"
+                title={pick === undefined ? "escolha a arte antes de aprovar" : undefined}
+              >
+                Aprovar
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setShowReject((value) => !value)}
+                className="button-secondary px-4 py-2 text-base"
+              >
+                Rejeitar
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => (hasPhotos ? setConfirmingNone(true) : savePick("none"))}
+                className={`button-secondary px-4 py-2 text-base ${pick === "none"  ? "border-[color:var(--text-accent)]" : ""}`}
+              >
+                Sem foto
+              </button>
+              {pick === undefined && (
+                <span className="text-sm muted">escolha uma arte para liberar a aprovação</span>
+              )}
+            </>
+          )}
+        </div>
+
+        {error && <p className="mt-3 text-base text-[#A23A3F]">{error}</p>}
+
+        {showReject && (
+          <div className="mt-4 max-w-2xl">
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Motivo da rejeição (vai para review_notes)"
+              className="field w-full p-3 text-base"
+              rows={3}
+            />
+            <p className="mt-2 text-sm muted">
+              Rejeitar apaga todas as mídias e é terminal. O .md fica em rejeitado/ para a anti-repetição.
+            </p>
             <button
               type="button"
               disabled={busy}
-              onClick={() => (hasPhotos ? setConfirmingNone(true) : savePick("none"))}
-              className={`rounded border px-3 py-1 text-sm ${
-                pick === "none"
-                  ? "border-blue-600 text-blue-700 dark:text-blue-400"
-                  : "border-zinc-300 dark:border-zinc-700"
-              }`}
+              onClick={() => transition("reject")}
+              className="button-danger mt-3 px-4 py-2 text-base"
             >
-              Sem foto — o Smart Design gera a arte
+              Confirmar rejeição
             </button>
-          )}
-        </div>
-      </div>
-
-      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
-        <button
-          type="button"
-          disabled={busy || pick === undefined}
-          onClick={() => transition("approve")}
-          className="rounded bg-emerald-600 px-4 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
-          title={pick === undefined ? "escolha a arte antes de aprovar" : undefined}
-        >
-          Aprovar
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setShowReject((value) => !value)}
-          className="rounded border border-zinc-300 px-4 py-1.5 text-sm dark:border-zinc-700"
-        >
-          Rejeitar
-        </button>
-        {pick === undefined && (
-          <span className="text-xs text-zinc-500">escolha a arte para liberar a aprovação</span>
+          </div>
         )}
       </div>
-
-      {showReject && (
-        <div className="mt-3">
-          <textarea
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Motivo da rejeição (vai para review_notes)"
-            className="w-full rounded border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            rows={2}
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            Rejeitar apaga todas as mídias e é terminal — o .md fica em rejeitado/ para a
-            anti-repetição.
-          </p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => transition("reject")}
-            className="mt-2 rounded bg-red-600 px-4 py-1.5 text-sm text-white disabled:opacity-50"
-          >
-            Confirmar rejeição
-          </button>
-        </div>
-      )}
     </li>
   );
 }
