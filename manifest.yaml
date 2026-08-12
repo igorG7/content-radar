@@ -59,7 +59,7 @@ search_scopes:
   seasonal:
     label: "Datas comemorativas e ganchos sazonais"
     sources: ["calendario-marketing", "calendario-real-estate"]
-    pillars_alvo: ["4-bastidor", "2-decisao"]
+    pillars_alvo: ["2-decisao"]
   cases:
     label: "Cases, dicas, regulamentação (educação)"
     sources: ["caixa", "abecip", "secovi"]
