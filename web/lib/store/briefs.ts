@@ -40,6 +40,34 @@ export interface Brief {
   heroChoiceDeclared: boolean;
   candidates: HeroCandidate[];
   warnings: string[];
+  /** Everything the editor may want to read before deciding. */
+  captionDraft?: string;
+  hashtags: string[];
+  cta?: string;
+  suggestedSlot?: string;
+  format?: string;
+  odSkillRef?: string;
+  odSkillAlternatives: string[];
+  sourceExcerpts: string[];
+  reviewNotes?: string;
+  visualBrief?: VisualBrief;
+  /** Per-component evidence behind the score — the reasoning the numbers alone hide. */
+  relevanceHints: RelevanceHint[];
+  /** Briefs from the content bank carry no scan_id and were never scored. */
+  origin?: string;
+}
+
+export interface RelevanceHint {
+  component: string;
+  evidence: string;
+}
+
+export interface VisualBrief {
+  baseTemplate?: string;
+  compositionNotes?: string;
+  mustHave: string[];
+  avoidVisual: string[];
+  aspectRatio?: string;
 }
 
 function str(value: unknown): string | undefined {
@@ -153,6 +181,40 @@ async function readBrief(
     heroChoiceDeclared,
     candidates: await buildCandidates(data.hero_image_candidates, mediaDir, warnings),
     warnings,
+    captionDraft: str(data.caption_draft),
+    hashtags: strArray(data.hashtags),
+    cta: str(data.cta),
+    suggestedSlot: str(data.suggested_slot),
+    format: str(data.format),
+    odSkillRef: str(data.od_skill_ref),
+    odSkillAlternatives: strArray(data.od_skill_alternatives),
+    sourceExcerpts: strArray(data.source_excerpts),
+    reviewNotes: str(data.review_notes),
+    visualBrief: buildVisualBrief(data.visual_brief),
+    relevanceHints: buildRelevanceHints(data.source_relevance_hints),
+    origin: str(data.origin),
+  };
+}
+
+function buildRelevanceHints(raw: unknown): RelevanceHint[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const component = str(item.component);
+    const evidence = str(item.evidence);
+    return component && evidence ? [{ component, evidence }] : [];
+  });
+}
+
+function buildVisualBrief(raw: unknown): VisualBrief | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const item = raw as Record<string, unknown>;
+  return {
+    baseTemplate: str(item.base_template),
+    compositionNotes: str(item.composition_notes),
+    mustHave: strArray(item.must_have),
+    avoidVisual: strArray(item.avoid_visual),
+    aspectRatio: str(item.aspect_ratio),
   };
 }
 
