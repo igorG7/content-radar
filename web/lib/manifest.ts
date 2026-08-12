@@ -47,6 +47,8 @@ const ManifestSchema = z.object({
   anti_repetition: z.object({
     match_score_min: z.number(),
     borderline_min: z.number(),
+    geografia_reframe_floor: z.number().optional(),
+    match_score_weights: z.record(z.string(), z.number()),
   }),
   cadence: z.object({
     pillars_by_day_base: z.record(z.string(), z.array(z.string())),
