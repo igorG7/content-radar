@@ -141,3 +141,17 @@ export async function patchFrontmatter(
   const raw = await readFile(filePath, "utf8");
   await writeFile(filePath, patchScalars(raw, patches), "utf8");
 }
+
+export async function replaceFrontmatterFields(
+  filePath: string,
+  patches: Record<string, unknown>,
+): Promise<void> {
+  const raw = await readFile(filePath, "utf8");
+  const parsed = parseFrontmatter(raw);
+  for (const [key, value] of Object.entries(patches)) {
+    parsed.doc.set(key, value);
+  }
+  const yamlText = parsed.doc.toString().trimEnd();
+  const next = raw.slice(0, parsed.yamlStart) + yamlText + raw.slice(parsed.yamlEnd);
+  await writeFile(filePath, next, "utf8");
+}
