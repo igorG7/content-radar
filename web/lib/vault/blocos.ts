@@ -120,6 +120,39 @@ Não entra lançamento de terceiro, imóvel urbano pronto de alto padrão, leil�
 O teste é sempre o mesmo: alguém decide diferente depois de ler isto? Se não, é informação — não é pauta.`,
   },
   {
+    key: "geografia",
+    titulo: "Área de atuação",
+    pergunta: "Onde a operação atua — e o que fazer com notícia de alcance nacional?",
+    criticidade: "obrigatorio",
+    dependeDe: null,
+    temId: false,
+    tipo: "bloco",
+    resumo: "As praças que contam e a regra para pauta que vem de fora delas.",
+    porque:
+      "Sem ela o segundo maior componente do score (20%) é julgado sem referência: nada diz quais praças contam.",
+    conteudo: `Região Metropolitana de Belo Horizonte, com foco principal em Mateus Leme, Esmeraldas, Ribeirão das Neves, Juatuba, Jaboticatubas e Caetanópolis.
+
+Pauta de alcance nacional entra quando o efeito é direto sobre este público — programa habitacional, condições de crédito imobiliário, índices de custo de construção, intenção de compra. Nesses casos a análise precisa aterrissar na região: o que isso muda para quem compra aqui.
+
+Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
+  },
+  {
+    key: "contato",
+    titulo: "Contato e CTA",
+    pergunta: "Qual número aparece na arte, e para onde o post manda a pessoa?",
+    criticidade: "obrigatorio",
+    dependeDe: null,
+    temId: false,
+    tipo: "bloco",
+    resumo: "O canal de destino e o número que vai no rodapé da arte.",
+    porque: "Sem ele o CTA fica sem destino e a arte sai sem o número do rodapé.",
+    conteudo: `Canal principal: WhatsApp. Todo CTA aponta para lá.
+
+- exibição na arte e no texto: (31) 9 9077-4580
+- canônico: +5531990774580
+- secundário: +5531971375793`,
+  },
+  {
     key: "publicos",
     titulo: "Públicos",
     pergunta: "Para quem a marca fala, e como cada um decide?",
@@ -229,6 +262,8 @@ export const SEEDS: Record<ModoVault, Aceitos> = {
     voz: { versao: 3, em: "2026-06-02T15:41:00-03:00" },
     guardrails: { versao: 1, em: "2026-04-28T09:05:00-03:00" },
     foco: { versao: 2, em: "2026-05-19T11:12:00-03:00" },
+    geografia: { versao: 1, em: "2026-04-28T09:12:00-03:00" },
+    contato: { versao: 2, em: "2026-07-09T10:04:00-03:00" },
     publicos: { versao: 1, em: "2026-04-29T14:33:00-03:00" },
     pilares: { versao: 4, em: "2026-06-18T08:57:00-03:00" },
     fontes: { versao: 1, em: "2026-05-02T16:00:00-03:00" },
