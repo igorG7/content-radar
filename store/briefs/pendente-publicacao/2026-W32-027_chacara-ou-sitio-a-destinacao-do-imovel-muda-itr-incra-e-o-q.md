@@ -2,7 +2,7 @@
 brief_id: 2026-W32-027
 slug: 2026-W32-027_chacara-ou-sitio-a-destinacao-do-imovel-muda-itr-incra-e-o-q
 created_at: 2026-08-03T10:55:00-03:00
-updated_at: 2026-08-03T10:55:00-03:00
+updated_at: 2026-08-14T15:22:32-03:00
 
 # Origem — NÃO vem de scan. Pauta escolhida pelo humano na sessão de 2026-08-03.
 scope: evergreen # ⚠️ fora do enum do manifest — ver review_notes
@@ -69,6 +69,10 @@ cta: "Quer que a gente confira a destinação da chácara que você está olhand
 
 hero_image_candidates: []
 hero_choice: null
+
+handoff_at: 2026-08-14T15:22:32-03:00
+package_path: ./store/packages/2026-W32-027_chacara-ou-sitio-a-destinacao-do-imovel-muda-itr-incra-e-o-q
+cloudinary_public_id: null
 
 visual_brief:
   base_template: post-mes

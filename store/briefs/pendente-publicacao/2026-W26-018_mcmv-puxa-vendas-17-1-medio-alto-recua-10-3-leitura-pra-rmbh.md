@@ -2,7 +2,7 @@
 brief_id: 2026-W26-018
 slug: 2026-W26-018_mcmv-puxa-vendas-17-1-medio-alto-recua-10-3-leitura-pra-rmbh
 created_at: 2026-07-06T15:38:00-03:00
-updated_at: 2026-07-06T15:38:00-03:00
+updated_at: 2026-08-14T18:19:38+00:00
 
 scope: trends
 scan_id: 2026-W26-scan-012
