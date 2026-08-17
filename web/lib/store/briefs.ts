@@ -55,6 +55,13 @@ export interface Brief {
   relevanceHints: RelevanceHint[];
   /** Briefs from the content bank carry no scan_id and were never scored. */
   origin?: string;
+  /** Lifecycle stamps written by the skills as the file moves between dirs. */
+  approvedAt?: string;
+  handoffAt?: string;
+  publishedAt?: string;
+  igPostUrl?: string;
+  rejectedAt?: string;
+  rejectReason?: string;
 }
 
 export interface RelevanceHint {
@@ -193,6 +200,12 @@ async function readBrief(
     visualBrief: buildVisualBrief(data.visual_brief),
     relevanceHints: buildRelevanceHints(data.source_relevance_hints),
     origin: str(data.origin),
+    approvedAt: str(data.approved_at),
+    handoffAt: str(data.handoff_at),
+    publishedAt: str(data.published_at),
+    igPostUrl: str(data.ig_post_url),
+    rejectedAt: str(data.rejected_at),
+    rejectReason: str(data.reject_reason) ?? str(data.rejection_reason),
   };
 }
 

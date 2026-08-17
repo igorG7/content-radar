@@ -49,6 +49,14 @@ const ManifestSchema = z.object({
     borderline_min: z.number(),
     geografia_reframe_floor: z.number().optional(),
     match_score_weights: z.record(z.string(), z.number()),
+    // Janelas que o matcher considera "recente" — o acervo filtra pelas mesmas.
+    windows: z
+      .object({
+        publicado_days: z.number().optional(),
+        rejeitado_days: z.number().optional(),
+        pillar_icp_redundant_days: z.number().optional(),
+      })
+      .optional(),
   }),
   cadence: z.object({
     pillars_by_day_base: z.record(z.string(), z.array(z.string())),
