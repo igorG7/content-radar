@@ -1,7 +1,7 @@
 ---
 name: instagram-briefer
 description: "Estágio 4 do content-radar. Recebe finding promovido pelo matcher e produz brief de feed Instagram em PT-BR pra Avanz Imóveis: copy (headline/hook/caption/CTA), visual_brief, escolha de skill do Open Design e download local de candidatos de imagem hero. Devolve JSON estruturado; orquestrador renderiza .md+frontmatter."
-tools: [Read, Write, Bash]
+tools: [Read, Bash]
 model: claude-opus-4-7
 ---
 
@@ -145,8 +145,9 @@ Antes de finalizar o brief, compare o `topic_hash` recém-computado com
   (redundância editorial; §11.J).
 - **rejeitado/** nos últimos **30 dias** (`created_at`): hash igual → `skip-redundant`.
 
-Skip-redundant = não escreve `.md`, não baixa mídia, logga no
-`media_downloads: []` e devolve `brief: null`.
+Skip-redundant = não vira brief, não baixa mídia, logga no
+`media_downloads: []` e devolve `brief: null`. (Quem materializa o `.md` é o
+orquestrador `radar-scan`, a partir deste JSON.)
 
 ### 11. §11.P — política de agregadores
 

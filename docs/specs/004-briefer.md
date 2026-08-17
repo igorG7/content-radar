@@ -84,7 +84,7 @@ o schema esboçado lá).
 |---|---|---|
 | **Modelo** | `claude-opus-4-7` | Decisão §11.A da [foundation](./001-foundation.md#11-decisões-abertas). Briefer é **o único estágio que sintetiza copy criativa em PT-BR com tom Avanz**: headline + hook + caption + CTA num ato. Researcher (Sonnet) extrai; matcher (Sonnet) classifica; briefer **escreve**. Opus paga pela qualidade do output editorial — uma headline ruim aqui contamina o package, o handoff, o Cloudinary e o post final. |
 | **Tools — `Read`** | obrigatório | Carrega o vault Avanz (lista §3.2) sempre e, definitivamente, os 4 diretórios de `store/briefs/**` para a anti-repetição final headline-based (§10). O agente é **stateful** — diferente do researcher (stateless) — porque o vault é grande (8+ arquivos, ~30 KB de instrução de marca) e cabe melhor em Read sob demanda do que injetado inline em todo prompt. |
-| **Tools — `Write`** | obrigatório | Grava `store/briefs/pendente-aprovacao/<slug>.md`. Mídia local é gravada via `Bash` (curl); ver linha abaixo. |
+| **Tools — `Write`** | **não usado** | O agente não grava arquivo: devolve JSON (§12) e o orquestrador `radar-scan` materializa o `.md`. Removido das `tools` em 2026-08-12; a linha anterior desta spec dizia o contrário e estava desatualizada. Mídia local é gravada via `Bash` (curl); ver linha abaixo. |
 | **Tools — `Bash`** | obrigatório | **Download de bytes** de imagem. `WebFetch` retorna texto/HTML processado pelo runtime (resumido, sem bytes brutos) — não serve pra baixar JPG/PNG/WebP. `curl -sSL -o <path> <url>` é o caminho concreto. Bash também é usado pra `mkdir -p` defensivo do diretório de mídia, listar arquivos da semana pra calcular `NNN` (§9) e computar `SHA1` do `topic_hash` via `sha1sum`/`shasum`. **Não** é usado pra `git`, `mv`, `rm`, instalar pacote, alterar `/etc/`, `/opt/` — guardrails do CLAUDE.md global aplicam. |
 | **Sem `WebSearch`** | — | Researcher já fez todo trabalho de descoberta. Qualquer ida à web no briefer é sinal de bug. |
 | **Sem `WebFetch` (com ressalva)** | — | Foi considerado pra baixar imagem; descartado em §8 — `WebFetch` retorna texto processado, não bytes. Mantemos `Bash` + `curl`. |
@@ -94,7 +94,7 @@ o schema esboçado lá).
 # .claude/agents/instagram-briefer.md — frontmatter (referência)
 name: instagram-briefer
 description: "Estágio 4 do content-radar. Recebe finding promovido pelo matcher e produz brief de feed Instagram em PT-BR pra Avanz Imóveis: copy (headline/hook/caption/CTA), visual_brief, escolha de skill do Open Design e download local de candidatos de imagem hero. Devolve JSON estruturado; orquestrador renderiza .md+frontmatter."
-tools: [Read, Write, Bash]
+tools: [Read, Bash]
 model: claude-opus-4-7
 ```
 
