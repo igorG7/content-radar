@@ -71,6 +71,11 @@ automatiza um processo que já existe e já provou funcionar.
 
 ### 2.2 Onde isso roda
 
+**É o fluxo de primeiros passos do produto.** A conta nasce provisionada mas com
+o vault vazio (ver [persistência](./design-persistencia-multiusuario.md) §2.2),
+então o primeiro login leva direto aqui — não a um dashboard zerado, que
+comunicaria falha em vez de começo.
+
 A tela de chat (Agent SDK) é o lugar natural. Um formulário de 40 campos
 afugenta; uma entrevista conduzida — uma pergunta por vez, aprofundando quando a
 resposta é rasa — é exatamente o que o harness faz bem. A tela já existe; falta
@@ -168,21 +173,151 @@ categorias, as citações dos briefs antigos passam a apontar para o tema errado
 silenciosamente.** Se o banco virar editável por interface, os temas precisam de
 identificador que não dependa de posição.
 
-### 4.3 Onde o histórico vive
+O mesmo vale para os pilares, que o `manifest.yaml` referencia por código em
+`search_scopes.*.pillars_alvo`: renomear quebra a referência sem avisar. A forma
+decidida em §5.1 resolve os dois casos por construção.
 
-- Vault em arquivo → o git já entrega de graça.
-- Vault em banco (cenário multi-empresa) → versão imutável por edição; o
-  histórico vira consulta em vez de `git log`.
+## 5. Onde o vault vive
 
-## 5. Em aberto
+**Decisão: banco, modelado como documento.** O vault sofre exatamente os mesmos
+problemas do store de briefs — isolamento entre clientes, backup, exclusão
+completa, ciclo de vida — e a solução é a mesma pelas mesmas razões.
 
-- **Onde o vault de cada cliente vive** no cenário multi-empresa — o
-  [documento do fluxo operacional](./design-persistencia-multiusuario.md) decidiu
-  banco para estado operacional, mas deixou o vault fora: é base de conhecimento
-  (texto longo, editado por humano), não estado transacional.
-- **Contrato mínimo do vault** — qual o conjunto de arquivos sem o qual o radar
-  não roda, e o que é opcional.
+São **512 KB de texto por cliente**: irrelevante para o banco. Isolamento vira
+cláusula de consulta, exclusão de cliente vira remoção em cascata, escrita é
+atômica, e o backup é o mesmo do resto do sistema.
+
+O que fica em aberto é a **forma**, e ela mudou de decisão — ver §5.1.
+
+### 5.1 Blocos, não um documento único
+
+> **Revisão de 2026-08-13.** A versão anterior desta seção dizia "não decompor a
+> prosa em campos", com o argumento de que a skill lê o vault inteiro na
+> execução. **O argumento não se sustenta:** ler junto não obriga a guardar
+> junto — o documento completo pode ser montado na hora. A decisão abaixo
+> substitui aquela.
+
+O vault é uma **sequência ordenada de blocos**. Cada bloco tem corpo em prosa;
+alguns blocos têm, além disso, **identidade estável**. Não são duas naturezas
+convivendo — é uma forma só, com uma propriedade a mais onde ela é necessária.
+
+**O critério da identidade:** um bloco ganha id quando *algo fora do vault aponta
+para ele*. Nada mais.
+
+| Parte | Identidade | Quem aponta |
+|---|---|---|
+| Pilares | sim | `manifest.search_scopes.*.pillars_alvo`, campo `pillar` de todo brief, filtros da fila |
+| ICPs | sim | componente `icp_fit` do score, campo `icp` do brief |
+| Banco de temas | sim | os briefs citam por código (`§B10`, `§D19`) |
+| Guardrails | sim | é lista de verdade; item a item é operável |
+| História, valores, posicionamento, voz | não | ninguém endereça um parágrafo da história |
+
+Um pilar, portanto, **não** é um registro com colunas `nome`/`descricao`: é um id
+estável mais um parágrafo que explica o que ele é e o que não é. O risco de
+decompor nunca foi a decomposição — era o esquema fino demais para caber a
+ressalva que faz o vault funcionar (*"casa pronta só MCMV com simulação Caixa
+prévia"*). Bloco com corpo em prosa preserva isso.
+
+**O que essa forma resolve por construção:** os dois modos de quebra silenciosa
+registrados neste documento — renumerar o content-bank invalidando as citações
+antigas (§4.2) e renomear um pilar quebrando a referência no manifest — deixam
+de exigir vigilância. Com id estável, viram integridade referencial.
+
+### 5.2 O critério de coerência da divisão
+
+Divisão precisa de teste, senão vira gosto. O teste: **cada bloco responde uma
+pergunta, e a pergunta é a mesma que a entrevista faz.**
+
+Não é arbitrário — o vault nasceu de entrevista (§2.1), o onboarding *é* uma
+entrevista, e editar depois é reabrir uma pergunta. Alinhando a costura às
+perguntas, as três coisas ficam coerentes de graça. Sintoma de divisão errada:
+se não dá para escrever a pergunta que gera um bloco, ele é pedaço de outro.
+
+**Não herdar a árvore de pastas atual.** `identity/`, `strategy/`, `ops/`,
+`channels/` organizam um espaço de consultoria, não o que o radar consome — a
+maior parte é ignorada (§1.2) e o que ele lê está espalhado por três pastas. A
+árvore de hoje é o mapa de origem do importador, não o modelo.
+
+### 5.3 A montagem passa a ser artefato do produto
+
+Na execução o app monta os blocos na ordem declarada e injeta o texto como
+contexto, em vez de passar caminhos de arquivo — mesmo padrão do fluxo
+operacional.
+
+Isso transfere para o produto uma responsabilidade que hoje é de quem escreveu o
+vault à mão: ordem, cabeçalhos, ligação entre seções, o que entra por pilar. **É
+código que pode degradar sem ninguém perceber.** Requisito derivado: a pessoa
+precisa conseguir **ver o documento montado, exatamente como o agente vai lê-lo**
+— o que já é ganho sobre hoje, onde ninguém vê o que foi injetado.
+
+### 5.4 Binários ficam fora do banco
+
+Logo, paleta e as artes do `archive/` vão para o mesmo armazenamento de objetos
+da mídia dos briefs, com a mesma pasta por cliente.
+
+## 6. Consequências para o onboarding
+
+A divisão em blocos não é só decisão de armazenamento: ela **dá forma à
+entrevista**, que antes tinha etapas arbitradas para caber na tela.
+
+> uma pergunta → um bloco → uma etapa → uma versão
+
+- **Progresso vira medida, não estimativa** — blocos preenchidos sobre blocos
+  existentes, e não mente quando o conjunto mudar.
+- **O contrato mínimo vira propriedade**, não lista mantida à parte: uma marca
+  em cada bloco, e a interface pergunta ao próprio vault se já dá para rodar o
+  primeiro scan.
+- **Salvamento parcial deixa de ser caso especial** — não há estado meio-salvo:
+  bloco confirmado é versão, bloco não confirmado ainda não existe. Retomar é
+  continuar de onde a lista de vazios começa.
+- **As telas que dependem do vault nomeiam o que falta**, porque o que falta tem
+  nome.
+
+### 6.1 Ordem: só dependência de insumo tranca
+
+Quase toda parte "pega contexto" da anterior. Se isso travar, trava tudo — então
+a distinção importa:
+
+- **Dependência de contexto**: a conversa fica melhor citando a anterior, mas
+  acontece sem ela. O agente só perde uma referência para puxar. **Não tranca.**
+- **Dependência de insumo**: a parte consome a saída da anterior e não tem como
+  ser gerada sem ela. **Tranca.**
+
+A cadeia dura é curta: **foco editorial → públicos → pilares → fontes por escopo
+e banco de temas.** Pilares são propostos a partir de foco e públicos; um escopo
+declara quais pilares alimenta; um tema pertence a um pilar.
+
+História, valores, voz e identidade visual não dependem de nada — e são
+justamente as partes que podem **abrir a entrevista enquanto a leitura do
+Instagram e do site roda em segundo plano** (§2.3), de modo que o
+pré-preenchimento chega a tempo das partes que dependem dele.
+
+A trava vale só para **gerar** o bloco pela primeira vez. Com tudo preenchido,
+editar volta a ser livre: abrir os pilares não deve exigir repassar pelo foco
+editorial.
+
+### 6.2 O que mantém isso sendo entrevista, e não cadastro
+
+O risco de blocos e etapas é virar formulário — cada bloco um campo, cada etapa
+uma tela. Aí a qualidade do onboarding (§2.4) morre e sobra cadastro. Três
+exigências contra isso:
+
+- **Dentro da parte continua sendo conversa** de várias trocas, com o agente
+  aprofundando quando a resposta vem rasa — não uma pergunta com caixa de texto.
+- **Continuidade entre as partes**: o agente cita o que já foi dito (*"você
+  falou que não quer parecer imobiliária de fachada; isso vale como
+  guardrail?"*). É o que separa entrevista em partes de sequência de formulários.
+- **O todo visível desde o começo** e o documento crescendo ao lado — saber
+  quantas conversas são e ver o que está sendo produzido muda a disposição de
+  começar e é o controle de qualidade da pessoa.
+
+## 7. Em aberto
+- **Quais blocos compõem o contrato mínimo** — a forma está decidida (marca por
+  bloco, §6); falta cravar o conjunto.
 - **Quem mantém depois do onboarding** — o cliente, o operador do produto, ou o
   próprio radar aprendendo do que foi aprovado e rejeitado.
 - **Realimentação** — se o sistema deve propor entradas novas de content-bank a
   partir dos temas que vêm sendo aprovados.
+- **Reimportação** — proposta: nunca sobrescreve em silêncio (entra como versão
+  nova, com motivo), não toca no manifest, e referências a pilares que deixaram
+  de existir são apontadas para a pessoa resolver, nunca descartadas.

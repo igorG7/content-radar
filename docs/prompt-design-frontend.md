@@ -116,23 +116,31 @@ escuro dá 8,5:1. Ambos servem como fundo de botão sólido.
 
 ## 3. O que muda
 
-O produto deixa de ser ferramenta de uso pessoal e passa a atender **várias
-empresas, com várias pessoas em cada**. Isso traz quatro frentes novas de
-interface:
+O produto deixa de ser ferramenta de uso pessoal e passa a atender **vários
+usuários, cada um com seu próprio ambiente isolado**.
 
-1. **Contexto de empresa** — a pessoa opera *uma* empresa por vez e pode ter
-   acesso a mais de uma. Trocar de empresa troca tudo: briefs, vault, config.
-2. **Onboarding** — empresa nova não tem vault. O sistema conduz a construção.
-3. **Dois chats com agente**, com propósitos distintos (§4.2 e §4.3).
-4. **Vault editável, com histórico** (§4.4).
+Não é trabalho em equipe: os ambientes não se cruzam, não há papéis nem
+hierarquia, e duas pessoas nunca editam o mesmo dado. Cada usuário tem seus
+briefs, seu vault e sua configuração.
+
+Isso traz três frentes novas de interface:
+
+1. **Onboarding** — ambiente novo não tem vault. O sistema conduz a construção.
+2. **Dois chats com agente**, com propósitos distintos (§4.2 e §4.3).
+3. **Vault editável, com histórico** (§4.4).
 
 ## 4. Superfícies a desenhar
 
-### 4.1 Casca e troca de empresa
+### 4.1 Casca e identidade do ambiente
 
-A empresa ativa precisa estar sempre visível — o custo de operar a empresa
-errada é alto (gera conteúdo com a marca errada). Trocar deve ser explícito, e
-o estado da tela anterior não deve vazar para a nova empresa.
+Cada usuário tem um ambiente, e ele deve estar identificado na interface — o
+custo de operar o ambiente errado é alto (gera conteúdo com a marca errada).
+
+Hoje a relação é **um usuário, um ambiente**. Deixe o lugar previsto para
+troca de ambiente sem construí-la: é extensão provável, não requisito atual.
+
+A casca precisa acomodar o logout (§4.7) e o estado de ambiente ainda não
+configurado.
 
 ### 4.2 Chat de scan (operacional)
 
@@ -177,9 +185,23 @@ um dispara trabalho de máquina, o outro extrai conhecimento de pessoa.
 
 ### 4.4 Vault: leitura, edição e histórico
 
-O vault são documentos em prosa (marca, posicionamento, pilares, cadência,
-guardrails) mais um **banco de temas** por pilar — hoje 30 temas em seis
-categorias no pilar de decisão, por exemplo.
+O vault é uma **sequência ordenada de blocos**: marca, história, voz,
+posicionamento, foco editorial, públicos, pilares, cadência, guardrails e um
+banco de temas por pilar — hoje 30 temas em seis categorias no pilar de decisão,
+por exemplo.
+
+**Todo bloco tem corpo em prosa.** Alguns têm, além disso, identidade estável —
+os que são referenciados de fora: pilares, públicos, temas do banco e cada
+guardrail. Um pilar não é um campo com rótulo: é um id mais um parágrafo que
+explica o que ele é **e o que não é**. É nesse parágrafo que mora a diferença
+entre um vault que funciona e um que não — *"casa pronta só no programa popular,
+com simulação bancária prévia"* não cabe em campo curto. **O editor precisa
+convidar a esse nível de detalhe**, não a preencher um rótulo.
+
+Na hora da execução o sistema **monta os blocos num documento único** e entrega
+ao agente. Isso gera um requisito de interface: a pessoa precisa conseguir ver
+o documento montado, exatamente como o agente vai lê-lo. É o único jeito de
+saber o que o sistema realmente está usando.
 
 Diferenças que o desenho precisa respeitar:
 
@@ -191,14 +213,31 @@ Diferenças que o desenho precisa respeitar:
   mudou", não só "o que mudou". Campo de motivo junto do salvamento.
 - **Comparar versões e voltar atrás** precisam ser operações de primeira
   classe, não escondidas.
-- **Banco de temas**: os briefs citam temas por código (`§B10`, `§D19`).
-  Renumerar quebra silenciosamente as citações antigas. A interface de edição
-  não pode sugerir que reordenar é inofensivo.
+- **Banco de temas**: os briefs citam temas por código (`§B10`, `§D19`), e a
+  configuração referencia pilares por código. O identificador é estável e
+  independe da posição — mas a interface **não deve exibir a ordem como se fosse
+  o identificador**, ou reordenar vai parecer renumerar.
 
 ### 4.5 Configuração
 
 Edita fontes de pesquisa por escopo, volume semanal, thresholds e os pesos que
 compõem o score.
+
+**Relação com o vault — os dois convivem, com uma direção de dependência.** O
+vault *define* o vocabulário editorial; a configuração o *referencia* por
+código. Num mesmo escopo de busca, os dois aparecem lado a lado:
+
+- **quais pilares aquele escopo alimenta** → escolha dentro do vocabulário do
+  vault, não texto digitado;
+- **a lista de fontes** → **entrada manual, e continua sendo.** Que site vale a
+  pena, qual bloqueia robô, qual deu resultado é decisão operacional e não se
+  deriva de marca nem de posicionamento. O agente pode sugerir candidatas; a
+  lista é da pessoa.
+
+Pesos, limiares e volume não vêm do vault: são default do produto, ajustáveis.
+
+Consequência de ordem: **a configuração não pode ser preenchida antes do vault
+existir** — os códigos de pilar ainda não foram criados.
 
 Dois padrões que valem para o resto do produto:
 
@@ -227,12 +266,188 @@ operando de verdade; são **requisito, não preferência**:
 - **Rejeitar é terminal e apaga toda a mídia.** A interface deve deixar claro,
   e o motivo da rejeição fica registrado.
 
-### 4.7 Conflito de edição
+### 4.7 Entrada: login e primeiro acesso
 
-Com mais de uma pessoa, duas edições do mesmo brief podem se cruzar. Hoje a
-segunda sobrescreve a primeira em silêncio. A interface precisa de um estado
-para "isto mudou desde que você abriu" — com o que mudou e a escolha de
-recarregar ou sobrescrever. **Perda silenciosa não é aceitável.**
+**Tela de login própria**, com autenticação de sessão de verdade e **logout
+visível** na interface. Não há tela de cadastro: as contas são criadas fora do
+produto, então não desenhe auto-registro, recuperação por e-mail nem aceite de
+termos.
+
+**O primeiro acesso cai num ambiente vazio.** A conta nasce provisionada mas sem
+vault — sem marca, sem pilares, sem guardrails. Nesse estado o produto **não tem
+o que mostrar**: um dashboard com quatro contadores zerados comunica falha, não
+começo. Então o primeiro login não vai para o painel: vai para os primeiros
+passos (§4.8).
+
+### 4.8 Primeiros passos: da conta vazia ao primeiro scan
+
+Esta é a superfície mais importante do produto e a mais fácil de subestimar.
+Ela é usada **uma vez por cliente**, o que tenta a tratá-la como acessório — mas
+é ela que produz o vault, e **a qualidade do vault é o teto de qualidade de tudo
+o que o sistema gera depois**. Um onboarding raso não causa erro visível: causa
+meses de pautas corretas e inúteis.
+
+#### O que este fluxo é
+
+Uma **entrevista conduzida por agente** (§4.3) que termina com o vault escrito.
+Não é um assistente de configuração de 6 telas, e não é um formulário longo.
+
+O modelo não foi inventado: o vault da empresa atual foi construído exatamente
+assim, por questionário em linguagem de dono de negócio — *"conta a história como
+você contaria pra um cliente novo"*, *"por que um cliente deveria escolher
+vocês?"*, *"tem alguma palavra que você **não** quer que apareça?"*. Sete blocos
+de perguntas viraram os arquivos de marca, posicionamento e guardrails. O fluxo
+automatiza um processo que já existe e já provou funcionar — o desenho deve
+preservar esse registro de conversa, não traduzi-lo para rótulos de campo.
+
+#### Três origens de resposta, e elas se parecem diferentes na tela
+
+Nem toda informação vem da mesma fonte, e a interface precisa deixar isso óbvio
+— porque o que se pede da pessoa muda em cada caso:
+
+| Origem | Exemplos | O que a pessoa faz |
+|---|---|---|
+| **Só o cliente sabe** | História, valores, foco editorial, o que a marca não diz, canal de contato | Responde. É aqui que a entrevista aprofunda. |
+| **Derivável do que já é público** | Tom de voz, temas recorrentes, público aparente | **Corrige** uma proposta já preenchida. |
+| **Template do produto** | Estrutura de pilares, cadência, guardrails base, pesos do score | Confirma ou ajusta. Já vem funcionando. |
+
+O segundo grupo é o que mais encurta a conversa: o sistema lê o Instagram e o
+site da empresa e chega com proposta pronta. **Revisar é mais fácil que criar do
+zero**, então o desenho deve favorecer correção sobre digitação — mostrar o texto
+proposto editável e a evidência de onde ele saiu, não um campo em branco com
+uma sugestão escondida atrás de um botão.
+
+#### A leitura do público é trabalho longo — e vem antes
+
+Ler Instagram e site é a mesma natureza do scan (§4.2): minutos, não segundos,
+e sujeito a falhar em fonte que bloqueia robô. Duas consequências:
+
+- **Não pode ser tela de espera.** Ou a entrevista começa pelas perguntas que
+  não dependem dela (história, valores, o que não dizer) enquanto a leitura roda
+  em segundo plano, ou o fluxo é retomável e a pessoa volta quando ficar pronto.
+  O desenho deve escolher e deixar claro.
+- **Precisa funcionar sem.** Se a empresa não tem site, ou o Instagram não é
+  legível, o fluxo continua — só perde o pré-preenchimento. Não é erro, é um
+  caminho normal.
+
+#### Retomada é requisito, não conforto
+
+Ninguém termina numa sessão. O fluxo precisa de:
+
+- **progresso legível** — quantas etapas existem, onde estou, o que já ficou
+  pronto;
+- **salvamento parcial de verdade** — sair no meio de uma resposta longa e
+  voltar sem perdê-la;
+- **entrada de volta óbvia** — enquanto estiver incompleto, retomar os primeiros
+  passos é a ação primária da casca, não um link no rodapé.
+
+#### As etapas não são invenção da tela
+
+A divisão das etapas vem da estrutura do vault (§4.4), não de um agrupamento
+escolhido para caber no ecrã. A cadeia é:
+
+> uma pergunta → um bloco do vault → uma etapa → uma versão
+
+Três consequências práticas:
+
+- **O progresso é contagem, não estimativa.** "Etapa 2 de 6" não é número
+  escrito à mão: é bloco preenchido sobre bloco existente. Não mente quando o
+  conjunto mudar.
+- **Não existe estado meio-salvo.** Bloco confirmado é uma versão; bloco não
+  confirmado ainda não existe. Retomar é continuar de onde a lista de vazios
+  começa — o salvamento parcial deixa de ser caso especial de interface.
+- **Editar depois é reabrir a mesma pergunta**, com a resposta anterior na tela.
+  Por isso o desenho da etapa e o desenho da edição de vault (§4.4) são a mesma
+  tela em dois momentos, não duas telas.
+
+#### Ordem: só trava o que consome a saída do anterior
+
+Quase toda etapa ganha citando a anterior. Se isso travar, trava tudo — então:
+
+- **Dependência de contexto** — a conversa fica melhor com a anterior, mas
+  acontece sem ela. **Não tranca.**
+- **Dependência de insumo** — a etapa consome a saída da anterior e não tem como
+  ser gerada sem ela. **Tranca.**
+
+A cadeia travada é curta: **foco editorial → públicos → pilares → fontes de
+pesquisa e banco de temas**. Os pilares são propostos a partir do foco e dos
+públicos; um escopo de busca declara quais pilares alimenta; um tema pertence a
+um pilar.
+
+História, valores, voz e identidade visual não dependem de nada — e são
+exatamente as que devem **abrir a entrevista enquanto a leitura do Instagram e
+do site roda em segundo plano**, para o pré-preenchimento chegar a tempo.
+
+Duas regras para o mapa de etapas:
+
+- **Etapa trancada diz por que, e leva ao bloqueador** — "precisa de pilares
+  definidos", com o caminho. Item cinza sem explicação é a diferença entre
+  "ainda não é hora" e "quebrado".
+- **A trava vale só para a primeira vez.** Com tudo preenchido, editar é livre:
+  abrir os pilares não pode exigir repassar pelo foco editorial.
+
+#### O adversário do fluxo é a resposta genérica
+
+O que faz as pautas da empresa atual serem boas não é *ter* pilares — é ter
+*"lotes, sítios e chácaras na região metropolitana; casa pronta só no programa
+popular, com simulação bancária prévia"*. Uma entrevista mal conduzida produz
+*"queremos gerar valor para nossos clientes"* — e o pipeline inteiro fica
+correto e inútil, sem nada acusando o problema.
+
+O que a interface pode fazer contra isso:
+
+- **exemplo concreto no lugar do rótulo abstrato** — o texto de apoio de cada
+  pergunta vale mais que o título dela;
+- **pedir contraste** — "isso sim / isso não" extrai especificidade melhor que
+  uma pergunta aberta. Um campo de exclusão ao lado do campo de inclusão em
+  toda seção de escopo;
+- **devolutiva quando a resposta ficou vaga** — o agente repergunta; a interface
+  precisa acomodar essa repergunta como parte natural da conversa, não como
+  erro de validação em vermelho;
+- **mostrar consequência** — sempre que possível, exibir o efeito da resposta
+  ("com este foco, uma pauta sobre X seria descartada"). É o argumento mais
+  forte que existe para a pessoa ser específica.
+
+#### O documento em construção fica visível
+
+A entrevista escreve arquivos. A pessoa precisa ver o que as respostas dela
+estão produzindo, ao lado da conversa, e poder corrigir **antes** de confirmar.
+Sem isso, ela responde no escuro e descobre o resultado só quando as pautas
+saírem erradas.
+
+Cada seção confirmada é uma versão do vault — o que conecta este fluxo
+diretamente ao histórico do §4.4. A primeira versão de cada documento nasce
+aqui, com "criado no onboarding" como motivo.
+
+#### O fim: quando termina e o que acontece
+
+Existe um **contrato mínimo** — o conjunto de informações sem o qual o radar não
+consegue rodar — e existe o resto, que melhora o resultado mas pode esperar. A
+interface precisa separar os dois com clareza, porque a diferença é entre *"já
+dá para fazer o primeiro scan"* e *"ainda falta"*.
+
+Isso é uma marca em cada bloco, não uma lista mantida à parte: a tela pergunta
+ao próprio vault se já dá para rodar. O que **degrada sem travar** deve ser dito
+com essas palavras — quem pula precisa saber o que está trocando. Sem história e
+valores, por exemplo, o pipeline roda e a copy sai correta e sem alma.
+
+Ao atingir o mínimo, o caminho para o **primeiro scan** é a ação evidente. E o
+primeiro scan merece tratamento especial: é onde a pessoa descobre se as
+respostas dela produziram algo bom. Use o modo de ensaio do §4.2 — mostrar o
+plano antes de gastar — como ponte entre os dois.
+
+**O fluxo não desaparece depois.** Terminado o onboarding, ele vira a edição de
+vault do §4.4: mesmo conteúdo, mesma entrevista disponível para aprofundar uma
+seção, agora com histórico e comparação. Não desenhe uma tela de boas-vindas
+descartável — desenhe a primeira visita de uma tela que continua existindo.
+
+#### Enquanto está incompleto, o resto do produto não fica vazio
+
+Fila, acervo e configuração dependem do vault. Nesse estado elas devem
+**explicar o que falta e levar de volta aos primeiros passos**, com o motivo
+específico — "sem pilares editoriais definidos, o radar não sabe o que procurar"
+— em vez de exibirem um estado vazio genérico ou, pior, um zero que parece
+resultado.
 
 ## 5. Invariantes que valem para tudo
 
@@ -247,7 +462,9 @@ recarregar ou sobrescrever. **Perda silenciosa não é aceitável.**
 
 ## 6. Fora de escopo
 
-Autenticação e papéis (revisor × aprovador) ainda não estão decididos — desenhe
-prevendo o lugar deles, sem implementar. Publicação no Instagram é manual e
+Autenticação existe e tem tela própria (§4.7), mas **não há papéis nem
+hierarquia** — o modelo é de ambientes individuais, não de equipe. Não desenhe
+aprovação em dois níveis, atribuição de tarefa ou resolução de conflito entre
+pessoas: nada disso existe. Publicação no Instagram é manual e
 continua fora do produto. A arte final é feita no Smart Design; o radar entrega
 o pacote.
