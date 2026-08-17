@@ -133,7 +133,8 @@ async function buildCandidates(
   );
 }
 
-async function readBrief(
+/** Exported for the storage layer (lib/store/index.ts); pages go through it. */
+export async function readBrief(
   filePath: string,
   state: BriefState,
   mediaDir: string,
