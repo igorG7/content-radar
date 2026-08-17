@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { BRIEF_STATES, loadManifest, resolvePaths, type BriefState } from "@/lib/manifest";
+import { BRIEF_STATES, type BriefState } from "@/lib/manifest";
+import { radarStore } from "@/lib/store";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".webp": "image/webp",
@@ -18,7 +18,7 @@ function isBriefState(value: string): value is BriefState {
  * store/media is a gitignored cache outside public/, so it needs an explicit
  * handler. Both segments come from the URL: the state is checked against the
  * known set, and the filename must survive basename() unchanged, which rejects
- * traversal before it reaches the filesystem.
+ * traversal before it reaches the storage layer.
  */
 export async function GET(
   _request: Request,
@@ -35,28 +35,17 @@ export async function GET(
     return new Response("invalid file name", { status: 400 });
   }
 
-  const extension = path.extname(fileName).toLowerCase();
-  const contentType = CONTENT_TYPES[extension];
+  const contentType = CONTENT_TYPES[path.extname(fileName).toLowerCase()];
   if (!contentType) {
     return new Response("unsupported media type", { status: 415 });
   }
 
-  const paths = resolvePaths(await loadManifest());
-  const mediaDir = paths.mediaDir[state];
-  const filePath = path.resolve(mediaDir, fileName);
-  if (filePath !== path.join(mediaDir, fileName)) {
-    return new Response("invalid file name", { status: 400 });
+  const bytes = await radarStore().lerMidia(state, fileName);
+  if (!bytes) {
+    return new Response("not found", { status: 404 });
   }
 
-  try {
-    const bytes = await readFile(filePath);
-    return new Response(new Uint8Array(bytes), {
-      headers: { "content-type": contentType, "cache-control": "private, max-age=60" },
-    });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return new Response("not found", { status: 404 });
-    }
-    throw error;
-  }
+  return new Response(bytes, {
+    headers: { "content-type": contentType, "cache-control": "private, max-age=60" },
+  });
 }

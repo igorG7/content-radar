@@ -3,9 +3,8 @@
  * Run: npx tsx scripts/smoke.ts
  */
 import { readFile } from "node:fs/promises";
-import { loadManifest, resolvePaths, selectablePillars } from "../lib/manifest";
-import { listAllStates } from "../lib/store/briefs";
-import { readLedger } from "../lib/store/ledger";
+import { selectablePillars } from "../lib/manifest";
+import { radarStore } from "../lib/store";
 import { parseFrontmatter, patchScalars } from "../lib/store/frontmatter";
 
 let failures = 0;
@@ -15,8 +14,8 @@ function check(label: string, ok: boolean, detail = "") {
   console.log(`${ok ? "  ok " : "FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
 }
 
-const manifest = await loadManifest();
-const paths = resolvePaths(manifest);
+const store = radarStore();
+const manifest = await store.manifest();
 
 console.log("\n== manifest ==");
 check("escopos de busca", Object.keys(manifest.search_scopes).length > 0,
@@ -31,7 +30,7 @@ check("threshold / borderline",
   `${manifest.anti_repetition.borderline_min} < ${manifest.anti_repetition.match_score_min}`);
 
 console.log("\n== briefs ==");
-const listings = await listAllStates(paths);
+const listings = await store.listarTodos();
 for (const listing of listings) {
   check(`${listing.state}`, listing.failures.length === 0,
     `${listing.briefs.length} briefs, ${listing.failures.length} ilegiveis`);
@@ -84,7 +83,7 @@ check("patch de hero_choice altera exatamente 1 linha", offenders.length === 0,
 for (const offender of offenders.slice(0, 5)) console.log(`       ~ ${offender}`);
 
 console.log("\n== ledger ==");
-const ledger = await readLedger(paths.ledger);
+const ledger = await store.lerLedger();
 check("ledger legivel", ledger.malformedLines.length === 0,
   `${ledger.events.length} eventos, ${ledger.malformedLines.length} linhas invalidas`);
 const byEvent = new Map<string, number>();

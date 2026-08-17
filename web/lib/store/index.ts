@@ -15,6 +15,7 @@
  * `mediaDir` ou monta caminho de brief/mídia. Ver docs/design-migracao.md §3.
  */
 
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   loadManifest,
@@ -24,6 +25,11 @@ import {
   type RadarPaths,
 } from "../manifest";
 import { listAllStates, listState, readBrief, type Brief, type StateListing } from "./briefs";
+import {
+  patchScalars,
+  readFileWithFrontmatter,
+  replaceFrontmatterFields,
+} from "./frontmatter";
 import {
   appendLedger,
   readLedger,
@@ -53,6 +59,30 @@ export interface TransicaoEntrada {
   ator?: string;
 }
 
+/** Recusas de regra da camada — o chamador traduz para status HTTP. */
+export class StoreError extends Error {
+  constructor(
+    readonly code: "nao_encontrado" | "candidata_invalida",
+    message: string,
+  ) {
+    super(message);
+    this.name = "StoreError";
+  }
+}
+
+/** Campos do brief que a edição pela interface pode tocar. */
+export interface EdicaoBrief {
+  headline?: string | null;
+  hook?: string | null;
+  caption_draft?: string | null;
+  hashtags?: string[];
+  cta?: string | null;
+  suggested_slot?: string | null;
+  format?: string | null;
+  review_notes?: string | null;
+  visual_brief?: Record<string, unknown>;
+}
+
 export interface RadarStore {
   readonly ambiente: AmbienteId;
 
@@ -68,13 +98,34 @@ export interface RadarStore {
   planejarTransicao(entrada: TransicaoEntrada): Promise<TransitionPlan>;
   aplicarTransicao(entrada: TransicaoEntrada): Promise<TransitionResult>;
 
+  /**
+   * Grava a escolha de arte do humano. Separada da transição para que a
+   * escolha persista no instante em que é feita, e aprovar continue sendo só
+   * um movimento. `null` é decisão válida: sem foto, o Smart Design gera a arte.
+   */
+  gravarEscolhaHero(slug: string, indice: number | null): Promise<void>;
+
+  /** Edição de copy pela interface. Só nos estados em que o brief ainda muda. */
+  editarBrief(
+    estado: "pendente-aprovacao" | "pendente-publicacao",
+    slug: string,
+    campos: EdicaoBrief,
+  ): Promise<void>;
+
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(evento: Omit<LedgerEvent, "ts"> & { ts?: string }): Promise<LedgerEvent>;
 
   /**
-   * Caminho absoluto de um arquivo de mídia. Existe porque a rota que serve a
-   * imagem precisa de um caminho de verdade — e é justamente por isso que ela
-   * deve pedir aqui, em vez de montar por conta.
+   * Bytes de um arquivo de mídia, ou `null` se não estiver no cache. Devolve
+   * conteúdo e não caminho porque com armazenamento de objetos não haverá
+   * caminho — a rota que serve a imagem não deve depender de haver disco.
+   */
+  lerMidia(estado: BriefState, arquivo: string): Promise<Uint8Array<ArrayBuffer> | null>;
+
+  /**
+   * Caminho absoluto de um arquivo de mídia. Necessário enquanto o backend é
+   * arquivo (o script de transição remaneja mídia no disco). Some quando a
+   * mídia sair para armazenamento de objetos.
    */
   caminhoMidia(estado: BriefState, arquivo: string): Promise<string>;
 }
@@ -121,12 +172,64 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       return runTransition(entradaLegada(entrada), await caminhos());
     },
 
+    async gravarEscolhaHero(slug, indice) {
+      const p = await caminhos();
+      const filePath = path.join(p.briefsDir["pendente-aprovacao"], `${slug}.md`);
+
+      let data: Record<string, unknown>;
+      try {
+        ({ data } = await readFileWithFrontmatter(filePath));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          throw new StoreError("nao_encontrado", "brief não está em pendente-aprovacao");
+        }
+        throw error;
+      }
+
+      if (indice !== null) {
+        const candidatas = Array.isArray(data.hero_image_candidates)
+          ? (data.hero_image_candidates as { index?: unknown }[])
+          : [];
+        if (!candidatas.some((c) => c?.index === indice)) {
+          throw new StoreError("candidata_invalida", `não existe candidata com índice ${indice}`);
+        }
+      }
+
+      const raw = await readFile(filePath, "utf8");
+      await writeFile(filePath, patchScalars(raw, { hero_choice: indice }), "utf8");
+    },
+
+    async editarBrief(estado, slug, campos) {
+      const p = await caminhos();
+      const filePath = path.join(p.briefsDir[estado], `${slug}.md`);
+
+      try {
+        await readFileWithFrontmatter(filePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          throw new StoreError("nao_encontrado", "brief não encontrado neste estado");
+        }
+        throw error;
+      }
+
+      await replaceFrontmatterFields(filePath, campos as Record<string, unknown>);
+    },
+
     async lerLedger() {
       return readLedger((await caminhos()).ledger);
     },
 
     async registrarEvento(evento) {
       return appendLedger((await caminhos()).ledger, evento);
+    },
+
+    async lerMidia(estado, arquivo) {
+      try {
+        return Uint8Array.from(await readFile(await this.caminhoMidia(estado, arquivo)));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw error;
+      }
     },
 
     async caminhoMidia(estado, arquivo) {

@@ -1,7 +1,6 @@
 import path from "node:path";
 import { z } from "zod";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { readFileWithFrontmatter, replaceFrontmatterFields } from "@/lib/store/frontmatter";
+import { radarStore, StoreError, type EdicaoBrief } from "@/lib/store";
 
 const EditableState = z.enum(["pendente-aprovacao", "pendente-publicacao"]);
 
@@ -47,20 +46,8 @@ export async function PATCH(
     return Response.json({ error: "corpo inválido", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const paths = resolvePaths(await loadManifest());
-  const filePath = path.join(paths.briefsDir[parsedState.data], `${slug}.md`);
-
-  try {
-    await readFileWithFrontmatter(filePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return Response.json({ error: "brief não encontrado neste estado" }, { status: 404 });
-    }
-    throw error;
-  }
-
   const input = parsed.data;
-  const patches: Record<string, unknown> = {
+  const patches: EdicaoBrief = {
     headline: cleanString(input.headline) ?? null,
     hook: cleanString(input.hook) ?? null,
     caption_draft: cleanString(input.captionDraft) ?? null,
@@ -81,6 +68,17 @@ export async function PATCH(
     };
   }
 
-  await replaceFrontmatterFields(filePath, patches);
+  try {
+    await radarStore().editarBrief(parsedState.data, slug, patches);
+  } catch (error) {
+    if (error instanceof StoreError) {
+      return Response.json(
+        { error: error.message, code: error.code },
+        { status: error.code === "nao_encontrado" ? 404 : 422 },
+      );
+    }
+    throw error;
+  }
+
   return Response.json({ slug, state: parsedState.data });
 }

@@ -4,7 +4,6 @@
  *
  * Usage: npx tsx web/scripts/radar-mv.mts <slug> approve|reject [--reason="..."] [--dry-run]
  */
-import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,8 +15,7 @@ process.env.RADAR_ROOT ??= path.resolve(
   "../..",
 );
 
-const { loadManifest, resolvePaths } = await import("../lib/manifest");
-const { runTransition, TransitionError } = await import("../lib/transitions/mv");
+const { radarStore, TransitionError } = await import("../lib/store");
 type Direction = "approve" | "reject";
 
 function fail(message: string): never {
@@ -44,12 +42,10 @@ const reason = flags
   ?.slice("--reason=".length)
   .replace(/^["']|["']$/g, "");
 
-const paths = resolvePaths(await loadManifest());
+const store = radarStore();
 
 // The skill accepts a unique prefix, not only the full slug.
-const pending = (await readdir(paths.briefsDir["pendente-aprovacao"]).catch(() => []))
-  .filter((name) => name.endsWith(".md"))
-  .map((name) => name.slice(0, -3));
+const pending = (await store.listarFila()).briefs.map((brief) => brief.slug);
 
 let slug = rawSlug;
 if (!pending.includes(rawSlug)) {
@@ -66,10 +62,10 @@ if (!pending.includes(rawSlug)) {
 }
 
 try {
-  const result = await runTransition(
-    { slug, direction, reason, dryRun, actor: "skill:radar-mv" },
-    paths,
-  );
+  const entrada = { slug, direcao: direction, motivo: reason, ator: "skill:radar-mv" };
+  const result = dryRun
+    ? { ...(await store.planejarTransicao(entrada)), applied: false }
+    : await store.aplicarTransicao(entrada);
 
   const verb = direction === "approve" ? "approved" : "rejected";
   console.log(`${result.applied ? (direction === "approve" ? "✅" : "🗑 ") : "🔎"} ${verb}: ${slug}`);

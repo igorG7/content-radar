@@ -1,7 +1,6 @@
 import path from "node:path";
 import { z } from "zod";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { runTransition, TransitionError } from "@/lib/transitions/mv";
+import { radarStore, TransitionError } from "@/lib/store";
 
 const Body = z.object({
   direction: z.enum(["approve", "reject"]),
@@ -23,10 +22,14 @@ export async function POST(
     return Response.json({ error: "corpo inválido" }, { status: 400 });
   }
 
-  const paths = resolvePaths(await loadManifest());
+  const { direction, reason, dryRun } = parsed.data;
+  const store = radarStore();
+  const entrada = { slug, direcao: direction, motivo: reason };
 
   try {
-    const result = await runTransition({ slug, ...parsed.data }, paths);
+    const result = dryRun
+      ? { ...(await store.planejarTransicao(entrada)), applied: false, ledgerEvent: null }
+      : await store.aplicarTransicao(entrada);
     return Response.json(result);
   } catch (error) {
     if (error instanceof TransitionError) {
