@@ -226,6 +226,7 @@ export function VaultBloco({ chave }: { chave: string }) {
               { label: "Vault", href: "/config/vault" },
               { label: bloco.titulo },
             ]}
+            back={{ href: "/config/vault", destino: "Vault" }}
           />
           <span className="eyebrow">{bloco.key}</span>
         </div>

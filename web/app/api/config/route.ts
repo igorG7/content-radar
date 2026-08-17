@@ -1,6 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
-import { MANIFEST_PATH } from "@/lib/manifest";
+import { radarStore } from "@/lib/store";
 import { patchManifest } from "@/lib/config/manifest-edit";
 import { validateManifestText } from "@/lib/config/validate";
 
@@ -21,7 +20,8 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "corpo inválido: esperado { edits: [...] }" }, { status: 400 });
   }
 
-  const raw = await readFile(MANIFEST_PATH, "utf8");
+  const store = radarStore();
+  const raw = await store.lerManifestBruto();
 
   let output: string;
   try {
@@ -37,6 +37,6 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "configuração inválida", errors, warnings }, { status: 422 });
   }
 
-  await writeFile(MANIFEST_PATH, output, "utf8");
+  await store.gravarManifestBruto(output);
   return Response.json({ ok: true, warnings });
 }

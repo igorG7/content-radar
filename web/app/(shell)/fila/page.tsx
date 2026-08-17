@@ -1,15 +1,16 @@
 import { Suspense } from "react";
 import { QueueClient } from "@/components/queue/queue-client";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { listState } from "@/lib/store/briefs";
+import { radarStore } from "@/lib/store";
 import { scoringOf, toBriefView } from "@/lib/view/brief-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function Fila() {
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
-  const { briefs, failures } = await listState("pendente-aprovacao", paths);
+  const store = radarStore();
+  const [manifest, { briefs, failures }] = await Promise.all([
+    store.manifest(),
+    store.listarFila(),
+  ]);
   const scoring = scoringOf(manifest);
 
   // Caminho absoluto do servidor não atravessa a fronteira: o client recebe a view.

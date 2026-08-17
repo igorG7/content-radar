@@ -375,7 +375,10 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
     <>
       <div className="page-head">
         <div className="row-between">
-          <Crumb items={[{ label: "Painel", href: "/" }, { label: "Fila" }]} />
+          <Crumb
+            items={[{ label: "Painel", href: "/" }, { label: "Fila" }]}
+            back={{ href: "/", destino: "Painel" }}
+          />
           <span className="eyebrow">store/briefs/pendente-aprovacao/</span>
         </div>
         <div className="row-between" style={{ marginTop: 12 }}>

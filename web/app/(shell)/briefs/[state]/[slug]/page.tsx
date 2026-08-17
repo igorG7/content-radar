@@ -7,9 +7,8 @@ import { ScoreBar } from "@/components/ui/score-bar";
 import { Counter, Crumb, LIMITES, StatePill } from "@/components/ui/pieces";
 import { IconAlert, IconPencil, IconX } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/format";
-import { BRIEF_STATES, loadManifest, resolvePaths, type BriefState } from "@/lib/manifest";
-import { listState } from "@/lib/store/briefs";
-import { readLedger } from "@/lib/store/ledger";
+import { BRIEF_STATES, type BriefState } from "@/lib/manifest";
+import { radarStore } from "@/lib/store";
 import { EVENT_TONE, eventLabel } from "@/lib/view/ledger-view";
 import { STATE_META, scoringOf, toBriefView } from "@/lib/view/brief-view";
 
@@ -23,16 +22,20 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
   const { state, slug } = await params;
   if (!isBriefState(state)) notFound();
 
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
+  const store = radarStore();
+  const [manifest, ledger] = await Promise.all([store.manifest(), store.lerLedger()]);
   const scoring = scoringOf(manifest);
-  const [listagem, ledger] = await Promise.all([listState(state, paths), readLedger(paths.ledger)]);
 
-  const encontrado = listagem.briefs.find((b) => b.slug === slug);
+  const encontrado = await store.buscarBrief(slug, state).catch(() => null);
   if (!encontrado) notFound();
 
   const brief = toBriefView(encontrado, scoring);
   const naFila = brief.state === "pendente-aprovacao";
+  // Trilha e botão de voltar leem a mesma variável: o pai do detalhe muda com
+  // o estado, e divergirem seria pior do que não ter botão.
+  const pai = naFila
+    ? { href: "/fila", label: "Fila" }
+    : { href: `/acervo?estado=${brief.state}`, label: "Acervo" };
   const editavel = naFila || brief.state === "pendente-publicacao";
   const eventos = ledger.events.filter((e) => e.brief_id === brief.briefId).reverse();
   const captionFlat = brief.caption.replace(/\n+/g, " ");
@@ -43,10 +46,11 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
         <Crumb
           items={[
             { label: "Painel", href: "/" },
-            naFila ? { label: "Fila", href: "/fila" } : { label: "Acervo", href: `/acervo?estado=${brief.state}` },
+            { label: pai.label, href: pai.href },
             { label: "Detalhes" },
           ]}
           tail={<span className="num">{brief.briefId}</span>}
+          back={{ href: pai.href, destino: pai.label }}
         />
         <div className="row-between" style={{ marginTop: 12, alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0 }}>

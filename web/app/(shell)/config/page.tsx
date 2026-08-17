@@ -1,23 +1,17 @@
-import { readFile } from "node:fs/promises";
 import Link from "next/link";
 import { ConfigClient, type ConfigEscopo } from "@/components/config-client";
 import { ConfigTabs } from "@/components/config-tabs";
 import { Crumb } from "@/components/ui/pieces";
-import { validateManifestText } from "@/lib/config/validate";
-import { MANIFEST_PATH, loadManifest, resolvePaths } from "@/lib/manifest";
-import { listAllStates } from "@/lib/store/briefs";
+import { manifestWarnings } from "@/lib/config/validate";
+import { radarStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function Configuracao() {
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
-  const [raw, listings] = await Promise.all([
-    readFile(MANIFEST_PATH, "utf8"),
-    listAllStates(paths),
-  ]);
+  const store = radarStore();
+  const [manifest, listings] = await Promise.all([store.manifest(), store.listarTodos()]);
 
-  const { warnings } = validateManifestText(raw);
+  const warnings = manifestWarnings(manifest);
 
   const escopos: ConfigEscopo[] = Object.entries(manifest.search_scopes).map(([key, scope]) => ({
     key,
@@ -40,7 +34,10 @@ export default async function Configuracao() {
     <>
       <div className="page-head">
         <div className="row-between">
-          <Crumb items={[{ label: "Painel", href: "/" }, { label: "Configuração" }]} />
+          <Crumb
+            items={[{ label: "Painel", href: "/" }, { label: "Configuração" }]}
+            back={{ href: "/", destino: "Painel" }}
+          />
           <span className="eyebrow">manifest.yaml · raiz do projeto</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>

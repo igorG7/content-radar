@@ -106,6 +106,15 @@ function collectWarnings(manifest: unknown): ValidationIssue[] {
   return warnings;
 }
 
+/**
+ * Avisos a partir do manifest já carregado. A tela de configuração precisa
+ * deles para mostrar o que está torto sem reler o arquivo — quem lê arquivo é
+ * a camada de armazenamento, não a página.
+ */
+export function manifestWarnings(manifest: unknown): ValidationIssue[] {
+  return collectWarnings(manifest);
+}
+
 /** Validates the document as a whole, so an edit can never be saved in a state
  *  the pipeline would later choke on. */
 export function validateManifestText(raw: string): ValidationResult {

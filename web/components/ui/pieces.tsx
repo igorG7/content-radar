@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { BriefState } from "@/lib/manifest";
 import { STATE_META } from "@/lib/view/brief-view";
-import { IconInbox } from "./icons";
+import { IconArrowLeft, IconInbox } from "./icons";
 
 export function EmptyState({
   title,
@@ -33,8 +33,22 @@ export interface CrumbItem {
   href?: string;
 }
 
-export function Crumb({ items, tail }: { items: CrumbItem[]; tail?: ReactNode }) {
-  return (
+/**
+ * Navegação dupla: a trilha inteira fica visível e o botão de voltar leva um
+ * nível acima. Os dois leem o mesmo `back` — no detalhe do brief o destino
+ * varia com o estado, e trilha e botão divergirem seria pior que não ter
+ * botão. Painel e login não têm nível acima, então não recebem `back`.
+ */
+export function Crumb({
+  items,
+  tail,
+  back,
+}: {
+  items: CrumbItem[];
+  tail?: ReactNode;
+  back?: { href: string; destino: string };
+}) {
+  const trilha = (
     <nav className="crumb" aria-label="Trilha da navegação">
       {items.map((item, index) => (
         <span key={`${item.label}-${index}`} style={{ display: "contents" }}>
@@ -48,6 +62,22 @@ export function Crumb({ items, tail }: { items: CrumbItem[]; tail?: ReactNode })
       ))}
       {tail}
     </nav>
+  );
+
+  if (!back) return trilha;
+
+  // O rótulo visível é "Voltar" — curto, sempre no mesmo lugar — e o destino
+  // vai no nome acessível, para quem usa leitor de tela não precisar caçar a
+  // trilha ao lado.
+  const rotulo = `Voltar para ${back.destino}`;
+  return (
+    <div className="crumb-row">
+      {trilha}
+      <Link className="crumb-back" href={back.href} aria-label={rotulo} title={rotulo}>
+        <IconArrowLeft />
+        <span>Voltar</span>
+      </Link>
+    </div>
   );
 }
 

@@ -14,6 +14,7 @@ export default function DocumentoMontado() {
               { label: "Vault", href: "/config/vault" },
               { label: "Documento montado" },
             ]}
+            back={{ href: "/config/vault", destino: "Vault" }}
           />
           <span className="eyebrow">contexto da varredura</span>
         </div>

@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/pieces";
 import { fmtDate, fmtRelative } from "@/lib/format";
-import type { LedgerEvent } from "@/lib/store/ledger";
+import type { LedgerEvent } from "@/lib/store";
 import { EVENT_TONE, eventLabel } from "@/lib/view/ledger-view";
 
 export interface BriefRef {

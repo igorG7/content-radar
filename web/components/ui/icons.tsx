@@ -31,6 +31,54 @@ export const IconMoon = () => (
   </Svg>
 );
 
+export const IconPlus = () => (
+  <Svg>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+
+export const IconStop = () => (
+  <Svg>
+    <rect x="6" y="6" width="12" height="12" rx="1.5" />
+  </Svg>
+);
+
+export const IconArrowLeft = () => (
+  <Svg>
+    <path d="M19 12H5" />
+    <path d="m11 6-6 6 6 6" />
+  </Svg>
+);
+
+export const IconUser = () => (
+  <Svg>
+    <circle cx="12" cy="8.5" r="3.8" />
+    <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+  </Svg>
+);
+
+export const IconClip = () => (
+  <Svg>
+    <path d="M19.5 12.7 12 20.2a4.6 4.6 0 0 1-6.5-6.5l7.7-7.7a3 3 0 0 1 4.3 4.3l-7.7 7.7a1.5 1.5 0 0 1-2.1-2.1l6.9-6.9" />
+  </Svg>
+);
+
+export const IconFile = () => (
+  <Svg>
+    <path d="M14 3.5H7.5A1.5 1.5 0 0 0 6 5v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V7.5z" />
+    <path d="M14 3.5V7a.5.5 0 0 0 .5.5H18" />
+  </Svg>
+);
+
+export const IconTrash = () => (
+  <Svg>
+    <path d="M4 7h16" />
+    <path d="M9.5 7V4.5h5V7" />
+    <path d="M6 7l.9 12a1.6 1.6 0 0 0 1.6 1.5h7a1.6 1.6 0 0 0 1.6-1.5L18 7" />
+    <path d="M10.5 11v6M13.5 11v6" />
+  </Svg>
+);
+
 export const IconSearch = () => (
   <Svg>
     <circle cx="11" cy="11" r="7" />

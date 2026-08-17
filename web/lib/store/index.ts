@@ -19,6 +19,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   loadManifest,
+  MANIFEST_PATH,
   resolvePaths,
   type BriefState,
   type Manifest,
@@ -89,6 +90,14 @@ export interface RadarStore {
   /** O manifest do ambiente. Lido a cada chamada — edição vale sem reiniciar. */
   manifest(): Promise<Manifest>;
 
+  /**
+   * O manifest como texto. A tela de configuração edita por recorte cirúrgico
+   * do YAML, preservando comentários e formatação, então precisa do documento
+   * bruto — não da árvore desserializada.
+   */
+  lerManifestBruto(): Promise<string>;
+  gravarManifestBruto(texto: string): Promise<void>;
+
   listarEstado(estado: BriefState): Promise<StateListing>;
   listarTodos(): Promise<StateListing[]>;
   listarFila(): Promise<StateListing>;
@@ -146,6 +155,14 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
     ambiente,
 
     manifest: loadManifest,
+
+    async lerManifestBruto() {
+      return readFile(MANIFEST_PATH, "utf8");
+    },
+
+    async gravarManifestBruto(texto) {
+      await writeFile(MANIFEST_PATH, texto, "utf8");
+    },
 
     async listarEstado(estado) {
       return listState(estado, await caminhos());

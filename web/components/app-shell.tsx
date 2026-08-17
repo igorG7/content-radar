@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
-import { IconLogout, IconMoon, IconSun, NAV_ICONS, type NavIconName } from "@/components/ui/icons";
+import { useEffect, type ReactNode } from "react";
+import {
+  IconLogout,
+  IconMoon,
+  IconSun,
+  IconUser,
+  NAV_ICONS,
+  type NavIconName,
+} from "@/components/ui/icons";
 import { useVault } from "@/components/vault-provider";
-import { sair, useSessao } from "@/lib/session";
+import { garantirSessao, sair, useNome, useSessao } from "@/lib/session";
 
 interface Rota {
   key: string;
@@ -35,6 +42,7 @@ function rotaAtiva(pathname: string): string {
   if (pathname.startsWith("/chat")) return "chat";
   if (pathname.startsWith("/ledger")) return "ledger";
   if (pathname.startsWith("/config")) return "config";
+  if (pathname.startsWith("/perfil")) return "perfil";
   // O detalhe do brief pertence à fila ou ao acervo conforme o estado no disco.
   if (pathname.startsWith("/briefs/pendente-aprovacao")) return "fila";
   if (pathname.startsWith("/briefs")) return "acervo";
@@ -81,7 +89,12 @@ export function AppShell({ children, filaCount }: { children: ReactNode; filaCou
   const router = useRouter();
   const { progresso } = useVault();
   const sessao = useSessao();
+  const nome = useNome(sessao);
   const ativa = rotaAtiva(pathname);
+
+  // Escrever no storage é efeito sobre um sistema externo, não estado: quem
+  // relê a sessão é o `useSessao` acima, pelo mesmo canal.
+  useEffect(garantirSessao, []);
 
   function badgeDe(key: string): number {
     // Sem os blocos obrigatórios não existe fila: nada foi varrido ainda.
@@ -121,13 +134,29 @@ export function AppShell({ children, filaCount }: { children: ReactNode; filaCou
             })}
           </nav>
           <div className="nav-tail">
-            {sessao && (
-              <span className="nav-user" title={sessao.email}>
+            {sessao ? (
+              <Link
+                className="nav-user"
+                href="/perfil"
+                title={`Perfil de ${sessao.email}`}
+                aria-current={ativa === "perfil" ? "page" : undefined}
+              >
                 <span className="nav-user-mark" aria-hidden="true">
-                  {sessao.email.charAt(0).toUpperCase()}
+                  {nome.charAt(0).toUpperCase()}
                 </span>
-                <span className="nav-user-nome">{sessao.email.split("@")[0]}</span>
-              </span>
+                <span className="nav-user-txt">
+                  <span className="nav-user-nome">{nome}</span>
+                </span>
+              </Link>
+            ) : (
+              <Link className="nav-user" href="/login" title="Entrar no painel">
+                <span className="nav-user-mark" aria-hidden="true">
+                  <IconUser />
+                </span>
+                <span className="nav-user-txt">
+                  <span className="nav-user-nome">Entrar</span>
+                </span>
+              </Link>
             )}
             <ThemeToggle />
             <span className="nav-sep" aria-hidden="true" />

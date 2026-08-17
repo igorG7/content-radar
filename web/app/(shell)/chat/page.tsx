@@ -1,21 +1,22 @@
-import { ChatClient } from "@/components/chat-client";
+import { ChatClient } from "@/components/chat/chat-client";
 import { Crumb } from "@/components/ui/pieces";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { listState } from "@/lib/store/briefs";
+import { radarStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function Chat() {
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
-  const { briefs } = await listState("pendente-aprovacao", paths);
+  const store = radarStore();
+  const [manifest, { briefs }] = await Promise.all([store.manifest(), store.listarFila()]);
 
   return (
     <>
       <div className="page-head">
         <div className="row-between">
-          <Crumb items={[{ label: "Painel", href: "/" }, { label: "Chat" }]} />
-          <span className="eyebrow">components/chat-client.tsx</span>
+          <Crumb
+            items={[{ label: "Painel", href: "/" }, { label: "Chat" }]}
+            back={{ href: "/", destino: "Painel" }}
+          />
+          <span className="eyebrow">components/chat/chat-client.tsx</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>
           Chat com o agente editorial
@@ -34,6 +35,7 @@ export default async function Chat() {
           matchScoreMin: manifest.anti_repetition.match_score_min,
           borderlineMin: manifest.anti_repetition.borderline_min,
         }}
+        agoraIso={new Date().toISOString()}
       />
     </>
   );

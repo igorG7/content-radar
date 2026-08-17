@@ -252,6 +252,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
             { label: "Editor" },
           ]}
           tail={<span className="num">{brief.briefId}</span>}
+          back={{ href: `/briefs/${brief.state}/${brief.slug}`, destino: "Detalhes do brief" }}
         />
         <h1 className="display" style={{ marginTop: 12 }}>
           Editar copy e visual brief

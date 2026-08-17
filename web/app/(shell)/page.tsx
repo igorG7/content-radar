@@ -2,9 +2,8 @@ import Link from "next/link";
 import { PipelineGate } from "@/components/pipeline-gate";
 import { IconAlert } from "@/components/ui/icons";
 import { fmtRelative, fmtScore, weekLabel, weekOf } from "@/lib/format";
-import { loadManifest, resolvePaths, type BriefState } from "@/lib/manifest";
-import { listAllStates } from "@/lib/store/briefs";
-import { readLedger } from "@/lib/store/ledger";
+import type { BriefState } from "@/lib/manifest";
+import { radarStore } from "@/lib/store";
 import { EVENT_TONE, eventLabel } from "@/lib/view/ledger-view";
 import { scoringOf, toBriefView, type BriefView } from "@/lib/view/brief-view";
 
@@ -50,9 +49,12 @@ function Saude({
 }
 
 export default async function Painel() {
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
-  const [listings, ledger] = await Promise.all([listAllStates(paths), readLedger(paths.ledger)]);
+  const store = radarStore();
+  const [manifest, listings, ledger] = await Promise.all([
+    store.manifest(),
+    store.listarTodos(),
+    store.lerLedger(),
+  ]);
 
   const scoring = scoringOf(manifest);
   const porEstado = new Map<BriefState, BriefView[]>(

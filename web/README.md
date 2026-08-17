@@ -24,7 +24,8 @@ npx tsx scripts/smoke.mts   # invariantes contra o store real
 | `/briefs/[state]/[slug]` | Detalhe: score decomposto, copy, arte, procedência, prévia e linha do tempo |
 | `/briefs/[state]/[slug]/editar` | Editor de copy e visual brief, com diff e savebar |
 | `/ledger` | Auditoria: eventos append-only, filtros, JSONL cru |
-| `/chat` | Chat com o agente — casca, sem endpoint |
+| `/chat` | Chat com o agente — casca: conversas, anexos, modelo/esforço e interrupção, sem endpoint |
+| `/perfil` | Perfil: identidade, preferências, atividade humana do ledger, sessão |
 | `/config` | Configuração › Operação (patch cirúrgico no `manifest.yaml`) |
 | `/config/vault`, `/config/vault/[bloco]`, `/config/vault/documento` | Configuração › Vault — casca, blocos no `localStorage` |
 | `/login` | Login fora do shell — casca, sem credencial verificada |
@@ -33,7 +34,9 @@ npx tsx scripts/smoke.mts   # invariantes contra o store real
 
 - `app/globals.css` — design system inteiro: tokens dos dois temas e todos os
   componentes. **Nenhum hex fora do bloco `:root`.**
-- `lib/store/*` — leitura e escrita do filesystem (frontmatter, ledger).
+- `lib/store/index.ts` — a camada de armazenamento. Página nenhuma monta
+  caminho: tudo pede em termos de domínio (`listarFila`, `buscarBrief`,
+  `aplicarTransicao`).
 - `lib/view/brief-view.ts` — ponte entre o frontmatter real e o formato que as
   telas consomem. É o único lugar que traduz nome de campo.
 - `lib/vault/*` — catálogo dos blocos do vault (casca; a persistência real está

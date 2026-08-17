@@ -1,4 +1,4 @@
-import type { Brief } from "@/lib/store/briefs";
+import type { Brief } from "@/lib/store";
 import type { QueueBrief } from "./queue-types";
 
 export function toQueueBrief(brief: Brief): QueueBrief {

@@ -2,15 +2,13 @@ import { Suspense } from "react";
 import { LedgerClient, type BriefRef } from "@/components/ledger-client";
 import { Crumb } from "@/components/ui/pieces";
 import { IconAlert } from "@/components/ui/icons";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { listAllStates } from "@/lib/store/briefs";
-import { readLedger } from "@/lib/store/ledger";
+import { radarStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function Ledger() {
-  const paths = resolvePaths(await loadManifest());
-  const [ledger, listings] = await Promise.all([readLedger(paths.ledger), listAllStates(paths)]);
+  const store = radarStore();
+  const [ledger, listings] = await Promise.all([store.lerLedger(), store.listarTodos()]);
 
   const briefs: BriefRef[] = listings.flatMap((listing) =>
     listing.briefs.map((brief) => ({
@@ -29,7 +27,10 @@ export default async function Ledger() {
     <>
       <div className="page-head">
         <div className="row-between">
-          <Crumb items={[{ label: "Painel", href: "/" }, { label: "Ledger" }]} />
+          <Crumb
+            items={[{ label: "Painel", href: "/" }, { label: "Ledger" }]}
+            back={{ href: "/", destino: "Painel" }}
+          />
           <span className="eyebrow">store/ledger.jsonl · append-only</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>

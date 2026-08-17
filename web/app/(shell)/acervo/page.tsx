@@ -1,16 +1,14 @@
 import { Suspense } from "react";
 import { ArchiveClient } from "@/components/archive-client";
 import { Crumb } from "@/components/ui/pieces";
-import { loadManifest, resolvePaths } from "@/lib/manifest";
-import { listAllStates } from "@/lib/store/briefs";
+import { radarStore } from "@/lib/store";
 import { scoringOf, toBriefView } from "@/lib/view/brief-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function Acervo() {
-  const manifest = await loadManifest();
-  const paths = resolvePaths(manifest);
-  const listings = await listAllStates(paths);
+  const store = radarStore();
+  const [manifest, listings] = await Promise.all([store.manifest(), store.listarTodos()]);
   const scoring = scoringOf(manifest);
 
   const briefs = listings
@@ -28,7 +26,10 @@ export default async function Acervo() {
     <>
       <div className="page-head">
         <div className="row-between">
-          <Crumb items={[{ label: "Painel", href: "/" }, { label: "Acervo" }]} />
+          <Crumb
+            items={[{ label: "Painel", href: "/" }, { label: "Acervo" }]}
+            back={{ href: "/", destino: "Painel" }}
+          />
           <span className="eyebrow">store/briefs/ · leitura</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>

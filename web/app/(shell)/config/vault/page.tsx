@@ -14,6 +14,7 @@ export default function Vault() {
               { label: "Configuração", href: "/config" },
               { label: "Vault" },
             ]}
+            back={{ href: "/config", destino: "Configuração" }}
           />
           <span className="eyebrow">blocos versionados · prosa</span>
         </div>
