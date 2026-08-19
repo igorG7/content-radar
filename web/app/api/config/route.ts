@@ -24,18 +24,19 @@ export async function PATCH(request: Request) {
   }
 
   const store = await radarStore();
-  const raw = await store.lerManifestBruto();
 
-  let output: string;
+  // Valida antes de gravar em qualquer lugar: uma edição correta sozinha ainda
+  // pode quebrar invariante que atravessa campos (pesos somando 1,0,
+  // borderline abaixo do threshold).
+  const raw = await store.lerManifestBruto();
+  let projecao: string;
   try {
-    output = patchManifest(raw, parsed.data.edits);
+    projecao = patchManifest(raw, parsed.data.edits);
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 422 });
   }
 
-  // Validate the whole document, not the individual edit: an edit that is fine
-  // on its own can still break an invariant that spans fields.
-  const { errors, warnings } = validateManifestText(output);
+  const { errors, warnings } = validateManifestText(projecao);
   if (errors.length > 0) {
     return Response.json(
       { error: "configuração inválida", errors, warnings },
@@ -43,6 +44,11 @@ export async function PATCH(request: Request) {
     );
   }
 
-  await store.gravarManifestBruto(output);
+  try {
+    await store.gravarConfiguracao(parsed.data.edits);
+  } catch (error) {
+    return Response.json({ error: (error as Error).message }, { status: 422 });
+  }
+
   return Response.json({ ok: true, warnings });
 }

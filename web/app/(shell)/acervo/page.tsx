@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 
 export default async function Acervo() {
   const store = await radarStore();
-  const [manifest, listings] = await Promise.all([
+  const [manifest, config, listings] = await Promise.all([
     store.manifest(),
+    store.configuracao(),
     store.listarTodos(),
   ]);
   const scoring = scoringOf(manifest);
@@ -18,7 +19,7 @@ export default async function Acervo() {
     .filter((l) => l.state !== "pendente-aprovacao")
     .flatMap((l) => l.briefs.map((b) => toBriefView(b, scoring)));
 
-  const windows = manifest.anti_repetition.windows;
+  const windows = config.janelas as Record<string, number>;
   const janelas = [
     windows?.pillar_icp_redundant_days ?? 14,
     windows?.rejeitado_days ?? 30,

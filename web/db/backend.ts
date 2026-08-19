@@ -135,6 +135,23 @@ async function buscarLinha(tx: Tx, slug: string): Promise<LinhaBrief> {
   return linha;
 }
 
+/**
+ * Traduz o caminho que a tela usa (o do manifest.yaml) para o grupo da tabela
+ * `config`. Caminho desconhecido é recusado em vez de ignorado: gravar metade
+ * da edição é pior que não gravar.
+ */
+function grupoDe(
+  caminho: (string | number)[],
+): { grupo: "pesos" | "caps" | "janelas" | "volume"; chave: string } | null {
+  const [raiz, meio, folha] = caminho.map(String);
+  if (raiz === "funnel") return { grupo: "volume", chave: meio };
+  if (raiz !== "anti_repetition") return null;
+  if (meio === "match_score_weights") return { grupo: "pesos", chave: folha };
+  if (meio === "match_score_caps") return { grupo: "caps", chave: folha };
+  if (meio === "windows") return { grupo: "janelas", chave: folha };
+  return { grupo: "caps", chave: meio };
+}
+
 const PROXIMO_ESTADO = {
   approve: "pendente-publicacao",
   reject: "rejeitado",
@@ -416,6 +433,99 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
           corpo,
           motivo,
         });
+      }),
+
+    configuracao: () =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.config);
+        if (!linha)
+          throw new StoreError("nao_encontrado", "ambiente sem configuração");
+        return {
+          pesos: linha.pesos as Record<string, number>,
+          caps: linha.caps as Record<string, number>,
+          janelas: linha.janelas as Record<string, number | string>,
+          volume: linha.volume as Record<string, number | string>,
+        };
+      }),
+
+    escoposDeBusca: () =>
+      dentro(async (tx) => {
+        const [escopos, fontes, pilares] = await Promise.all([
+          tx.select().from(t.escopoBusca).orderBy(t.escopoBusca.slug),
+          tx.select().from(t.fonte),
+          tx.select().from(t.escopoPilar),
+        ]);
+        return escopos.map((e) => ({
+          slug: e.slug,
+          label: e.label,
+          ativo: e.ativo,
+          fontes: fontes
+            .filter((f) => f.escopoSlug === e.slug)
+            .map((f) => ({
+              slug: f.slug,
+              url: f.url,
+              nota: f.nota,
+              ativo: f.ativo,
+            })),
+          pilares: pilares
+            .filter((p) => p.escopoSlug === e.slug)
+            .map((p) => p.pilarSlug),
+        }));
+      }),
+
+    /**
+     * O banco é a fonte da verdade. O manifest.yaml recebe a mesma mudança por
+     * recorte cirúrgico porque as skills ainda o leem — é projeção de uma
+     * fonte só, não segunda fonte, e some quando a injeção entrar (fase 4).
+     *
+     * A ordem importa: se o arquivo falhar, a transação do banco não commitou
+     * e os dois seguem iguais. O contrário deixaria o banco à frente em
+     * silêncio.
+     *
+     * **A projeção é de um ambiente só.** Existe um `manifest.yaml`, e ele
+     * pertence à empresa declarada em `target_company.slug`. Sem esta
+     * verificação, um ambiente reescreveria a configuração das skills de
+     * outro — o vazamento que o RLS impede no banco, entrando pela porta do
+     * arquivo.
+     */
+    gravarConfiguracao: (edicoes) =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.config);
+        if (!linha)
+          throw new StoreError("nao_encontrado", "ambiente sem configuração");
+
+        const atual = {
+          pesos: linha.pesos as Record<string, unknown>,
+          caps: linha.caps as Record<string, unknown>,
+          janelas: linha.janelas as Record<string, unknown>,
+          volume: linha.volume as Record<string, unknown>,
+        };
+
+        for (const { path: caminho, value } of edicoes) {
+          const grupo = grupoDe(caminho);
+          if (!grupo)
+            throw new StoreError(
+              "candidata_invalida",
+              `caminho fora da configuração: ${caminho.join(".")}`,
+            );
+          atual[grupo.grupo][grupo.chave] = value;
+        }
+
+        await tx.update(t.config).set({ ...atual, atualizadoEm: new Date() });
+
+        const [amb] = await tx
+          .select()
+          .from(t.ambiente)
+          .where(eq(t.ambiente.id, ambiente));
+        const manifest = await loadManifest();
+        const dono = (manifest as { target_company?: { slug?: string } })
+          .target_company?.slug;
+
+        if (amb && dono === amb.slug) {
+          const { patchManifest } = await import("../lib/config/manifest-edit");
+          const bruto = await readFile(MANIFEST_PATH, "utf8");
+          await writeFile(MANIFEST_PATH, patchManifest(bruto, edicoes), "utf8");
+        }
       }),
 
     estadoDaConfig: () =>

@@ -76,6 +76,27 @@ export class StoreError extends Error {
   }
 }
 
+export interface Configuracao {
+  pesos: Record<string, number>;
+  caps: Record<string, number>;
+  janelas: Record<string, number | string>;
+  volume: Record<string, number | string>;
+}
+
+export interface EscopoBusca {
+  slug: string;
+  label: string;
+  ativo: boolean;
+  fontes: { slug: string; url: string; nota: string | null; ativo: boolean }[];
+  pilares: string[];
+}
+
+/** Um caminho no documento e o valor novo — mesma forma que a tela já usa. */
+export interface EdicaoConfig {
+  path: (string | number)[];
+  value: unknown;
+}
+
 /** Um bloco do vault, como o banco o guarda. */
 export interface BlocoVault {
   slug: string;
@@ -143,6 +164,23 @@ export interface RadarStore {
    * o bloco é do produto e vive no catálogo (lib/vault/blocos.ts).
    */
   listarBlocos(): Promise<BlocoVault[]>;
+
+  /**
+   * A configuração operacional do ambiente: pesos do score, caps, janelas de
+   * anti-repetição e volume. É o que o `manifest.yaml` guardava — e continua
+   * guardando enquanto as skills lerem o arquivo (ver `gravarConfiguracao`).
+   */
+  configuracao(): Promise<Configuracao>;
+
+  /** Os escopos de busca com suas fontes e os pilares que cada um alimenta. */
+  escoposDeBusca(): Promise<EscopoBusca[]>;
+
+  /**
+   * Grava a configuração. O banco é a fonte da verdade; o `manifest.yaml`
+   * recebe a mesma mudança por recorte cirúrgico enquanto as skills o lerem —
+   * é projeção, não segunda fonte, e some quando a injeção entrar (fase 4).
+   */
+  gravarConfiguracao(edicoes: EdicaoConfig[]): Promise<void>;
 
   /**
    * Quais blocos de tipo config já estão satisfeitos. Não vêm do vault: o
@@ -315,6 +353,53 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       throw new StoreError(
         "nao_encontrado",
         "o backend de arquivo não guarda vault",
+      );
+    },
+
+    async configuracao(): Promise<Configuracao> {
+      const m = await loadManifest();
+      return {
+        pesos: m.anti_repetition.match_score_weights,
+        caps: {
+          match_score_min: m.anti_repetition.match_score_min,
+          borderline_min: m.anti_repetition.borderline_min,
+          ...(m.anti_repetition.geografia_reframe_floor !== undefined
+            ? {
+                geografia_reframe_floor:
+                  m.anti_repetition.geografia_reframe_floor,
+              }
+            : {}),
+        },
+        janelas: (m.anti_repetition.windows ?? {}) as Record<
+          string,
+          number | string
+        >,
+        volume: {
+          candidates_per_week_target: m.funnel.candidates_per_week_target,
+        },
+      };
+    },
+
+    async escoposDeBusca(): Promise<EscopoBusca[]> {
+      const m = await loadManifest();
+      return Object.entries(m.search_scopes).map(([slug, escopo]) => ({
+        slug,
+        label: escopo.label,
+        ativo: true,
+        fontes: escopo.sources.map((f) => ({
+          slug: f,
+          url: f,
+          nota: null,
+          ativo: true,
+        })),
+        pilares: escopo.pillars_alvo ?? [],
+      }));
+    },
+
+    async gravarConfiguracao() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não grava configuração",
       );
     },
 

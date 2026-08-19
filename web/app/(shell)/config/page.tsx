@@ -9,24 +9,25 @@ export const dynamic = "force-dynamic";
 
 export default async function Configuracao() {
   const store = await radarStore();
-  const [manifest, listings] = await Promise.all([
+  const [manifest, config, escoposDb, listings] = await Promise.all([
     store.manifest(),
+    store.configuracao(),
+    store.escoposDeBusca(),
     store.listarTodos(),
   ]);
 
+  // Os avisos ainda saem do manifest: são invariantes editoriais que cruzam
+  // campos que só existem lá (pilares por dia da cadência).
   const warnings = manifestWarnings(manifest);
 
-  const escopos: ConfigEscopo[] = Object.entries(manifest.search_scopes).map(
-    ([key, scope]) => ({
-      key,
-      label: scope.label,
-      sources: scope.sources,
-      pillarsAlvo: scope.pillars_alvo ?? [],
-    }),
-  );
+  const escopos: ConfigEscopo[] = escoposDb.map((e) => ({
+    key: e.slug,
+    label: e.label,
+    sources: e.fontes.map((f) => f.slug),
+    pillarsAlvo: e.pilares,
+  }));
 
-  const windows = manifest.anti_repetition.windows ?? {};
-  const janelas = Object.entries(windows)
+  const janelas = Object.entries(config.janelas)
     .filter(([, dias]) => typeof dias === "number")
     .map(([chave, dias]) => ({ chave, dias: dias as number }));
 
@@ -63,10 +64,10 @@ export default async function Configuracao() {
 
       <ConfigClient
         inicial={{
-          weeklyTarget: manifest.funnel.candidates_per_week_target,
-          matchScoreMin: manifest.anti_repetition.match_score_min,
-          borderlineMin: manifest.anti_repetition.borderline_min,
-          weights: manifest.anti_repetition.match_score_weights,
+          weeklyTarget: Number(config.volume.candidates_per_week_target ?? 0),
+          matchScoreMin: config.caps.match_score_min,
+          borderlineMin: config.caps.borderline_min,
+          weights: config.pesos,
           escopos,
           janelas,
           scores,

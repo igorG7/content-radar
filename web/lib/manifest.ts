@@ -28,6 +28,9 @@ const StateDirs = z.object({
 });
 
 const ManifestSchema = z.object({
+  /** De quem é este arquivo. A projeção da configuração só escreve nele quando
+   *  o ambiente da sessão é este — um manifest, um dono. */
+  target_company: z.object({ slug: z.string() }).partial().optional(),
   storage: z.object({
     briefs_root: z.string(),
     briefs_dirs: StateDirs,

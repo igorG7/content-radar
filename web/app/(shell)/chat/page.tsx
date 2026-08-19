@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 export default async function Chat() {
   const store = await radarStore();
-  const [manifest, { briefs }] = await Promise.all([
-    store.manifest(),
+  const [config, { briefs }] = await Promise.all([
+    store.configuracao(),
     store.listarFila(),
   ]);
 
@@ -35,8 +35,8 @@ export default async function Chat() {
           total: briefs.length,
           semArte: briefs.filter((b) => !b.heroChoiceDeclared).length,
           borderline: briefs.filter((b) => b.borderline).length,
-          matchScoreMin: manifest.anti_repetition.match_score_min,
-          borderlineMin: manifest.anti_repetition.borderline_min,
+          matchScoreMin: config.caps.match_score_min,
+          borderlineMin: config.caps.borderline_min,
         }}
         agoraIso={new Date().toISOString()}
       />
