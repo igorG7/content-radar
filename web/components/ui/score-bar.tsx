@@ -13,7 +13,13 @@ interface ScoreBarProps {
  * O espaço que sobra até 1,0 continua sendo trilho: a barra lê como "quanto do
  * máximo este brief realmente ganhou", não como uma pilha normalizada em 100%.
  */
-export function ScoreBar({ score, breakdown, min, borderline, legend = true }: ScoreBarProps) {
+export function ScoreBar({
+  score,
+  breakdown,
+  min,
+  borderline,
+  legend = true,
+}: ScoreBarProps) {
   const segmentos = breakdown.map((c, i) => (
     <div
       key={c.key}
@@ -26,7 +32,9 @@ export function ScoreBar({ score, breakdown, min, borderline, legend = true }: S
   return (
     <>
       <div className="score-head">
-        <span className="score-value num">{score === null ? "—" : fmtScore(score)}</span>
+        <span className="score-value num">
+          {score === null ? "—" : fmtScore(score)}
+        </span>
         <span className="meta">de 1,000 · corte {fmtScore(min)}</span>
         {borderline && <span className="pill pill-warn">borderline</span>}
       </div>
@@ -63,7 +71,13 @@ export function ScoreBar({ score, breakdown, min, borderline, legend = true }: S
 }
 
 /** Versão compacta da fila: só as faixas, sem cabeçalho nem legenda. */
-export function ScoreStrip({ breakdown, score }: { breakdown: ScoreComponent[]; score: number | null }) {
+export function ScoreStrip({
+  breakdown,
+  score,
+}: {
+  breakdown: ScoreComponent[];
+  score: number | null;
+}) {
   return (
     <div
       className="score-bar"

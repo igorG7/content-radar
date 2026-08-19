@@ -1,7 +1,11 @@
 import { readdir, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { BriefState, RadarPaths } from "../manifest";
-import { readFileWithFrontmatter, appendToTextBlock, patchScalars } from "../store/frontmatter";
+import {
+  readFileWithFrontmatter,
+  appendToTextBlock,
+  patchScalars,
+} from "../store/frontmatter";
 import { readFile, writeFile } from "node:fs/promises";
 import { APP_ACTOR, appendLedger, type LedgerEvent } from "../store/ledger";
 
@@ -60,7 +64,10 @@ function isoWithOffset(now = new Date()): string {
   );
 }
 
-async function listSlugMedia(mediaDir: string, slug: string): Promise<string[]> {
+async function listSlugMedia(
+  mediaDir: string,
+  slug: string,
+): Promise<string[]> {
   try {
     const entries = await readdir(mediaDir);
     return entries.filter((name) => name.startsWith(`${slug}__`)).sort();
@@ -70,7 +77,10 @@ async function listSlugMedia(mediaDir: string, slug: string): Promise<string[]> 
   }
 }
 
-async function locateBrief(slug: string, paths: RadarPaths): Promise<BriefState | null> {
+async function locateBrief(
+  slug: string,
+  paths: RadarPaths,
+): Promise<BriefState | null> {
   for (const state of Object.keys(paths.briefsDir) as BriefState[]) {
     try {
       const entries = await readdir(paths.briefsDir[state]);
@@ -96,7 +106,10 @@ export async function planTransition(
 
   const location = await locateBrief(slug, paths);
   if (location === null) {
-    throw new TransitionError("not_found", `brief \`${slug}\` não existe em nenhum diretório`);
+    throw new TransitionError(
+      "not_found",
+      `brief \`${slug}\` não existe em nenhum diretório`,
+    );
   }
   if (location !== SOURCE) {
     throw new TransitionError(
@@ -116,7 +129,8 @@ export async function planTransition(
   }
 
   const rawChoice = data.hero_choice;
-  const heroChoice = rawChoice === null ? null : typeof rawChoice === "number" ? rawChoice : NaN;
+  const heroChoice =
+    rawChoice === null ? null : typeof rawChoice === "number" ? rawChoice : NaN;
   if (Number.isNaN(heroChoice)) {
     throw new TransitionError(
       "hero_choice_invalid",
@@ -145,14 +159,17 @@ export async function planTransition(
     const candidates = Array.isArray(data.hero_image_candidates)
       ? (data.hero_image_candidates as { index?: unknown }[])
       : [];
-    const declared = candidates.some((candidate) => candidate?.index === heroChoice);
+    const declared = candidates.some(
+      (candidate) => candidate?.index === heroChoice,
+    );
     if (!declared) {
       throw new TransitionError(
         "hero_choice_out_of_range",
         `hero_choice ${heroChoice} não corresponde a nenhuma candidata declarada`,
       );
     }
-    mediaKept = onDisk.find((name) => name.startsWith(`${slug}__${heroChoice}.`)) ?? null;
+    mediaKept =
+      onDisk.find((name) => name.startsWith(`${slug}__${heroChoice}.`)) ?? null;
     if (mediaKept === null) {
       warnings.push(
         `a foto ${heroChoice} não está no cache local; o brief avança sem mídia para o handoff`,

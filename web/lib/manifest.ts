@@ -92,7 +92,10 @@ export function resolvePaths(manifest: Manifest): RadarPaths {
   const briefsDir = {} as Record<BriefState, string>;
   const mediaDir = {} as Record<BriefState, string>;
   for (const state of BRIEF_STATES) {
-    briefsDir[state] = path.join(briefsRoot, storage.briefs_dirs[stateKey(state)]);
+    briefsDir[state] = path.join(
+      briefsRoot,
+      storage.briefs_dirs[stateKey(state)],
+    );
     mediaDir[state] = path.join(mediaRoot, storage.media_dirs[stateKey(state)]);
   }
 

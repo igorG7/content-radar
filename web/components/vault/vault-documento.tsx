@@ -8,7 +8,10 @@ export function VaultDocumento() {
   const { aceitos, progresso } = useVault();
   const doc = documentoDe(aceitos);
   const preenchidos = doc.filter((s) => s.conteudo);
-  const caracteres = preenchidos.reduce((n, s) => n + (s.conteudo?.length ?? 0), 0);
+  const caracteres = preenchidos.reduce(
+    (n, s) => n + (s.conteudo?.length ?? 0),
+    0,
+  );
 
   return (
     <>
@@ -16,7 +19,8 @@ export function VaultDocumento() {
         <p className="meta">
           {preenchidos.length} de {doc.length} blocos
           <span className="dot-sep" />
-          <span className="num">{caracteres.toLocaleString("pt-BR")}</span> caracteres
+          <span className="num">{caracteres.toLocaleString("pt-BR")}</span>{" "}
+          caracteres
         </p>
         {progresso.podeRodar ? (
           <span className="pill pill-ok">contexto completo</span>
@@ -28,7 +32,10 @@ export function VaultDocumento() {
       </div>
 
       <div className="panel">
-        <div className="panel-body" style={{ padding: "var(--gap-xl) var(--gap-lg)" }}>
+        <div
+          className="panel-body"
+          style={{ padding: "var(--gap-xl) var(--gap-lg)" }}
+        >
           <div className="doc-montado">
             {doc.map((secao) => (
               <section className="doc-secao" key={secao.key}>
@@ -37,7 +44,8 @@ export function VaultDocumento() {
                   <Prosa texto={secao.conteudo} />
                 ) : (
                   <p className="doc-lacuna">
-                    Bloco vazio — este trecho não vai no contexto. O agente trabalha sem ele.
+                    Bloco vazio — este trecho não vai no contexto. O agente
+                    trabalha sem ele.
                   </p>
                 )}
               </section>
@@ -47,7 +55,8 @@ export function VaultDocumento() {
       </div>
 
       <p className="field-help" style={{ marginTop: 16, textAlign: "center" }}>
-        Fontes, pesos e limiares não aparecem aqui: eles são configuração, não contexto de marca.
+        Fontes, pesos e limiares não aparecem aqui: eles são configuração, não
+        contexto de marca.
       </p>
     </>
   );

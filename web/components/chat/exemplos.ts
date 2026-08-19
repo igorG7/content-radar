@@ -42,7 +42,10 @@ export const CONVERSAS_EXEMPLO: Conversa[] = [
         id: "m2",
         role: "agent",
         ts: "2026-08-16T10:02:04-03:00",
-        tool: { name: "listState", args: { estado: "pendente-aprovacao", borderline: true } },
+        tool: {
+          name: "listState",
+          args: { estado: "pendente-aprovacao", borderline: true },
+        },
         content:
           "Borderline é a faixa entre `borderline_min` e `match_score_min`: o limiar deixa a decisão com você, não com o matcher.\n" +
           "\nCada um deles chegou à fila de propósito — o score não foi alto o bastante para promover sozinho, nem baixo o bastante para descartar.",
@@ -58,7 +61,8 @@ export const CONVERSAS_EXEMPLO: Conversa[] = [
         id: "a1",
         role: "user",
         ts: "2026-08-15T16:38:00-03:00",
-        content: "Se eu subir o match_score_min para 0,60, quantos briefs da semana sobrevivem?",
+        content:
+          "Se eu subir o match_score_min para 0,60, quantos briefs da semana sobrevivem?",
       },
       {
         id: "a2",
@@ -80,7 +84,8 @@ export const CONVERSAS_EXEMPLO: Conversa[] = [
         id: "b1",
         role: "user",
         ts: "2026-08-13T09:10:00-03:00",
-        content: "O brief de sítio em Jaboticatubas cita outorga de água. Isso é guardrail?",
+        content:
+          "O brief de sítio em Jaboticatubas cita outorga de água. Isso é guardrail?",
       },
       {
         id: "b2",

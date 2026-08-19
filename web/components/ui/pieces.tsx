@@ -73,7 +73,12 @@ export function Crumb({
   return (
     <div className="crumb-row">
       {trilha}
-      <Link className="crumb-back" href={back.href} aria-label={rotulo} title={rotulo}>
+      <Link
+        className="crumb-back"
+        href={back.href}
+        aria-label={rotulo}
+        title={rotulo}
+      >
         <IconArrowLeft />
         <span>Voltar</span>
       </Link>
@@ -92,4 +97,9 @@ export function Counter({ value, limit }: { value: number; limit: number }) {
   );
 }
 
-export const LIMITES = { headline: 240, hook: 1200, caption: 8000, hashtags: 40 } as const;
+export const LIMITES = {
+  headline: 240,
+  hook: 1200,
+  caption: 8000,
+  hashtags: 40,
+} as const;

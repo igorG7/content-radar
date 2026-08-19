@@ -53,7 +53,11 @@ function ListEditor({
     <div className="field">
       <div className="row-between">
         <span className="field-label">{titulo}</span>
-        <button className="btn btn-ghost btn-sm" type="button" onClick={() => onChange([...itens, ""])}>
+        <button
+          className="btn btn-ghost btn-sm"
+          type="button"
+          onClick={() => onChange([...itens, ""])}
+        >
           + Adicionar
         </button>
       </div>
@@ -110,7 +114,9 @@ function ListEditor({
             </div>
           ))
         ) : (
-          <p className="small muted">Nenhum item. O Open Design compõe sem restrição neste eixo.</p>
+          <p className="small muted">
+            Nenhum item. O Open Design compõe sem restrição neste eixo.
+          </p>
         )}
       </div>
       <p className="field-help">{ajuda}</p>
@@ -138,22 +144,29 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
 
   const erros = useMemo(() => {
     const out: [Campo, string][] = [];
-    if (!draft.headline.trim()) out.push(["headline", "A headline não pode ficar vazia."]);
+    if (!draft.headline.trim())
+      out.push(["headline", "A headline não pode ficar vazia."]);
     if (draft.headline.length > LIMITES.headline)
-      out.push(["headline", `Máximo de ${LIMITES.headline} caracteres (zod da API).`]);
+      out.push([
+        "headline",
+        `Máximo de ${LIMITES.headline} caracteres (zod da API).`,
+      ]);
     if (draft.hook.length > LIMITES.hook)
       out.push(["hook", `Máximo de ${LIMITES.hook} caracteres.`]);
-    if (!draft.caption.trim()) out.push(["caption", "A caption não pode ficar vazia."]);
+    if (!draft.caption.trim())
+      out.push(["caption", "A caption não pode ficar vazia."]);
     if (draft.caption.length > LIMITES.caption)
       out.push(["caption", `Máximo de ${LIMITES.caption} caracteres.`]);
     if (draft.hashtags.length > LIMITES.hashtags)
       out.push(["hashtags", `Máximo de ${LIMITES.hashtags} hashtags.`]);
     const invalidas = draft.hashtags.filter((h) => !/^#?[\wÀ-ÿ]+$/.test(h));
-    if (invalidas.length > 0) out.push(["hashtags", `Formato inválido: ${invalidas.join(", ")}`]);
+    if (invalidas.length > 0)
+      out.push(["hashtags", `Formato inválido: ${invalidas.join(", ")}`]);
     return out;
   }, [draft]);
 
-  const errosDe = (campo: Campo) => erros.filter(([c]) => c === campo).map(([, m]) => m);
+  const errosDe = (campo: Campo) =>
+    erros.filter(([c]) => c === campo).map(([, m]) => m);
 
   function editarLista(campo: "mustHave" | "avoidVisual", proximo: string[]) {
     setDraft((d) => ({ ...d, [campo]: proximo }));
@@ -164,7 +177,10 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
       .split(/[,\s]+/)
       .filter(Boolean)
       .map((raw) => (raw.startsWith("#") ? raw.slice(1) : raw).toLowerCase());
-    setDraft((d) => ({ ...d, hashtags: [...new Set([...d.hashtags, ...novas])] }));
+    setDraft((d) => ({
+      ...d,
+      hashtags: [...new Set([...d.hashtags, ...novas])],
+    }));
     setNovaTag("");
   }
 
@@ -178,26 +194,29 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
       return;
     }
     setGravando(true);
-    const resposta = await fetch(`/api/brief-editor/${brief.state}/${brief.slug}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        headline: draft.headline,
-        hook: draft.hook,
-        captionDraft: draft.caption,
-        hashtags: draft.hashtags,
-        cta: draft.cta,
-        // O PATCH reescreve visual_brief inteiro: o que não é editado aqui vai
-        // junto sem alteração, senão a gravação apagaria o resto do bloco.
-        visualBrief: {
-          baseTemplate: brief.visualBrief.baseTemplate ?? undefined,
-          compositionNotes: brief.visualBrief.compositionNotes ?? undefined,
-          mustHave: draft.mustHave.filter((item) => item.trim()),
-          avoidVisual: draft.avoidVisual.filter((item) => item.trim()),
-          aspectRatio: draft.aspectRatio,
-        },
-      }),
-    }).catch(() => null);
+    const resposta = await fetch(
+      `/api/brief-editor/${brief.state}/${brief.slug}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          headline: draft.headline,
+          hook: draft.hook,
+          captionDraft: draft.caption,
+          hashtags: draft.hashtags,
+          cta: draft.cta,
+          // O PATCH reescreve visual_brief inteiro: o que não é editado aqui vai
+          // junto sem alteração, senão a gravação apagaria o resto do bloco.
+          visualBrief: {
+            baseTemplate: brief.visualBrief.baseTemplate ?? undefined,
+            compositionNotes: brief.visualBrief.compositionNotes ?? undefined,
+            mustHave: draft.mustHave.filter((item) => item.trim()),
+            avoidVisual: draft.avoidVisual.filter((item) => item.trim()),
+            aspectRatio: draft.aspectRatio,
+          },
+        }),
+      },
+    ).catch(() => null);
     setGravando(false);
 
     if (!resposta?.ok) {
@@ -205,7 +224,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
       toast({
         tone: "danger",
         title: `HTTP ${resposta?.status ?? "—"} · PATCH recusado`,
-        detail: corpo?.error ?? "A API não aceitou a gravação; nada foi escrito no arquivo.",
+        detail:
+          corpo?.error ??
+          "A API não aceitou a gravação; nada foi escrito no arquivo.",
       });
       return;
     }
@@ -223,16 +244,30 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
   const linhasDiff: { tipo: "del" | "add"; texto: string }[] = [];
   const cmp = (campo: string, antes: string, depois: string) => {
     if (antes === depois) return;
-    linhasDiff.push({ tipo: "del", texto: `- ${campo}: ${antes.slice(0, 160)}` });
-    linhasDiff.push({ tipo: "add", texto: `+ ${campo}: ${depois.slice(0, 160)}` });
+    linhasDiff.push({
+      tipo: "del",
+      texto: `- ${campo}: ${antes.slice(0, 160)}`,
+    });
+    linhasDiff.push({
+      tipo: "add",
+      texto: `+ ${campo}: ${depois.slice(0, 160)}`,
+    });
   };
   cmp("headline", brief.headline, draft.headline);
   cmp("hook", brief.hook, draft.hook);
   cmp("caption_draft", brief.caption, draft.caption);
   cmp("cta", brief.cta, draft.cta);
   cmp("hashtags", brief.hashtags.join(" "), draft.hashtags.join(" "));
-  cmp("visual_brief.aspect_ratio", brief.visualBrief.aspectRatio, draft.aspectRatio);
-  cmp("visual_brief.must_have", brief.visualBrief.mustHave.join(" | "), draft.mustHave.join(" | "));
+  cmp(
+    "visual_brief.aspect_ratio",
+    brief.visualBrief.aspectRatio,
+    draft.aspectRatio,
+  );
+  cmp(
+    "visual_brief.must_have",
+    brief.visualBrief.mustHave.join(" | "),
+    draft.mustHave.join(" | "),
+  );
   cmp(
     "visual_brief.avoid_visual",
     brief.visualBrief.avoidVisual.join(" | "),
@@ -252,7 +287,10 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
             { label: "Editor" },
           ]}
           tail={<span className="num">{brief.briefId}</span>}
-          back={{ href: `/briefs/${brief.state}/${brief.slug}`, destino: "Detalhes do brief" }}
+          back={{
+            href: `/briefs/${brief.state}/${brief.slug}`,
+            destino: "Detalhes do brief",
+          }}
         />
         <h1 className="display" style={{ marginTop: 12 }}>
           Editar copy e visual brief
@@ -279,28 +317,37 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
             {sensivel && (
               <div className="sensitive-bar">
                 <IconAlert />
-                Brief já aprovado. Editar aqui altera algo que passou pela revisão e está a um passo
-                da publicação.
+                Brief já aprovado. Editar aqui altera algo que passou pela
+                revisão e está a um passo da publicação.
               </div>
             )}
             <div className="panel-head">
               <h2 className="h3">Copy</h2>
-              <span className={`pill ${sensivel ? "pill-warn" : "pill-accent"}`}>
+              <span
+                className={`pill ${sensivel ? "pill-warn" : "pill-accent"}`}
+              >
                 {STATE_META[brief.state].label}
               </span>
             </div>
             <div className="panel-body stack">
-              <div className={`field ${errosDe("headline").length ? "field-invalid" : ""}`}>
+              <div
+                className={`field ${errosDe("headline").length ? "field-invalid" : ""}`}
+              >
                 <div className="row-between">
                   <label htmlFor="headline">headline</label>
-                  <Counter value={draft.headline.length} limit={LIMITES.headline} />
+                  <Counter
+                    value={draft.headline.length}
+                    limit={LIMITES.headline}
+                  />
                 </div>
                 <textarea
                   className="textarea"
                   id="headline"
                   style={{ minHeight: 60 }}
                   value={draft.headline}
-                  onChange={(event) => setDraft((d) => ({ ...d, headline: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, headline: event.target.value }))
+                  }
                 />
                 {errosDe("headline").map((m) => (
                   <p className="field-error" key={m}>
@@ -308,11 +355,14 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   </p>
                 ))}
                 <p className="field-help">
-                  Aparece como título do card. Curta o suficiente para caber em duas linhas na arte.
+                  Aparece como título do card. Curta o suficiente para caber em
+                  duas linhas na arte.
                 </p>
               </div>
 
-              <div className={`field ${errosDe("hook").length ? "field-invalid" : ""}`}>
+              <div
+                className={`field ${errosDe("hook").length ? "field-invalid" : ""}`}
+              >
                 <div className="row-between">
                   <label htmlFor="hook">hook</label>
                   <Counter value={draft.hook.length} limit={LIMITES.hook} />
@@ -322,7 +372,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   id="hook"
                   style={{ minHeight: 80 }}
                   value={draft.hook}
-                  onChange={(event) => setDraft((d) => ({ ...d, hook: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, hook: event.target.value }))
+                  }
                 />
                 {errosDe("hook").map((m) => (
                   <p className="field-error" key={m}>
@@ -331,17 +383,24 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                 ))}
               </div>
 
-              <div className={`field ${errosDe("caption").length ? "field-invalid" : ""}`}>
+              <div
+                className={`field ${errosDe("caption").length ? "field-invalid" : ""}`}
+              >
                 <div className="row-between">
                   <label htmlFor="caption">caption_draft</label>
-                  <Counter value={draft.caption.length} limit={LIMITES.caption} />
+                  <Counter
+                    value={draft.caption.length}
+                    limit={LIMITES.caption}
+                  />
                 </div>
                 <textarea
                   className="textarea"
                   id="caption"
                   style={{ minHeight: 260 }}
                   value={draft.caption}
-                  onChange={(event) => setDraft((d) => ({ ...d, caption: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, caption: event.target.value }))
+                  }
                 />
                 {errosDe("caption").map((m) => (
                   <p className="field-error" key={m}>
@@ -349,8 +408,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   </p>
                 ))}
                 <p className="field-help">
-                  O Instagram corta em ~{IG_CUT} caracteres — os primeiros {IG_CUT} precisam se
-                  sustentar sozinhos. Confira na prévia ao lado.
+                  O Instagram corta em ~{IG_CUT} caracteres — os primeiros{" "}
+                  {IG_CUT} precisam se sustentar sozinhos. Confira na prévia ao
+                  lado.
                 </p>
               </div>
 
@@ -360,14 +420,21 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   className="input"
                   id="cta"
                   value={draft.cta}
-                  onChange={(event) => setDraft((d) => ({ ...d, cta: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, cta: event.target.value }))
+                  }
                 />
               </div>
 
-              <div className={`field ${errosDe("hashtags").length ? "field-invalid" : ""}`}>
+              <div
+                className={`field ${errosDe("hashtags").length ? "field-invalid" : ""}`}
+              >
                 <div className="row-between">
                   <span className="field-label">hashtags</span>
-                  <Counter value={draft.hashtags.length} limit={LIMITES.hashtags} />
+                  <Counter
+                    value={draft.hashtags.length}
+                    limit={LIMITES.hashtags}
+                  />
                 </div>
                 <div className="row-tight" style={{ marginTop: 4 }}>
                   {draft.hashtags.map((tag, i) => (
@@ -377,7 +444,10 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                         type="button"
                         aria-label={`Remover ${tag}`}
                         onClick={() =>
-                          setDraft((d) => ({ ...d, hashtags: d.hashtags.filter((_, j) => j !== i) }))
+                          setDraft((d) => ({
+                            ...d,
+                            hashtags: d.hashtags.filter((_, j) => j !== i),
+                          }))
                         }
                       >
                         ×
@@ -410,7 +480,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
           <section className="panel">
             <div className="panel-head">
               <h2 className="h3">Visual brief</h2>
-              <span className="meta">od_skill_ref: {brief.odSkillRef ?? "—"}</span>
+              <span className="meta">
+                od_skill_ref: {brief.odSkillRef ?? "—"}
+              </span>
             </div>
             <div className="panel-body stack">
               <div className="field" style={{ maxWidth: 220 }}>
@@ -419,7 +491,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   className="select"
                   id="ratio"
                   value={draft.aspectRatio}
-                  onChange={(event) => setDraft((d) => ({ ...d, aspectRatio: event.target.value }))}
+                  onChange={(event) =>
+                    setDraft((d) => ({ ...d, aspectRatio: event.target.value }))
+                  }
                 >
                   <option value="1:1">1:1 — feed quadrado (padrão)</option>
                   <option value="3:4">3:4 — retrato</option>
@@ -452,7 +526,9 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                   Alterações não salvas
                 </span>
               ) : (
-                <span className="muted">Nada alterado desde a última leitura do disco</span>
+                <span className="muted">
+                  Nada alterado desde a última leitura do disco
+                </span>
               )}
             </p>
             <div className="row-tight">
@@ -489,7 +565,10 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
               <h2 className="h3">Prévia da legenda no feed</h2>
               <span className="meta">{draft.aspectRatio}</span>
             </div>
-            <div className="panel-body" style={{ display: "grid", justifyItems: "center" }}>
+            <div
+              className="panel-body"
+              style={{ display: "grid", justifyItems: "center" }}
+            >
               <IgPreview
                 caption={draft.caption}
                 hashtags={draft.hashtags}
@@ -511,13 +590,17 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                 ))}
               </dl>
               <p className="field-help" style={{ marginTop: 12 }}>
-                Os mesmos limites do zod em <span className="num">/api/brief-editor</span>. Validar
-                aqui evita um 422 depois de você já ter escrito tudo.
+                Os mesmos limites do zod em{" "}
+                <span className="num">/api/brief-editor</span>. Validar aqui
+                evita um 422 depois de você já ter escrito tudo.
               </p>
             </div>
           </div>
           <p>
-            <Link className="btn btn-secondary btn-block" href={`/briefs/${brief.state}/${brief.slug}`}>
+            <Link
+              className="btn btn-secondary btn-block"
+              href={`/briefs/${brief.state}/${brief.slug}`}
+            >
               Voltar ao detalhe
             </Link>
           </p>
@@ -532,13 +615,16 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
         title="O que vai ser reescrito no frontmatter"
       >
         <p className="small">
-          Só as chaves abaixo são tocadas. Comentários, ordem das demais chaves e o corpo markdown do
-          arquivo ficam intactos.
+          Só as chaves abaixo são tocadas. Comentários, ordem das demais chaves
+          e o corpo markdown do arquivo ficam intactos.
         </p>
         <pre className="code" style={{ marginTop: 14, whiteSpace: "pre-wrap" }}>
           {linhasDiff.length > 0 ? (
             linhasDiff.map((linha, i) => (
-              <span className={linha.tipo === "add" ? "c-add" : "c-del"} key={i}>
+              <span
+                className={linha.tipo === "add" ? "c-add" : "c-del"}
+                key={i}
+              >
                 {linha.texto}
               </span>
             ))
@@ -554,7 +640,11 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
         title="Descartar alterações?"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setDescartando(false)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setDescartando(false)}
+            >
               Continuar editando
             </button>
             <button
@@ -571,7 +661,8 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
         }
       >
         <p className="small">
-          O rascunho existe só nesta aba. Descartar volta ao conteúdo do arquivo em disco.
+          O rascunho existe só nesta aba. Descartar volta ao conteúdo do arquivo
+          em disco.
         </p>
       </Modal>
     </>

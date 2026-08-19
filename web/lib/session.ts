@@ -110,16 +110,28 @@ export type EsforcoId = (typeof CHAT_ESFORCOS)[number]["id"];
 const MODELO_PADRAO: ModeloId = "padrao";
 const ESFORCO_PADRAO: EsforcoId = "medio";
 
-function valido<T extends string>(valor: string, opcoes: readonly { id: T }[], padrao: T): T {
+function valido<T extends string>(
+  valor: string,
+  opcoes: readonly { id: T }[],
+  padrao: T,
+): T {
   return opcoes.some((o) => o.id === valor) ? (valor as T) : padrao;
 }
 
 export function useModelo(): ModeloId {
-  return valido(useLocal<string>(MODELO_KEY, MODELO_PADRAO), CHAT_MODELOS, MODELO_PADRAO);
+  return valido(
+    useLocal<string>(MODELO_KEY, MODELO_PADRAO),
+    CHAT_MODELOS,
+    MODELO_PADRAO,
+  );
 }
 
 export function useEsforco(): EsforcoId {
-  return valido(useLocal<string>(ESFORCO_KEY, ESFORCO_PADRAO), CHAT_ESFORCOS, ESFORCO_PADRAO);
+  return valido(
+    useLocal<string>(ESFORCO_KEY, ESFORCO_PADRAO),
+    CHAT_ESFORCOS,
+    ESFORCO_PADRAO,
+  );
 }
 
 export function gravarModelo(id: ModeloId): void {

@@ -60,11 +60,21 @@ export function ArchiveClient({
   );
 
   const pilares = useMemo(
-    () => [...new Set(briefs.map((b) => b.pilar).filter((p): p is string => Boolean(p)))].sort(),
+    () =>
+      [
+        ...new Set(
+          briefs.map((b) => b.pilar).filter((p): p is string => Boolean(p)),
+        ),
+      ].sort(),
     [briefs],
   );
   const icps = useMemo(
-    () => [...new Set(briefs.map((b) => b.icp).filter((p): p is string => Boolean(p)))].sort(),
+    () =>
+      [
+        ...new Set(
+          briefs.map((b) => b.icp).filter((p): p is string => Boolean(p)),
+        ),
+      ].sort(),
     [briefs],
   );
 
@@ -74,7 +84,12 @@ export function ArchiveClient({
       .filter((b) => {
         if (F.pilar && b.pilar !== F.pilar) return false;
         if (F.icp && b.icp !== F.icp) return false;
-        if (F.q && !`${b.headline} ${b.hook} ${b.caption}`.toLowerCase().includes(F.q.toLowerCase()))
+        if (
+          F.q &&
+          !`${b.headline} ${b.hook} ${b.caption}`
+            .toLowerCase()
+            .includes(F.q.toLowerCase())
+        )
           return false;
         if (F.periodo) {
           const ref = dataRef(b);
@@ -87,7 +102,11 @@ export function ArchiveClient({
       .sort((a, b) => dataRef(b).localeCompare(dataRef(a)));
   }, [doEstado, F.pilar, F.icp, F.q, F.periodo, agoraIso]);
 
-  const grupoFiltro = (titulo: string, chave: string, opcoes: { v: string; l: string }[]) => (
+  const grupoFiltro = (
+    titulo: string,
+    chave: string,
+    opcoes: { v: string; l: string }[],
+  ) => (
     <div className="filter-group" role="group" aria-label={titulo}>
       <span className="eyebrow" style={{ width: "100%" }}>
         {titulo}
@@ -116,7 +135,9 @@ export function ArchiveClient({
       </div>
       <div style={{ minWidth: 0 }}>
         <h3 className="brief-headline" style={{ fontSize: 17 }}>
-          <Link href={`/briefs/${brief.state}/${brief.slug}`}>{brief.headline}</Link>
+          <Link href={`/briefs/${brief.state}/${brief.slug}`}>
+            {brief.headline}
+          </Link>
         </h3>
         <p className="brief-hook clamp-2">{brief.hook}</p>
         <div className="row-tight" style={{ marginTop: 8 }}>
@@ -125,7 +146,9 @@ export function ArchiveClient({
           {brief.heroChoice === null && brief.heroChoiceDeclared && (
             <span className="tag">só tipografia</span>
           )}
-          {brief.borderline && <span className="pill pill-warn">borderline</span>}
+          {brief.borderline && (
+            <span className="pill pill-warn">borderline</span>
+          )}
         </div>
         {brief.rejectReason && (
           <p className="small" style={{ marginTop: 8, color: "var(--danger)" }}>
@@ -135,7 +158,8 @@ export function ArchiveClient({
       </div>
       <div className="arch-actions">
         <span className="meta">
-          {ROTULO_DATA[brief.state]} {dataRef(brief) ? fmtDate(dataRef(brief)) : "—"}
+          {ROTULO_DATA[brief.state]}{" "}
+          {dataRef(brief) ? fmtDate(dataRef(brief)) : "—"}
         </span>
         {brief.igPostUrl && (
           <a
@@ -149,12 +173,19 @@ export function ArchiveClient({
           </a>
         )}
         {brief.state === "pendente-publicacao" && (
-          <button className="btn btn-ok btn-sm" type="button" onClick={() => setPublicando(brief)}>
+          <button
+            className="btn btn-ok btn-sm"
+            type="button"
+            onClick={() => setPublicando(brief)}
+          >
             <IconCheck />
             Marcar publicado
           </button>
         )}
-        <Link className="btn btn-secondary btn-sm" href={`/briefs/${brief.state}/${brief.slug}`}>
+        <Link
+          className="btn btn-secondary btn-sm"
+          href={`/briefs/${brief.state}/${brief.slug}`}
+        >
           Ver detalhes
         </Link>
       </div>
@@ -177,7 +208,9 @@ export function ArchiveClient({
             <span className="meta">
               {grupo.length} brief{grupo.length > 1 ? "s" : ""}
               <span className="dot-sep" />
-              {[...new Set(grupo.map((b) => b.pilar ?? "sem pilar"))].join(" · ")}
+              {[...new Set(grupo.map((b) => b.pilar ?? "sem pilar"))].join(
+                " · ",
+              )}
             </span>
           </div>
           {grupo.map(linha)}
@@ -198,11 +231,17 @@ export function ArchiveClient({
               scroll={false}
             >
               {STATE_META[estado].label}{" "}
-              <span className="num muted">{briefs.filter((b) => b.state === estado).length}</span>
+              <span className="num muted">
+                {briefs.filter((b) => b.state === estado).length}
+              </span>
             </Link>
           ))}
         </div>
-        <div className="segmented" role="group" aria-label="Modo de visualização">
+        <div
+          className="segmented"
+          role="group"
+          aria-label="Modo de visualização"
+        >
           {[
             { v: "semana", l: "Por semana" },
             { v: "lista", l: "Lista" },
@@ -211,7 +250,9 @@ export function ArchiveClient({
               key={opcao.v}
               type="button"
               aria-pressed={F.visao === opcao.v}
-              onClick={() => router.replace(hrefWith({ visao: opcao.v }), { scroll: false })}
+              onClick={() =>
+                router.replace(hrefWith({ visao: opcao.v }), { scroll: false })
+              }
             >
               {opcao.l}
             </button>
@@ -223,7 +264,11 @@ export function ArchiveClient({
         <aside className="panel" aria-label="Filtros do acervo">
           <div className="panel-head">
             <h2 className="h3">Filtros</h2>
-            <Link className="btn btn-ghost btn-sm" href={`${pathname}?estado=${F.estado}`} scroll={false}>
+            <Link
+              className="btn btn-ghost btn-sm"
+              href={`${pathname}?estado=${F.estado}`}
+              scroll={false}
+            >
               Limpar
             </Link>
           </div>
@@ -237,9 +282,12 @@ export function ArchiveClient({
                 aria-label="Buscar no acervo"
                 onKeyDown={(event) => {
                   if (event.key === "Enter")
-                    router.replace(hrefWith({ q: event.currentTarget.value.trim() }), {
-                      scroll: false,
-                    });
+                    router.replace(
+                      hrefWith({ q: event.currentTarget.value.trim() }),
+                      {
+                        scroll: false,
+                      },
+                    );
                 }}
               />
             </div>
@@ -247,14 +295,18 @@ export function ArchiveClient({
               { v: "", l: "Todos" },
               ...pilares.map((p) => ({ v: p, l: p })),
             ])}
-            {grupoFiltro("ICP", "icp", [{ v: "", l: "Todos" }, ...icps.map((p) => ({ v: p, l: p }))])}
+            {grupoFiltro("ICP", "icp", [
+              { v: "", l: "Todos" },
+              ...icps.map((p) => ({ v: p, l: p })),
+            ])}
             {grupoFiltro("Janela de anti-repetição", "periodo", [
               { v: "", l: "Tudo" },
               ...janelas.map((d) => ({ v: String(d), l: `Últimos ${d} dias` })),
             ])}
             <p className="field-help">
-              As janelas são as mesmas de <span className="num">anti_repetition.windows</span> no
-              manifest — o que aparece aqui é o que o matcher considera “recente”.
+              As janelas são as mesmas de{" "}
+              <span className="num">anti_repetition.windows</span> no manifest —
+              o que aparece aqui é o que o matcher considera “recente”.
             </p>
           </div>
         </aside>

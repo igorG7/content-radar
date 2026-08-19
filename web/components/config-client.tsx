@@ -83,16 +83,24 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
       out.push(
         `borderline_min (${fmtScore(draft.borderlineMin)}) precisa ser menor que match_score_min (${fmtScore(draft.matchScoreMin)}), senão a faixa borderline some.`,
       );
-    if (draft.weeklyTarget < 1) out.push("A meta semanal precisa ser pelo menos 1.");
+    if (draft.weeklyTarget < 1)
+      out.push("A meta semanal precisa ser pelo menos 1.");
     for (const escopo of draft.escopos) {
-      if (!escopo.label.trim()) out.push(`O grupo "${escopo.key}" está sem rótulo.`);
+      if (!escopo.label.trim())
+        out.push(`O grupo "${escopo.key}" está sem rótulo.`);
       if (escopo.sources.length === 0)
-        out.push(`O grupo "${escopo.key}" ficou sem nenhuma fonte — o zod da API exige ao menos 1.`);
+        out.push(
+          `O grupo "${escopo.key}" ficou sem nenhuma fonte — o zod da API exige ao menos 1.`,
+        );
       if (escopo.sources.some((s) => !s.trim()))
         out.push(`O grupo "${escopo.key}" tem fonte em branco.`);
-      const repetidas = escopo.sources.filter((s, i) => escopo.sources.indexOf(s) !== i);
+      const repetidas = escopo.sources.filter(
+        (s, i) => escopo.sources.indexOf(s) !== i,
+      );
       if (repetidas.length > 0)
-        out.push(`O grupo "${escopo.key}" repete fontes: ${[...new Set(repetidas)].join(", ")}.`);
+        out.push(
+          `O grupo "${escopo.key}" repete fontes: ${[...new Set(repetidas)].join(", ")}.`,
+        );
     }
     if (!HANDLE_OK.test(handle))
       out.push(
@@ -102,7 +110,12 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
   }, [draft, handle, soma, somaOk]);
 
   const edits = useMemo(() => {
-    const lista: { path: (string | number)[]; value: unknown; rotulo: string; antes: string }[] = [];
+    const lista: {
+      path: (string | number)[];
+      value: unknown;
+      rotulo: string;
+      antes: string;
+    }[] = [];
     if (draft.weeklyTarget !== inicial.weeklyTarget) {
       lista.push({
         path: ["funnel", "candidates_per_week_target"],
@@ -178,21 +191,32 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
       proximo[chave] = Math.round((peso / soma) * 100) / 100;
     }
     const resto =
-      Math.round((1 - Object.values(proximo).reduce((a, b) => a + b, 0)) * 100) / 100;
-    const maior = Object.keys(proximo).sort((a, b) => proximo[b] - proximo[a])[0];
+      Math.round(
+        (1 - Object.values(proximo).reduce((a, b) => a + b, 0)) * 100,
+      ) / 100;
+    const maior = Object.keys(proximo).sort(
+      (a, b) => proximo[b] - proximo[a],
+    )[0];
     proximo[maior] = Math.round((proximo[maior] + resto) * 100) / 100;
     setDraft((d) => ({ ...d, weights: proximo }));
   }
 
   async function gravar() {
     if (problemas.length > 0) {
-      toast({ tone: "danger", title: "HTTP 422 · MANIFEST_INVALID", detail: problemas[0] });
+      toast({
+        tone: "danger",
+        title: "HTTP 422 · MANIFEST_INVALID",
+        detail: problemas[0],
+      });
       return;
     }
     gravarHandle(handle);
 
     if (edits.length === 0) {
-      toast({ title: "Nada a gravar no manifest", detail: "Só o @ do Instagram mudou." });
+      toast({
+        title: "Nada a gravar no manifest",
+        detail: "Só o @ do Instagram mudou.",
+      });
       return;
     }
 
@@ -200,7 +224,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
     const resposta = await fetch("/api/config", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ edits: edits.map(({ path, value }) => ({ path, value })) }),
+      body: JSON.stringify({
+        edits: edits.map(({ path, value }) => ({ path, value })),
+      }),
     }).catch(() => null);
     const corpo = await resposta?.json().catch(() => null);
     setGravando(false);
@@ -210,7 +236,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
         tone: "danger",
         title: `HTTP ${resposta?.status ?? "—"} · MANIFEST_INVALID`,
         detail:
-          corpo?.errors?.[0]?.message ?? corpo?.error ?? "A API recusou o patch; nada foi escrito.",
+          corpo?.errors?.[0]?.message ??
+          corpo?.error ??
+          "A API recusou o patch; nada foi escrito.",
       });
       return;
     }
@@ -219,7 +247,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
     toast({
       tone: "ok",
       title: "manifest.yaml gravado",
-      detail: "Patch aplicado preservando os comentários. A próxima varredura já usa estes valores.",
+      detail:
+        "Patch aplicado preservando os comentários. A próxima varredura já usa estes valores.",
     });
     router.refresh();
   }
@@ -227,7 +256,11 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
   return (
     <>
       {inicial.avisos.map((aviso) => (
-        <div className="alert alert-warning" style={{ marginBottom: 12 }} key={aviso.path}>
+        <div
+          className="alert alert-warning"
+          style={{ marginBottom: 12 }}
+          key={aviso.path}
+        >
           <IconAlert />
           <div className="alert-body">
             <strong>{aviso.path}</strong>
@@ -262,11 +295,15 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                   max={40}
                   value={draft.weeklyTarget}
                   onChange={(event) =>
-                    setDraft((d) => ({ ...d, weeklyTarget: Number(event.target.value) || 0 }))
+                    setDraft((d) => ({
+                      ...d,
+                      weeklyTarget: Number(event.target.value) || 0,
+                    }))
                   }
                 />
                 <p className="field-help">
-                  Alvo de geração, não cadência de publicação. A varredura não para ao atingir.
+                  Alvo de geração, não cadência de publicação. A varredura não
+                  para ao atingir.
                 </p>
               </div>
             </div>
@@ -278,7 +315,10 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
               <span className="meta">local — não vive no manifest</span>
             </div>
             <div className="panel-body">
-              <div className={`field ${HANDLE_OK.test(handle) ? "" : "field-invalid"}`} style={{ maxWidth: 320 }}>
+              <div
+                className={`field ${HANDLE_OK.test(handle) ? "" : "field-invalid"}`}
+                style={{ maxWidth: 320 }}
+              >
                 <label htmlFor="handle">@ do Instagram</label>
                 <div className="input-prefixed">
                   <span aria-hidden="true">@</span>
@@ -290,18 +330,24 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                     spellCheck={false}
                     maxLength={30}
                     onChange={(event) =>
-                      setHandleEditado(event.target.value.trim().replace(/^@+/, "").toLowerCase())
+                      setHandleEditado(
+                        event.target.value
+                          .trim()
+                          .replace(/^@+/, "")
+                          .toLowerCase(),
+                      )
                     }
                   />
                 </div>
                 {HANDLE_OK.test(handle) ? (
                   <p className="field-help">
-                    Usado no cabeçalho e na legenda da prévia do post, em todas as telas. Fica no
-                    navegador — o manifest não tem essa chave.
+                    Usado no cabeçalho e na legenda da prévia do post, em todas
+                    as telas. Fica no navegador — o manifest não tem essa chave.
                   </p>
                 ) : (
                   <p className="field-error">
-                    Letras, números, ponto e underscore — até 30 caracteres, sem o “@”.
+                    Letras, números, ponto e underscore — até 30 caracteres, sem
+                    o “@”.
                   </p>
                 )}
               </div>
@@ -311,7 +357,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           <section className="panel">
             <div className="panel-head">
               <h2 className="h3">Limiares de score</h2>
-              <span className="meta">anti_repetition.match_score_min · borderline_min</span>
+              <span className="meta">
+                anti_repetition.match_score_min · borderline_min
+              </span>
             </div>
             <div className="panel-body stack">
               <div className="grid-2">
@@ -328,11 +376,16 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                     onChange={(event) =>
                       setDraft((d) => ({
                         ...d,
-                        matchScoreMin: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
+                        matchScoreMin: Math.min(
+                          1,
+                          Math.max(0, Number(event.target.value) || 0),
+                        ),
                       }))
                     }
                   />
-                  <p className="field-help">Acima disso entra na fila direto.</p>
+                  <p className="field-help">
+                    Acima disso entra na fila direto.
+                  </p>
                 </div>
                 <div
                   className={`field ${draft.borderlineMin >= draft.matchScoreMin ? "field-invalid" : ""}`}
@@ -349,17 +402,23 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                     onChange={(event) =>
                       setDraft((d) => ({
                         ...d,
-                        borderlineMin: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
+                        borderlineMin: Math.min(
+                          1,
+                          Math.max(0, Number(event.target.value) || 0),
+                        ),
                       }))
                     }
                   />
                   <p className="field-help">
-                    Entre os dois valores, o brief chega marcado como borderline para você decidir.
+                    Entre os dois valores, o brief chega marcado como borderline
+                    para você decidir.
                   </p>
                 </div>
               </div>
               <div className="sunken">
-                <p className="field-label">Efeito sobre os {impacto.total} briefs já no disco</p>
+                <p className="field-label">
+                  Efeito sobre os {impacto.total} briefs já no disco
+                </p>
                 <div
                   className="score-bar"
                   style={{ marginTop: 9, height: 14 }}
@@ -368,31 +427,39 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 >
                   <div
                     className="score-seg score-seg-1"
-                    style={{ width: `${impacto.total ? (impacto.passa / impacto.total) * 100 : 0}%` }}
+                    style={{
+                      width: `${impacto.total ? (impacto.passa / impacto.total) * 100 : 0}%`,
+                    }}
                   />
                   <div
                     className="score-seg score-seg-3"
-                    style={{ width: `${impacto.total ? (impacto.border / impacto.total) * 100 : 0}%` }}
+                    style={{
+                      width: `${impacto.total ? (impacto.border / impacto.total) * 100 : 0}%`,
+                    }}
                   />
                   <div
                     className="score-seg score-seg-5"
-                    style={{ width: `${impacto.total ? (impacto.fora / impacto.total) * 100 : 0}%` }}
+                    style={{
+                      width: `${impacto.total ? (impacto.fora / impacto.total) * 100 : 0}%`,
+                    }}
                   />
                 </div>
                 <div className="row" style={{ marginTop: 9, gap: 16 }}>
                   <span className="small">
-                    <span className="num strong">{impacto.passa}</span> entram direto
+                    <span className="num strong">{impacto.passa}</span> entram
+                    direto
                   </span>
                   <span className="small">
-                    <span className="num strong">{impacto.border}</span> borderline
+                    <span className="num strong">{impacto.border}</span>{" "}
+                    borderline
                   </span>
                   <span className="small muted">
                     <span className="num">{impacto.fora}</span> ficariam de fora
                   </span>
                 </div>
                 <p className="field-help" style={{ marginTop: 8 }}>
-                  Leitura retroativa: o limiar novo só vale para a próxima varredura, o que já está
-                  no disco não é reclassificado.
+                  Leitura retroativa: o limiar novo só vale para a próxima
+                  varredura, o que já está no disco não é reclassificado.
                 </p>
               </div>
             </div>
@@ -401,7 +468,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           <section className="panel">
             <div className="panel-head">
               <h2 className="h3">Pesos do score</h2>
-              <span className="meta">match_score_weights · precisa somar 1,000</span>
+              <span className="meta">
+                match_score_weights · precisa somar 1,000
+              </span>
             </div>
             <div className="panel-body stack-sm">
               {Object.entries(draft.weights).map(([chave, peso]) => (
@@ -422,7 +491,10 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                     onChange={(event) =>
                       setDraft((d) => ({
                         ...d,
-                        weights: { ...d.weights, [chave]: Number(event.target.value) },
+                        weights: {
+                          ...d.weights,
+                          [chave]: Number(event.target.value),
+                        },
                       }))
                     }
                   />
@@ -439,16 +511,25 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                         ...d,
                         weights: {
                           ...d.weights,
-                          [chave]: Math.min(1, Math.max(0, Number(event.target.value) || 0)),
+                          [chave]: Math.min(
+                            1,
+                            Math.max(0, Number(event.target.value) || 0),
+                          ),
                         },
                       }))
                     }
                   />
                 </div>
               ))}
-              <div className={`soma-box ${somaOk ? "is-ok" : "is-bad"}`} aria-live="polite">
+              <div
+                className={`soma-box ${somaOk ? "is-ok" : "is-bad"}`}
+                aria-live="polite"
+              >
                 <span className="small strong">
-                  Soma: <span className="num">{soma.toFixed(3).replace(".", ",")}</span>
+                  Soma:{" "}
+                  <span className="num">
+                    {soma.toFixed(3).replace(".", ",")}
+                  </span>
                 </span>
                 <span className="row-tight">
                   <span className="small">
@@ -457,15 +538,19 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                       : `faltam ${(1 - soma).toFixed(3).replace(".", ",")} para 1,000`}
                   </span>
                   {!somaOk && (
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={normalizar}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      type="button"
+                      onClick={normalizar}
+                    >
                       Normalizar
                     </button>
                   )}
                 </span>
               </div>
               <p className="field-help">
-                O backend rejeita a gravação se a soma não for exata. Antecipar isso aqui evita
-                perder a edição num 422.
+                O backend rejeita a gravação se a soma não for exata. Antecipar
+                isso aqui evita perder a edição num 422.
               </p>
             </div>
           </section>
@@ -477,9 +562,10 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
             </div>
             <div className="panel-body stack-sm">
               <p className="field-help" style={{ marginBottom: 4 }}>
-                Um grupo é um conjunto de fontes que a varredura usa junto, com os pilares que ele
-                alimenta. Criar ou remover grupo é edição à mão no arquivo: o patch da API só
-                reescreve caminho que já existe.
+                Um grupo é um conjunto de fontes que a varredura usa junto, com
+                os pilares que ele alimenta. Criar ou remover grupo é edição à
+                mão no arquivo: o patch da API só reescreve caminho que já
+                existe.
               </p>
               {draft.escopos.map((escopo, ei) => (
                 <div className="escopo" key={escopo.key}>
@@ -495,13 +581,20 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                       onChange={(event) =>
                         setDraft((d) => {
                           const escopos = [...d.escopos];
-                          escopos[ei] = { ...escopos[ei], label: event.target.value };
+                          escopos[ei] = {
+                            ...escopos[ei],
+                            label: event.target.value,
+                          };
                           return { ...d, escopos };
                         })
                       }
                     />
-                    <span className="pill pill-bare">{escopo.sources.length} fontes</span>
-                    <span className="meta">{escopo.pillarsAlvo.join(" · ") || "sem pilar alvo"}</span>
+                    <span className="pill pill-bare">
+                      {escopo.sources.length} fontes
+                    </span>
+                    <span className="meta">
+                      {escopo.pillarsAlvo.join(" · ") || "sem pilar alvo"}
+                    </span>
                   </div>
 
                   <div style={{ marginTop: 12 }}>
@@ -532,7 +625,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                                 const escopos = [...d.escopos];
                                 escopos[ei] = {
                                   ...escopos[ei],
-                                  sources: escopos[ei].sources.filter((_, j) => j !== fi),
+                                  sources: escopos[ei].sources.filter(
+                                    (_, j) => j !== fi,
+                                  ),
                                 };
                                 return { ...d, escopos };
                               })
@@ -544,7 +639,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                       ))
                     ) : (
                       <p className="field-help">
-                        Nenhuma fonte neste grupo — a API recusa gravar um grupo vazio.
+                        Nenhuma fonte neste grupo — a API recusa gravar um grupo
+                        vazio.
                       </p>
                     )}
                   </div>
@@ -555,7 +651,10 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                     onClick={() =>
                       setDraft((d) => {
                         const escopos = [...d.escopos];
-                        escopos[ei] = { ...escopos[ei], sources: [...escopos[ei].sources, ""] };
+                        escopos[ei] = {
+                          ...escopos[ei],
+                          sources: [...escopos[ei].sources, ""],
+                        };
                         return { ...d, escopos };
                       })
                     }
@@ -605,14 +704,21 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           {problemas.length > 0 && (
             <div
               className="panel"
-              style={{ borderColor: "color-mix(in oklch, var(--danger) 40%, transparent)" }}
+              style={{
+                borderColor:
+                  "color-mix(in oklch, var(--danger) 40%, transparent)",
+              }}
             >
               <div className="panel-head">
                 <h2 className="h3">Bloqueios</h2>
               </div>
               <div className="panel-body stack-sm">
                 {problemas.map((problema) => (
-                  <p className="small" style={{ color: "var(--danger)" }} key={problema}>
+                  <p
+                    className="small"
+                    style={{ color: "var(--danger)" }}
+                    key={problema}
+                  >
                     {problema}
                   </p>
                 ))}
@@ -629,14 +735,17 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
               <pre className="code code-wrap">
                 <span className="c-com"># alvo de geração da semana</span>
                 {"\n"}
-                <span className="c-key">funnel</span>:{"\n"}  <span className="c-key">candidates_per_week_target</span>:{" "}
+                <span className="c-key">funnel</span>:{"\n"}{" "}
+                <span className="c-key">candidates_per_week_target</span>:{" "}
                 {draft.weeklyTarget}
                 {"\n\n"}
-                <span className="c-key">anti_repetition</span>:{"\n"}  <span className="c-key">match_score_min</span>:{" "}
+                <span className="c-key">anti_repetition</span>:{"\n"}{" "}
+                <span className="c-key">match_score_min</span>:{" "}
                 {draft.matchScoreMin}
-                {"\n"}  <span className="c-key">borderline_min</span>: {draft.borderlineMin}{" "}
+                {"\n"} <span className="c-key">borderline_min</span>:{" "}
+                {draft.borderlineMin}{" "}
                 <span className="c-com"># abaixo, descarta</span>
-                {"\n"}  <span className="c-key">match_score_weights</span>:{"\n"}
+                {"\n"} <span className="c-key">match_score_weights</span>:{"\n"}
                 {Object.entries(draft.weights).map(([chave, peso]) => (
                   <span key={chave}>
                     {"    "}
@@ -662,8 +771,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 ))}
               </dl>
               <p className="field-help" style={{ marginTop: 10 }}>
-                Editar essas chaves ainda é feito à mão no arquivo — a API de patch cobre scoring,
-                funil e fontes.
+                Editar essas chaves ainda é feito à mão no arquivo — a API de
+                patch cobre scoring, funil e fontes.
               </p>
             </div>
           </div>
@@ -674,7 +783,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
             </div>
             <div className="panel-body">
               <p className="small">
-                Pilares, públicos, voz e guardrails não moram aqui: eles são prosa e vivem na aba{" "}
+                Pilares, públicos, voz e guardrails não moram aqui: eles são
+                prosa e vivem na aba{" "}
                 <Link className="link" href="/config/vault">
                   Vault
                 </Link>
@@ -693,7 +803,11 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
         title="Diff antes de gravar"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setDiffAberto(false)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setDiffAberto(false)}
+            >
               Voltar
             </button>
             <button
@@ -710,8 +824,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
         <p className="small">
           O patch é cirúrgico: cada linha abaixo vira um{" "}
           <span className="num">{"{path, value}"}</span> em{" "}
-          <span className="num">PATCH /api/config</span>. Comentários, ordem das chaves e formatação
-          do resto do arquivo ficam intactos.
+          <span className="num">PATCH /api/config</span>. Comentários, ordem das
+          chaves e formatação do resto do arquivo ficam intactos.
         </p>
         <pre className="code" style={{ marginTop: 14, whiteSpace: "pre-wrap" }}>
           {edits.length > 0 ? (
@@ -722,7 +836,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 </span>
                 <span className="c-add">
                   + {edit.rotulo}:{" "}
-                  {Array.isArray(edit.value) ? (edit.value as string[]).join(", ") : String(edit.value)}
+                  {Array.isArray(edit.value)
+                    ? (edit.value as string[]).join(", ")
+                    : String(edit.value)}
                 </span>
               </span>
             ))
@@ -731,8 +847,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           )}
         </pre>
         <p className="field-help" style={{ marginTop: 12 }}>
-          Este arquivo governa todo o pipeline. Uma varredura em curso continua com a configuração
-          antiga; a próxima já usa a nova.
+          Este arquivo governa todo o pipeline. Uma varredura em curso continua
+          com a configuração antiga; a próxima já usa a nova.
         </p>
       </Modal>
     </>

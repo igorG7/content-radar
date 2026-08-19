@@ -64,7 +64,11 @@ const SUGESTOES = [
 ];
 
 /** Esforço alto demora mais — a espera é o que faz a escolha significar algo. */
-const ESPERA: Record<EsforcoId, number> = { baixo: 700, medio: 1400, alto: 2600 };
+const ESPERA: Record<EsforcoId, number> = {
+  baixo: 700,
+  medio: 1400,
+  alto: 2600,
+};
 
 const tamanhoLegivel = (n: number) =>
   n < 1024
@@ -87,13 +91,23 @@ function resumoDe(conversa: Conversa): string {
   if (!ultima) return "Sem mensagens ainda";
   if (ultima.status === "streaming") return "Respondendo…";
   // Marcação sai sem deixar espaço no lugar, senão a prévia ganha " , ".
-  const texto = (ultima.content || "").replace(/[*`#]/g, "").replace(/\s+/g, " ").trim();
+  const texto = (ultima.content || "")
+    .replace(/[*`#]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const rotulo = ultima.role === "user" ? "Você: " : "";
-  if (!texto && ultima.anexos?.length) return `${rotulo}${ultima.anexos.length} anexo(s)`;
+  if (!texto && ultima.anexos?.length)
+    return `${rotulo}${ultima.anexos.length} anexo(s)`;
   return rotulo + (texto.slice(0, 64) || "—");
 }
 
-function AnexoChip({ anexo, onRemover }: { anexo: Anexo; onRemover?: () => void }) {
+function AnexoChip({
+  anexo,
+  onRemover,
+}: {
+  anexo: Anexo;
+  onRemover?: () => void;
+}) {
   return (
     <span className="attach-chip">
       {anexo.url ? (
@@ -123,7 +137,13 @@ function AnexoChip({ anexo, onRemover }: { anexo: Anexo; onRemover?: () => void 
   );
 }
 
-export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: string }) {
+export function ChatClient({
+  fila,
+  agoraIso,
+}: {
+  fila: FilaResumo;
+  agoraIso: string;
+}) {
   const toast = useToast();
   const logRef = useRef<HTMLDivElement>(null);
   const entradaRef = useRef<HTMLTextAreaElement>(null);
@@ -134,7 +154,10 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
   // O timer é detalhe de agendamento e mora num ref; qual conversa está
   // esperando é estado, porque o composer troca Enviar por Parar por causa dele.
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [pendencia, setPendencia] = useState<{ conversaId: string; msgId: string } | null>(null);
+  const [pendencia, setPendencia] = useState<{
+    conversaId: string;
+    msgId: string;
+  } | null>(null);
 
   const [conversas, setConversas] = useState<Conversa[]>(CONVERSAS_EXEMPLO);
   const [ativa, setAtiva] = useState(CONVERSAS_EXEMPLO[0].id);
@@ -172,43 +195,42 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
   );
 
   /* ── anexos ───────────────────────────────────────────────────────────── */
-  const adicionar = useCallback(
-    (arquivos: FileList | File[]) => {
-      const recusados: string[] = [];
-      setAnexos((atual) => {
-        const proximo = [...atual];
-        for (const f of Array.from(arquivos)) {
-          if (proximo.length >= MAX_ARQUIVOS) {
-            recusados.push(`${f.name} — limite de ${MAX_ARQUIVOS} arquivos`);
-            continue;
-          }
-          if (!TIPOS_OK.test(f.type) && !EXT_OK.test(f.name)) {
-            recusados.push(`${f.name} — tipo não aceito`);
-            continue;
-          }
-          if (f.size > MAX_MB * 1048576) {
-            recusados.push(`${f.name} — ${tamanhoLegivel(f.size)}, acima de ${MAX_MB} MB`);
-            continue;
-          }
-          if (proximo.some((a) => a.nome === f.name && a.tamanho === f.size)) {
-            recusados.push(`${f.name} — já anexado`);
-            continue;
-          }
-          proximo.push({
-            id: `${f.name}-${f.size}-${proximo.length}`,
-            nome: f.name,
-            tamanho: f.size,
-            mime: f.type || "",
-            url: /^image\//.test(f.type) ? URL.createObjectURL(f) : null,
-          });
+  const adicionar = useCallback((arquivos: FileList | File[]) => {
+    const recusados: string[] = [];
+    setAnexos((atual) => {
+      const proximo = [...atual];
+      for (const f of Array.from(arquivos)) {
+        if (proximo.length >= MAX_ARQUIVOS) {
+          recusados.push(`${f.name} — limite de ${MAX_ARQUIVOS} arquivos`);
+          continue;
         }
-        return proximo;
-      });
-      // Recusa nomeia arquivo e motivo: "não deu" não diz o que corrigir.
-      setErroAnexo(recusados.length ? recusados.join(" · ") : null);
-    },
-    [],
-  );
+        if (!TIPOS_OK.test(f.type) && !EXT_OK.test(f.name)) {
+          recusados.push(`${f.name} — tipo não aceito`);
+          continue;
+        }
+        if (f.size > MAX_MB * 1048576) {
+          recusados.push(
+            `${f.name} — ${tamanhoLegivel(f.size)}, acima de ${MAX_MB} MB`,
+          );
+          continue;
+        }
+        if (proximo.some((a) => a.nome === f.name && a.tamanho === f.size)) {
+          recusados.push(`${f.name} — já anexado`);
+          continue;
+        }
+        proximo.push({
+          id: `${f.name}-${f.size}-${proximo.length}`,
+          nome: f.name,
+          tamanho: f.size,
+          mime: f.type || "",
+          url: /^image\//.test(f.type) ? URL.createObjectURL(f) : null,
+        });
+      }
+      return proximo;
+    });
+    // Recusa nomeia arquivo e motivo: "não deu" não diz o que corrigir.
+    setErroAnexo(recusados.length ? recusados.join(" · ") : null);
+  }, []);
 
   /* ── enviar, responder, interromper ───────────────────────────────────── */
   function responder(conversaId: string) {
@@ -218,7 +240,15 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
       ...c,
       mensagens: [
         ...c.mensagens,
-        { id: msgId, role: "agent", status: "streaming", content: "", modelo, esforco, ts: agora },
+        {
+          id: msgId,
+          role: "agent",
+          status: "streaming",
+          content: "",
+          modelo,
+          esforco,
+          ts: agora,
+        },
       ],
     }));
 
@@ -227,7 +257,9 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
       setConversas((atual) =>
         atual.map((c) => {
           if (c.id !== conversaId) return c;
-          const enviados = [...c.mensagens].reverse().find((m) => m.role === "user")?.anexos;
+          const enviados = [...c.mensagens]
+            .reverse()
+            .find((m) => m.role === "user")?.anexos;
           const texto =
             (enviados?.length
               ? `Recebi **${enviados.length} arquivo(s)**: ${enviados.map((a) => `\`${a.nome}\``).join(", ")}. ` +
@@ -244,7 +276,10 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
                 ? {
                     ...m,
                     status: "done",
-                    tool: { name: "listState", args: { estado: "pendente-aprovacao" } },
+                    tool: {
+                      name: "listState",
+                      args: { estado: "pendente-aprovacao" },
+                    },
                     content: texto,
                   }
                 : m,
@@ -275,7 +310,11 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
               ...c,
               mensagens: c.mensagens.map((m) =>
                 m.id === pendencia.msgId
-                  ? { ...m, status: "stopped", content: "Resposta interrompida por você." }
+                  ? {
+                      ...m,
+                      status: "stopped",
+                      content: "Resposta interrompida por você.",
+                    }
                   : m,
               ),
             },
@@ -363,7 +402,9 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
   }, [menuAberto]);
 
   const agora = new Date(agoraIso).getTime();
-  const ordenadas = [...conversas].sort((a, b) => b.atualizado_em.localeCompare(a.atualizado_em));
+  const ordenadas = [...conversas].sort((a, b) =>
+    b.atualizado_em.localeCompare(a.atualizado_em),
+  );
 
   function removerConversa(alvo: Conversa) {
     const indice = conversas.indexOf(alvo);
@@ -377,7 +418,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
           mensagens: [],
         });
       }
-      if (ativa === alvo.id) setAtiva(proximo[Math.min(indice, proximo.length - 1)].id);
+      if (ativa === alvo.id)
+        setAtiva(proximo[Math.min(indice, proximo.length - 1)].id);
       return proximo;
     });
     toast({
@@ -415,7 +457,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
         // `dragleave` dispara ao passar por elementos filhos: só conta a saída
         // que realmente deixa o painel.
         onDragLeave={(event) => {
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          if (event.currentTarget.contains(event.relatedTarget as Node | null))
+            return;
           setArrastando(false);
         }}
         onDrop={(event) => {
@@ -432,8 +475,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
             <IconPlug />
           </span>
           <span>
-            Desconectado — nenhum endpoint de chat configurado. As respostas abaixo são exemplos
-            estáticos do formato esperado.
+            Desconectado — nenhum endpoint de chat configurado. As respostas
+            abaixo são exemplos estáticos do formato esperado.
           </span>
         </div>
 
@@ -488,7 +531,10 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
                     </span>
                     <div>
                       <div className="msg-name">Agente editorial</div>
-                      <div className="alert alert-danger" style={{ marginTop: 4 }}>
+                      <div
+                        className="alert alert-danger"
+                        style={{ marginTop: 4 }}
+                      >
                         <IconAlert />
                         <div className="alert-body">
                           <strong>{m.code}</strong>
@@ -532,18 +578,26 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
                       {m.modelo && (
                         <span className="meta" style={{ fontWeight: 400 }}>
                           {" · "}
-                          {rotuloModelo(m.modelo)} · esforço {rotuloEsforco(m.esforco ?? "")}
+                          {rotuloModelo(m.modelo)} · esforço{" "}
+                          {rotuloEsforco(m.esforco ?? "")}
                         </span>
                       )}
                     </div>
                     {m.tool && (
                       <div className="msg-tool">
-                        <IconTool /> {m.tool.name}({JSON.stringify(m.tool.args)})
+                        <IconTool /> {m.tool.name}({JSON.stringify(m.tool.args)}
+                        )
                       </div>
                     )}
-                    <div className="msg-body" style={{ marginTop: m.tool ? 8 : 0 }}>
+                    <div
+                      className="msg-body"
+                      style={{ marginTop: m.tool ? 8 : 0 }}
+                    >
                       {m.status === "streaming" ? (
-                        <span className="thinking" aria-label="O agente está pensando">
+                        <span
+                          className="thinking"
+                          aria-label="O agente está pensando"
+                        >
                           <i />
                           <i />
                           <i />
@@ -571,7 +625,12 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
           }}
         >
           {menuAberto && (
-            <div className="popover" role="menu" aria-label="Anexos, modelo e esforço" ref={menuRef}>
+            <div
+              className="popover"
+              role="menu"
+              aria-label="Anexos, modelo e esforço"
+              ref={menuRef}
+            >
               <button
                 className="menu-item"
                 type="button"
@@ -706,7 +765,12 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
               >
                 <IconPlus />
               </button>
-              <button className="btn btn-primary" type="submit" style={{ height: 52 }} hidden={pendente}>
+              <button
+                className="btn btn-primary"
+                type="submit"
+                style={{ height: 52 }}
+                hidden={pendente}
+              >
                 Enviar
               </button>
               <button
@@ -785,16 +849,26 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
           <div className="conv-list" role="list">
             {ordenadas.map((c, i) => {
               const grupo = grupoDe(c.atualizado_em, agora);
-              const anterior = i > 0 ? grupoDe(ordenadas[i - 1].atualizado_em, agora) : null;
+              const anterior =
+                i > 0 ? grupoDe(ordenadas[i - 1].atualizado_em, agora) : null;
               return (
                 <div key={c.id} style={{ display: "contents" }}>
                   {grupo !== anterior && <p className="conv-group">{grupo}</p>}
-                  <div className="conv-item" role="listitem" aria-current={c.id === ativa}>
-                    <button className="conv-open" type="button" onClick={() => setAtiva(c.id)}>
+                  <div
+                    className="conv-item"
+                    role="listitem"
+                    aria-current={c.id === ativa}
+                  >
+                    <button
+                      className="conv-open"
+                      type="button"
+                      onClick={() => setAtiva(c.id)}
+                    >
                       <span className="conv-titulo">{c.titulo}</span>
                       <span className="conv-meta">{resumoDe(c)}</span>
                       <span className="conv-meta">
-                        {fmtRelative(c.atualizado_em)} · {c.mensagens.length} msg
+                        {fmtRelative(c.atualizado_em)} · {c.mensagens.length}{" "}
+                        msg
                       </span>
                     </button>
                     <span className="conv-acoes">
@@ -838,31 +912,37 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
           </div>
           <div className="panel-body" style={{ padding: 12 }}>
             <pre className="code">
-              <span className="c-com">{"// components/chat/chat-client.tsx"}</span>
+              <span className="c-com">
+                {"// components/chat/chat-client.tsx"}
+              </span>
               {`
 `}
               <span className="c-key">type</span> ChatMessage = {"{"}
               {`
   id: string
   role: `}
-              <span className="c-key">&quot;user&quot;</span> | <span className="c-key">&quot;agent&quot;</span>{" "}
-              | <span className="c-key">&quot;tool&quot;</span>
+              <span className="c-key">&quot;user&quot;</span> |{" "}
+              <span className="c-key">&quot;agent&quot;</span> |{" "}
+              <span className="c-key">&quot;tool&quot;</span>
               {`
   content: string        `}
               <span className="c-com">{"// markdown"}</span>
               {`
   tool?: { name, args, result? }
   status?: `}
-              <span className="c-key">&quot;streaming&quot;</span> | <span className="c-key">&quot;done&quot;</span>
+              <span className="c-key">&quot;streaming&quot;</span> |{" "}
+              <span className="c-key">&quot;done&quot;</span>
               {`
            | `}
-              <span className="c-key">&quot;error&quot;</span> | <span className="c-key">&quot;stopped&quot;</span>
+              <span className="c-key">&quot;error&quot;</span> |{" "}
+              <span className="c-key">&quot;stopped&quot;</span>
               {`
   model?: string         `}
               <span className="c-com">{"// carimbo de quem respondeu"}</span>
               {`
   effort?: `}
-              <span className="c-key">&quot;baixo&quot;</span> | <span className="c-key">&quot;medio&quot;</span> |{" "}
+              <span className="c-key">&quot;baixo&quot;</span> |{" "}
+              <span className="c-key">&quot;medio&quot;</span> |{" "}
               <span className="c-key">&quot;alto&quot;</span>
               {`
   attachments?: Attachment[]
@@ -906,7 +986,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
   models: { id, label, hint? }[]
   model: string
   effort: `}
-              <span className="c-key">&quot;baixo&quot;</span> | <span className="c-key">&quot;medio&quot;</span> |{" "}
+              <span className="c-key">&quot;baixo&quot;</span> |{" "}
+              <span className="c-key">&quot;medio&quot;</span> |{" "}
               <span className="c-key">&quot;alto&quot;</span>
               {`
   onModelChange: (id) => void
@@ -922,8 +1003,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
 }`}
             </pre>
             <p className="field-help" style={{ marginTop: 12 }}>
-              O backend futuro só precisa preencher isso. Nenhum estado do chat mora fora dessas
-              props — a casca já é controlada.
+              O backend futuro só precisa preencher isso. Nenhum estado do chat
+              mora fora dessas props — a casca já é controlada.
             </p>
           </div>
         </div>
@@ -981,7 +1062,11 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
         title="Renomear conversa"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setRenomeando(null)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setRenomeando(null)}
+            >
               Cancelar
             </button>
             <button
@@ -993,7 +1078,8 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
                   setTituloErro(true);
                   return;
                 }
-                if (renomeando) atualizar(renomeando.id, (c) => ({ ...c, titulo: valor }));
+                if (renomeando)
+                  atualizar(renomeando.id, (c) => ({ ...c, titulo: valor }));
                 setRenomeando(null);
               }}
             >
@@ -1015,7 +1101,9 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
               setTituloErro(false);
             }}
           />
-          {tituloErro && <p className="field-error">O título não pode ficar vazio.</p>}
+          {tituloErro && (
+            <p className="field-error">O título não pode ficar vazio.</p>
+          )}
         </div>
       </Modal>
 
@@ -1026,7 +1114,11 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
         title="Excluir esta conversa?"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setExcluindo(null)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setExcluindo(null)}
+            >
               Cancelar
             </button>
             <button
@@ -1044,9 +1136,9 @@ export function ChatClient({ fila, agoraIso }: { fila: FilaResumo; agoraIso: str
         }
       >
         <p className="small">
-          São <strong>{excluindo?.mensagens.length} mensagens</strong>. O histórico do chat vive só
-          na sessão do navegador, então não há de onde recuperar depois — o desfazer do aviso é a
-          única chance.
+          São <strong>{excluindo?.mensagens.length} mensagens</strong>. O
+          histórico do chat vive só na sessão do navegador, então não há de onde
+          recuperar depois — o desfazer do aviso é a única chance.
         </p>
       </Modal>
     </div>

@@ -22,7 +22,15 @@ export interface ModalProps {
  * `[data-autofocus]` quando existe — em diálogo com campo obrigatório, o
  * cursor precisa nascer dentro dele.
  */
-export function Modal({ open, onClose, title, eyebrow, wide, children, footer }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  eyebrow,
+  wide,
+  children,
+  footer,
+}: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
 
@@ -31,7 +39,9 @@ export function Modal({ open, onClose, title, eyebrow, wide, children, footer }:
     restoreTo.current = document.activeElement as HTMLElement | null;
 
     const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>("[data-autofocus]") ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
+    const first =
+      panel?.querySelector<HTMLElement>("[data-autofocus]") ??
+      panel?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
 
     function onKey(event: KeyboardEvent) {
@@ -42,9 +52,9 @@ export function Modal({ open, onClose, title, eyebrow, wide, children, footer }:
         return;
       }
       if (event.key !== "Tab" || !panel) return;
-      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null,
-      );
+      const items = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE),
+      ).filter((el) => el.offsetParent !== null);
       if (items.length === 0) return;
       const head = items[0];
       const tail = items[items.length - 1];
@@ -99,7 +109,11 @@ export function Modal({ open, onClose, title, eyebrow, wide, children, footer }:
         <div className="modal-body">{children}</div>
         <div className="modal-foot">
           {footer ?? (
-            <button className="btn btn-secondary" type="button" onClick={onClose}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onClose}
+            >
               Fechar
             </button>
           )}

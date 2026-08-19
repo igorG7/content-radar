@@ -6,7 +6,8 @@ import { IconCheck } from "@/components/ui/icons";
 import { fmtDate, doCampo, paraCampo } from "@/lib/format";
 import { TRANSITION_ERRORS, type BriefView } from "@/lib/view/brief-view";
 
-const IG_URL = /^https?:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,}\/?(\?.*)?$/;
+const IG_URL =
+  /^https?:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,}\/?(\?.*)?$/;
 
 export interface PublishData {
   ig_post_url: string;
@@ -43,12 +44,15 @@ export function PublishDialog({
     if (!brief) return;
     const limpa = url.trim();
     if (!limpa) return setErroUrl(TRANSITION_ERRORS.IG_URL_REQUIRED);
-    if (!IG_URL.test(limpa)) return setErroUrl(TRANSITION_ERRORS.IG_URL_INVALID);
+    if (!IG_URL.test(limpa))
+      return setErroUrl(TRANSITION_ERRORS.IG_URL_INVALID);
     if (!quando) return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_REQUIRED);
 
     const data = new Date(doCampo(quando));
-    if (Number.isNaN(data.getTime())) return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_REQUIRED);
-    if (data > new Date()) return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_FUTURE);
+    if (Number.isNaN(data.getTime()))
+      return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_REQUIRED);
+    if (data > new Date())
+      return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_FUTURE);
     if (brief.approvedAt && data < new Date(brief.approvedAt)) {
       return setErroData(
         `${TRANSITION_ERRORS.PUBLISHED_AT_BEFORE_APPROVAL} Aprovado em ${fmtDate(brief.approvedAt)}.`,
@@ -77,13 +81,15 @@ export function PublishDialog({
       }
     >
       <p className="small">
-        A publicação no Instagram é manual. Isto apenas registra que ela aconteceu: move o arquivo
-        para <span className="num">store/briefs/publicado/</span> e grava o evento{" "}
+        A publicação no Instagram é manual. Isto apenas registra que ela
+        aconteceu: move o arquivo para{" "}
+        <span className="num">store/briefs/publicado/</span> e grava o evento{" "}
         <span className="num">published</span> no ledger com a URL e o horário.
       </p>
       <div className="field" style={{ marginTop: 16 }}>
         <label htmlFor="ig-url">
-          URL do post <span className="muted">— obrigatória, vai para o ledger</span>
+          URL do post{" "}
+          <span className="muted">— obrigatória, vai para o ledger</span>
         </label>
         <input
           className="input"
@@ -101,8 +107,8 @@ export function PublishDialog({
         />
         {erroUrl && <p className="field-error">{erroUrl}</p>}
         <p className="field-help">
-          É por ela que o acervo mostra “ver no Instagram” e que a anti-repetição sabe o que já foi
-          ao ar.
+          É por ela que o acervo mostra “ver no Instagram” e que a
+          anti-repetição sabe o que já foi ao ar.
         </p>
       </div>
       <div className="field" style={{ marginTop: 14 }}>
@@ -116,7 +122,9 @@ export function PublishDialog({
           style={{ maxWidth: 260 }}
           value={quando}
           max={paraCampo(agora)}
-          min={brief.approvedAt ? paraCampo(new Date(brief.approvedAt)) : undefined}
+          min={
+            brief.approvedAt ? paraCampo(new Date(brief.approvedAt)) : undefined
+          }
           onChange={(event) => {
             setQuando(event.target.value);
             setErroData(null);
@@ -125,8 +133,8 @@ export function PublishDialog({
         />
         {erroData && <p className="field-error">{erroData}</p>}
         <p className="field-help">
-          Ajuste se o post foi ao ar antes de você registrar aqui. É esta data que ordena o acervo e
-          conta nas janelas de anti-repetição.
+          Ajuste se o post foi ao ar antes de você registrar aqui. É esta data
+          que ordena o acervo e conta nas janelas de anti-repetição.
         </p>
       </div>
     </Modal>

@@ -12,9 +12,11 @@ const MAX_WIDTH = 80;
 
 function renderScalar(value: unknown): string {
   if (value === null) return "null";
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   if (typeof value === "string") {
-    if (value.includes("\n")) throw new Error("multi-line strings are not editable here");
+    if (value.includes("\n"))
+      throw new Error("multi-line strings are not editable here");
     return stringify(value).trimEnd();
   }
   throw new Error(`unsupported value: ${typeof value}`);
@@ -51,7 +53,8 @@ export function patchManifest(raw: string, edits: ConfigEdit[]): string {
   }
 
   const splices = edits.map(({ path, value }) => {
-    const node = doc.getIn(path, true) as { range?: [number, number, number] } | undefined;
+    const node = doc.getIn(path, true) as
+      { range?: [number, number, number] } | undefined;
     if (!node?.range) {
       throw new Error(`caminho inexistente no manifest: ${path.join(".")}`);
     }
@@ -70,7 +73,8 @@ export function patchManifest(raw: string, edits: ConfigEdit[]): string {
 
   let output = raw;
   for (const splice of splices.sort((a, b) => b.start - a.start)) {
-    output = output.slice(0, splice.start) + splice.text + output.slice(splice.end);
+    output =
+      output.slice(0, splice.start) + splice.text + output.slice(splice.end);
   }
   return output;
 }

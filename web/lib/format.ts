@@ -18,7 +18,11 @@ export function fmtDate(iso: string, withTime = false): string {
     timeZone: TZ,
   });
   if (!withTime) return date;
-  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+  const time = d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ,
+  });
   return `${date} · ${time}`;
 }
 

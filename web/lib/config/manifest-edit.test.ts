@@ -6,7 +6,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { patchManifest } from "./manifest-edit";
 import { validateManifestText } from "./validate";
 
-const MANIFEST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../manifest.yaml");
+const MANIFEST = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../manifest.yaml",
+);
 
 let raw: string;
 beforeAll(async () => {
@@ -16,7 +19,10 @@ beforeAll(async () => {
 function changedLines(before: string, after: string) {
   const a = before.split("\n");
   const b = after.split("\n");
-  return { added: b.length - a.length, differing: a.filter((line, i) => line !== b[i]).length };
+  return {
+    added: b.length - a.length,
+    differing: a.filter((line, i) => line !== b[i]).length,
+  };
 }
 
 describe("patchManifest", () => {
@@ -44,19 +50,30 @@ describe("patchManifest", () => {
 
   it("renders a short source list inline", () => {
     const output = patchManifest(raw, [
-      { path: ["search_scopes", "trends", "sources"], value: ["fipezap", "abrainc"] },
+      {
+        path: ["search_scopes", "trends", "sources"],
+        value: ["fipezap", "abrainc"],
+      },
     ]);
     expect(output).toContain('\n      ["fipezap", "abrainc"]');
-    expect(parse(output).search_scopes.trends.sources).toEqual(["fipezap", "abrainc"]);
+    expect(parse(output).search_scopes.trends.sources).toEqual([
+      "fipezap",
+      "abrainc",
+    ]);
   });
 
   it("keeps a long source list in the file's multi-line style", () => {
     const sources = parse(raw).search_scopes.local.sources as string[];
     const output = patchManifest(raw, [
-      { path: ["search_scopes", "local", "sources"], value: [...sources, "prefeitura-nova"] },
+      {
+        path: ["search_scopes", "local", "sources"],
+        value: [...sources, "prefeitura-nova"],
+      },
     ]);
 
-    expect(parse(output).search_scopes.local.sources).toContain("prefeitura-nova");
+    expect(parse(output).search_scopes.local.sources).toContain(
+      "prefeitura-nova",
+    );
     expect(output).toContain('\n        "prefeitura-nova",\n');
 
     // The edit is purely additive: drop the new line and the file is byte-identical.
@@ -68,9 +85,9 @@ describe("patchManifest", () => {
   });
 
   it("refuses an unknown path", () => {
-    expect(() => patchManifest(raw, [{ path: ["nao", "existe"], value: 1 }])).toThrow(
-      /caminho inexistente/,
-    );
+    expect(() =>
+      patchManifest(raw, [{ path: ["nao", "existe"], value: 1 }]),
+    ).toThrow(/caminho inexistente/);
   });
 });
 
@@ -81,7 +98,10 @@ describe("validateManifestText", () => {
 
   it("rejects weights that stop summing to 1.0", () => {
     const output = patchManifest(raw, [
-      { path: ["anti_repetition", "match_score_weights", "pillar_fit"], value: 0.5 },
+      {
+        path: ["anti_repetition", "match_score_weights", "pillar_fit"],
+        value: 0.5,
+      },
     ]);
     expect(validateManifestText(output).errors).toContainEqual(
       expect.objectContaining({ path: "anti_repetition.match_score_weights" }),
@@ -92,7 +112,9 @@ describe("validateManifestText", () => {
     const output = patchManifest(raw, [
       { path: ["anti_repetition", "borderline_min"], value: 0.7 },
     ]);
-    expect(validateManifestText(output).errors[0].message).toMatch(/menor que match_score_min/);
+    expect(validateManifestText(output).errors[0].message).toMatch(
+      /menor que match_score_min/,
+    );
   });
 
   it("rejects an empty source list", () => {
@@ -104,18 +126,26 @@ describe("validateManifestText", () => {
 
   it("rejects duplicated sources", () => {
     const output = patchManifest(raw, [
-      { path: ["search_scopes", "cases", "sources"], value: ["caixa", "caixa"] },
+      {
+        path: ["search_scopes", "cases", "sources"],
+        value: ["caixa", "caixa"],
+      },
     ]);
     expect(validateManifestText(output).errors[0].message).toMatch(/repetidas/);
   });
 
   it("warns about pillar 4 without blocking the save", () => {
     const output = patchManifest(raw, [
-      { path: ["cadence", "pillars_by_day_base", "quarta"], value: ["4-bastidor"] },
+      {
+        path: ["cadence", "pillars_by_day_base", "quarta"],
+        value: ["4-bastidor"],
+      },
     ]);
     const { errors, warnings } = validateManifestText(output);
     expect(errors).toEqual([]);
-    expect(warnings.map((w) => w.path)).toContain("cadence.pillars_by_day_base.quarta");
+    expect(warnings.map((w) => w.path)).toContain(
+      "cadence.pillars_by_day_base.quarta",
+    );
   });
 
   it("ships with no outstanding warnings", () => {

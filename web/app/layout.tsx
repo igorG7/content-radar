@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "content-radar",
-  description: "Painel editorial para revisar briefs e configurar o radar de conteúdo",
+  description:
+    "Painel editorial para revisar briefs e configurar o radar de conteúdo",
 };
 
 // Roda antes da primeira pintura: sem isso o tema claro pisca antes do escuro.

@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { setLocal, useLocal } from "@/lib/use-local";
 import {
@@ -21,7 +28,11 @@ interface VaultContextValue {
   aceitos: Aceitos;
   mapa: BlocoMapeado[];
   progresso: Progresso;
-  aceitar: (key: string, conteudo: string | null, motivo: string | null) => void;
+  aceitar: (
+    key: string,
+    conteudo: string | null,
+    motivo: string | null,
+  ) => void;
 }
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -50,7 +61,10 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   // Aceito = versão. Não existe rascunho meio-salvo: bloco não confirmado ainda
   // não existe, e retomar é continuar de onde a lista de vazios começa.
-  const salvo = useLocal<{ modo: ModoVault; blocos: Aceitos } | null>(KEY_BLOCOS, null);
+  const salvo = useLocal<{ modo: ModoVault; blocos: Aceitos } | null>(
+    KEY_BLOCOS,
+    null,
+  );
   const aceitos = useMemo<Aceitos>(
     () => (salvo && salvo.modo === modo ? salvo.blocos : (SEEDS[modo] ?? {})),
     [salvo, modo],
@@ -84,5 +98,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     [modo, aceitos, aceitar],
   );
 
-  return <VaultContext.Provider value={value}>{children}</VaultContext.Provider>;
+  return (
+    <VaultContext.Provider value={value}>{children}</VaultContext.Provider>
+  );
 }

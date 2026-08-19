@@ -25,9 +25,10 @@ export default function DocumentoMontado() {
           </Link>
         </div>
         <p className="lead" style={{ marginTop: 12 }}>
-          É exatamente isto que vai como contexto na próxima varredura — os blocos na ordem, sem
-          metadado no meio. Montar o documento é responsabilidade do produto, então ver o resultado é
-          a única forma de perceber se ele degradou.
+          É exatamente isto que vai como contexto na próxima varredura — os
+          blocos na ordem, sem metadado no meio. Montar o documento é
+          responsabilidade do produto, então ver o resultado é a única forma de
+          perceber se ele degradou.
         </p>
       </div>
 

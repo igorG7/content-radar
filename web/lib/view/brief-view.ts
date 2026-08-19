@@ -110,21 +110,25 @@ export const ASPECT_PADRAO = "1:1";
 
 export function toBriefView(brief: Brief, scoring: Scoring): BriefView {
   const breakdown = brief.matchScoreBreakdown ?? {};
-  const hints = new Map(brief.relevanceHints.map((h) => [h.component, h.evidence]));
+  const hints = new Map(
+    brief.relevanceHints.map((h) => [h.component, h.evidence]),
+  );
 
   // A ordem é a do manifest: é ela que a legenda e a barra seguem, para o
   // mesmo componente cair sempre na mesma faixa de cor.
-  const componentes: ScoreComponent[] = Object.entries(scoring.weights).map(([key, weight]) => {
-    const raw = breakdown[key] ?? 0;
-    return {
-      key,
-      label: componentLabel(key),
-      raw,
-      weight,
-      value: raw * weight,
-      hint: hints.get(key) ?? null,
-    };
-  });
+  const componentes: ScoreComponent[] = Object.entries(scoring.weights).map(
+    ([key, weight]) => {
+      const raw = breakdown[key] ?? 0;
+      return {
+        key,
+        label: componentLabel(key),
+        raw,
+        weight,
+        value: raw * weight,
+        hint: hints.get(key) ?? null,
+      };
+    },
+  );
 
   const media: MediaView[] = brief.candidates.map((candidate) => ({
     index: candidate.index,
@@ -186,9 +190,20 @@ export function toBriefView(brief: Brief, scoring: Scoring): BriefView {
   };
 }
 
-export const STATE_META: Record<BriefState, { label: string; short: string; tone: string }> = {
-  "pendente-aprovacao": { label: "Pendente de aprovação", short: "Fila", tone: "warn" },
-  "pendente-publicacao": { label: "Pendente de publicação", short: "Aprovado", tone: "ok" },
+export const STATE_META: Record<
+  BriefState,
+  { label: string; short: string; tone: string }
+> = {
+  "pendente-aprovacao": {
+    label: "Pendente de aprovação",
+    short: "Fila",
+    tone: "warn",
+  },
+  "pendente-publicacao": {
+    label: "Pendente de publicação",
+    short: "Aprovado",
+    tone: "ok",
+  },
   publicado: { label: "Publicado", short: "Publicado", tone: "accent" },
   rejeitado: { label: "Rejeitado", short: "Rejeitado", tone: "danger" },
 };
@@ -210,15 +225,18 @@ export const TRANSITION_ERRORS: Record<string, string> = {
     "A escolha da arte ainda não foi feita nesta sessão. Selecione uma candidata ou marque “sem foto” antes de aprovar.",
   MEDIA_MISSING:
     "A mídia escolhida não existe mais no cache. Escolha outra candidata ou marque “sem foto”.",
-  ALREADY_MOVED: "Este brief já saiu da fila em outra aba ou sessão. Recarregue a página.",
+  ALREADY_MOVED:
+    "Este brief já saiu da fila em outra aba ou sessão. Recarregue a página.",
   REASON_REQUIRED:
     "Rejeitar exige um motivo — ele vai para o ledger e alimenta a checagem de anti-repetição.",
-  IG_URL_REQUIRED: "Marcar como publicado exige a URL do post — é ela que fecha o ciclo no ledger.",
+  IG_URL_REQUIRED:
+    "Marcar como publicado exige a URL do post — é ela que fecha o ciclo no ledger.",
   IG_URL_INVALID:
     "A URL precisa ser de um post ou reel do Instagram: instagram.com/p/… ou instagram.com/reel/…",
   PUBLISHED_AT_REQUIRED:
     "Informe quando o post foi ao ar — é esta data que ordena o acervo e conta nas janelas de anti-repetição.",
   PUBLISHED_AT_FUTURE:
     "A data de publicação não pode estar no futuro: o registro é de algo que já aconteceu.",
-  PUBLISHED_AT_BEFORE_APPROVAL: "A publicação não pode ser anterior à aprovação do brief.",
+  PUBLISHED_AT_BEFORE_APPROVAL:
+    "A publicação não pode ser anterior à aprovação do brief.",
 };

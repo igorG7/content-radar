@@ -19,7 +19,13 @@ const TERRITORIOS = ["app", "components", "scripts"];
  *  `RADAR_ROOT` fica de fora: os scripts precisam defini-lo antes de importar
  *  qualquer módulo, porque a raiz vem da localização do próprio arquivo e não
  *  do cwd. É bootstrap, não acesso a dado. */
-const PROIBIDOS = ["resolvePaths", "briefsDir", "mediaDir", "RadarPaths", "MANIFEST_PATH"];
+const PROIBIDOS = [
+  "resolvePaths",
+  "briefsDir",
+  "mediaDir",
+  "RadarPaths",
+  "MANIFEST_PATH",
+];
 
 async function arquivosDe(dir: string): Promise<string[]> {
   const entradas = await readdir(dir, { withFileTypes: true, recursive: true });
@@ -56,7 +62,11 @@ describe("fronteira da camada de armazenamento", () => {
         // o ambiente, que é o que vai sustentar o isolamento entre clientes.
         // `frontmatter` fica de fora: parseFrontmatter e patchScalars são
         // manipulação de texto, não localização de dado.
-        if (/from ["']@?\/?(\.\.\/)*lib\/(store\/(briefs|ledger)|transitions\/mv)["']/.test(fonte)) {
+        if (
+          /from ["']@?\/?(\.\.\/)*lib\/(store\/(briefs|ledger)|transitions\/mv)["']/.test(
+            fonte,
+          )
+        ) {
           infracoes.push(path.relative(RAIZ, arquivo));
         }
       }

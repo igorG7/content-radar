@@ -21,10 +21,15 @@ export interface LedgerReadResult {
 function normalize(parsed: Record<string, unknown>): LedgerEvent {
   const extra = parsed.extra as Record<string, unknown> | undefined;
   const event = parsed.event ?? extra?.event;
-  return { ...parsed, event: typeof event === "string" ? event : "unknown" } as LedgerEvent;
+  return {
+    ...parsed,
+    event: typeof event === "string" ? event : "unknown",
+  } as LedgerEvent;
 }
 
-export async function readLedger(ledgerPath: string): Promise<LedgerReadResult> {
+export async function readLedger(
+  ledgerPath: string,
+): Promise<LedgerReadResult> {
   let raw: string;
   try {
     raw = await readFile(ledgerPath, "utf8");
@@ -58,7 +63,10 @@ export async function appendLedger(
   ledgerPath: string,
   event: Omit<LedgerEvent, "ts"> & { ts?: string },
 ): Promise<LedgerEvent> {
-  const entry: LedgerEvent = { ts: event.ts ?? new Date().toISOString(), ...event };
+  const entry: LedgerEvent = {
+    ts: event.ts ?? new Date().toISOString(),
+    ...event,
+  };
   await appendFile(ledgerPath, `${JSON.stringify(entry)}\n`, "utf8");
   return entry;
 }

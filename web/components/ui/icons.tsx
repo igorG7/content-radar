@@ -1,7 +1,10 @@
 import type { ReactNode, SVGProps } from "react";
 
 /** Stroke 1.7 em grade de 24 — o traço fino é parte da postura do sistema. */
-function Svg({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) {
+function Svg({
+  children,
+  ...props
+}: SVGProps<SVGSVGElement> & { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"

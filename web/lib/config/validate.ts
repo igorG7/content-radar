@@ -26,7 +26,9 @@ const EditableManifest = z
       geografia_reframe_floor: ratio.optional(),
       match_score_weights: z.record(z.string(), ratio),
     }),
-    cadence: z.object({ pillars_by_day_base: z.record(z.string(), z.array(z.string())) }),
+    cadence: z.object({
+      pillars_by_day_base: z.record(z.string(), z.array(z.string())),
+    }),
   })
   .superRefine((manifest, ctx) => {
     const weights = Object.values(manifest.anti_repetition.match_score_weights);
@@ -39,11 +41,15 @@ const EditableManifest = z
       });
     }
 
-    if (manifest.anti_repetition.borderline_min >= manifest.anti_repetition.match_score_min) {
+    if (
+      manifest.anti_repetition.borderline_min >=
+      manifest.anti_repetition.match_score_min
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["anti_repetition", "borderline_min"],
-        message: "borderline_min precisa ser menor que match_score_min, senão o tier some",
+        message:
+          "borderline_min precisa ser menor que match_score_min, senão o tier some",
       });
     }
 
@@ -94,7 +100,9 @@ function collectWarnings(manifest: unknown): ValidationIssue[] {
     }
   }
 
-  for (const [day, pillars] of Object.entries(doc.cadence?.pillars_by_day_base ?? {})) {
+  for (const [day, pillars] of Object.entries(
+    doc.cadence?.pillars_by_day_base ?? {},
+  )) {
     if (pillars?.includes(EXCLUDED_PILLAR)) {
       warnings.push({
         path: `cadence.pillars_by_day_base.${day}`,
@@ -123,7 +131,9 @@ export function validateManifestText(raw: string): ValidationResult {
     parsed = parse(raw);
   } catch (error) {
     return {
-      errors: [{ path: "", message: `YAML inválido: ${(error as Error).message}` }],
+      errors: [
+        { path: "", message: `YAML inválido: ${(error as Error).message}` },
+      ],
       warnings: [],
     };
   }

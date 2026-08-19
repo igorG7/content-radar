@@ -41,7 +41,9 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
         <h3 className="h3 prosa-titulo" key={`${key}-h`}>
           {linhas[0].slice(3)}
         </h3>,
-        ...(linhas.length > 1 ? blocos(linhas.slice(1).join("\n"), `${key}-r`) : []),
+        ...(linhas.length > 1
+          ? blocos(linhas.slice(1).join("\n"), `${key}-r`)
+          : []),
       ];
     }
     if (linhas.every((l) => /^- /.test(l))) {
@@ -57,7 +59,9 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
       return [
         <ol className="prosa-lista is-num" key={key}>
           {linhas.map((l, li) => (
-            <li key={`${key}-${li}`}>{inline(l.replace(/^\d+\. /, ""), `${key}-${li}`)}</li>
+            <li key={`${key}-${li}`}>
+              {inline(l.replace(/^\d+\. /, ""), `${key}-${li}`)}
+            </li>
           ))}
         </ol>,
       ];
@@ -75,7 +79,13 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
   });
 }
 
-export function Prosa({ texto, className = "prosa" }: { texto: string; className?: string }) {
+export function Prosa({
+  texto,
+  className = "prosa",
+}: {
+  texto: string;
+  className?: string;
+}) {
   return <div className={className}>{blocos(texto, "p")}</div>;
 }
 

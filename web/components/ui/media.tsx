@@ -36,7 +36,10 @@ function Foot({ media }: { media: MediaView }) {
           s/ licença
         </span>
       ) : media.missing ? (
-        <span className="pill pill-warn pill-bare" style={{ justifySelf: "start" }}>
+        <span
+          className="pill pill-warn pill-bare"
+          style={{ justifySelf: "start" }}
+        >
           ausente
         </span>
       ) : (
@@ -80,7 +83,7 @@ export function MediaTile({
       className="media-tile"
       type="button"
       aria-pressed={selected}
-      aria-label={`Candidata ${position}: ${media.missing ? "ausente do cache" : media.alt ?? media.file ?? ""}`}
+      aria-label={`Candidata ${position}: ${media.missing ? "ausente do cache" : (media.alt ?? media.file ?? "")}`}
       onClick={onSelect}
     >
       {inner}

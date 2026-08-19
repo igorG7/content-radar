@@ -56,7 +56,8 @@ function rotaAtiva(pathname: string): string {
  */
 function ThemeToggle() {
   function alternar() {
-    const proximo = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    const proximo =
+      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     if (proximo === "dark") document.documentElement.dataset.theme = "dark";
     else delete document.documentElement.dataset.theme;
     // Chave crua, sem JSON: é assim que o script inline do <head> a lê.
@@ -84,7 +85,13 @@ function ThemeToggle() {
   );
 }
 
-export function AppShell({ children, filaCount }: { children: ReactNode; filaCount: number }) {
+export function AppShell({
+  children,
+  filaCount,
+}: {
+  children: ReactNode;
+  filaCount: number;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { progresso } = useVault();
@@ -110,7 +117,11 @@ export function AppShell({ children, filaCount }: { children: ReactNode; filaCou
       </a>
       <header className="app-nav">
         <div className="app-nav-inner">
-          <Link className="brand" href="/" aria-label="content-radar — painel editorial">
+          <Link
+            className="brand"
+            href="/"
+            aria-label="content-radar — painel editorial"
+          >
             <span className="brand-mark">content&#8203;·radar</span>
           </Link>
           <nav className="nav-links" aria-label="Navegação principal">
@@ -164,7 +175,11 @@ export function AppShell({ children, filaCount }: { children: ReactNode; filaCou
               className="theme-toggle"
               type="button"
               title={sessao ? "Sair" : "Entrar"}
-              aria-label={sessao ? `Sair da conta ${sessao.email}` : "Ir para a tela de login"}
+              aria-label={
+                sessao
+                  ? `Sair da conta ${sessao.email}`
+                  : "Ir para a tela de login"
+              }
               onClick={() => {
                 sair();
                 router.push("/login");

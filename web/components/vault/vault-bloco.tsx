@@ -52,7 +52,10 @@ const ROTEIRO: Record<string, { apoio: string[]; sugestoes: string[] }> = {
       "Dá um exemplo de assunto que parece certo mas fica de fora.",
       "Como você decide na dúvida?",
     ],
-    sugestoes: ["Entra o que muda a decisão de quem compra", "Fica de fora leilão e alto padrão pronto"],
+    sugestoes: [
+      "Entra o que muda a decisão de quem compra",
+      "Fica de fora leilão e alto padrão pronto",
+    ],
   },
   publicos: {
     apoio: [
@@ -85,7 +88,10 @@ const ROTEIRO: Record<string, { apoio: string[]; sugestoes: string[] }> = {
     ],
   },
   visual: {
-    apoio: ["Que sensação a arte precisa passar?", "Tem algo que a marca nunca usa visualmente?"],
+    apoio: [
+      "Que sensação a arte precisa passar?",
+      "Tem algo que a marca nunca usa visualmente?",
+    ],
     sugestoes: ["Sóbria, fria, sem gradiente", "Número sempre em mono tabular"],
   },
 };
@@ -119,8 +125,11 @@ export function VaultBloco({ chave }: { chave: string }) {
     ? ""
     : bloco.preenchido
       ? `Este bloco já tem a versão **v${bloco.versao}**. Vou reabrir a mesma pergunta e você me diz o que mudou — o que existe hoje continua valendo até você aceitar uma versão nova.\n\n${bloco.pergunta ?? ""}`
-      : bloco.pergunta ?? "Vamos definir este bloco.";
-  const mensagens: Mensagem[] = [{ role: "agent", content: abertura }, ...conversa];
+      : (bloco.pergunta ?? "Vamos definir este bloco.");
+  const mensagens: Mensagem[] = [
+    { role: "agent", content: abertura },
+    ...conversa,
+  ];
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -131,14 +140,21 @@ export function VaultBloco({ chave }: { chave: string }) {
       <div className="panel">
         <div className="panel-body">
           <EmptyState
-            title={bloco ? "Esta etapa não é um bloco de vault" : "Bloco não encontrado"}
+            title={
+              bloco
+                ? "Esta etapa não é um bloco de vault"
+                : "Bloco não encontrado"
+            }
             body={
               bloco
                 ? "Fontes e ajustes numéricos são trabalho manual acumulado, sem origem na marca. Eles vivem no manifest."
                 : "Nenhum bloco com esta chave. Ele pode ter sido renomeado."
             }
             action={
-              <Link className="btn btn-secondary" href={bloco?.href ?? "/config/vault"}>
+              <Link
+                className="btn btn-secondary"
+                href={bloco?.href ?? "/config/vault"}
+              >
                 {bloco ? "Abrir configuração" : "Voltar ao vault"}
               </Link>
             }
@@ -155,7 +171,10 @@ export function VaultBloco({ chave }: { chave: string }) {
     setTimeout(() => {
       setPensando(false);
       if (passo < roteiro.apoio.length) {
-        setConversa((atual) => [...atual, { role: "agent", content: roteiro.apoio[passo] }]);
+        setConversa((atual) => [
+          ...atual,
+          { role: "agent", content: roteiro.apoio[passo] },
+        ]);
         setPasso((p) => p + 1);
       } else {
         setConversa((atual) => [
@@ -202,7 +221,8 @@ export function VaultBloco({ chave }: { chave: string }) {
       toast({
         tone: "ok",
         title: `${bloco.titulo} · v1 aceita`,
-        detail: "O bloco passou a existir. Reabrir a partir de agora gera versão nova.",
+        detail:
+          "O bloco passou a existir. Reabrir a partir de agora gera versão nova.",
       });
       setTimeout(() => router.push("/config/vault"), 700);
       return;
@@ -230,10 +250,15 @@ export function VaultBloco({ chave }: { chave: string }) {
           />
           <span className="eyebrow">{bloco.key}</span>
         </div>
-        <div className="row-between" style={{ marginTop: 12, alignItems: "flex-start" }}>
+        <div
+          className="row-between"
+          style={{ marginTop: 12, alignItems: "flex-start" }}
+        >
           <div style={{ flex: "1 1 420px", minWidth: 0 }}>
             <div className="row-tight" style={{ marginBottom: 10 }}>
-              <span className={`pill ${bloco.criticidade === "obrigatorio" ? "pill-warn" : ""}`}>
+              <span
+                className={`pill ${bloco.criticidade === "obrigatorio" ? "pill-warn" : ""}`}
+              >
                 {CRITICIDADE[bloco.criticidade]}
               </span>
               {bloco.temId && <span className="tag">blocos com id</span>}
@@ -259,7 +284,8 @@ export function VaultBloco({ chave }: { chave: string }) {
           <div className="alert-body">
             <strong>Ainda não é hora deste bloco</strong>
             <p className="small" style={{ marginTop: 3 }}>
-              Ele consome o que sai de <strong>{bloco.bloqueador.titulo}</strong> — sem aquilo, a
+              Ele consome o que sai de{" "}
+              <strong>{bloco.bloqueador.titulo}</strong> — sem aquilo, a
               conversa aqui não teria de onde partir.
             </p>
             <p style={{ marginTop: 9 }}>
@@ -287,7 +313,10 @@ export function VaultBloco({ chave }: { chave: string }) {
               aria-label="Conversa da etapa"
             >
               {mensagens.map((m, i) => (
-                <div className={`msg ${m.role === "user" ? "msg-user" : "msg-agent"}`} key={i}>
+                <div
+                  className={`msg ${m.role === "user" ? "msg-user" : "msg-agent"}`}
+                  key={i}
+                >
                   <span className="msg-avatar" aria-hidden="true">
                     {m.role === "user" ? "EU" : "CR"}
                   </span>
@@ -333,7 +362,10 @@ export function VaultBloco({ chave }: { chave: string }) {
                     type="button"
                     key={sugestao}
                     onClick={() => {
-                      setConversa((a) => [...a, { role: "user", content: sugestao }]);
+                      setConversa((a) => [
+                        ...a,
+                        { role: "user", content: sugestao },
+                      ]);
                       responder();
                     }}
                   >
@@ -357,18 +389,28 @@ export function VaultBloco({ chave }: { chave: string }) {
                     }
                   }}
                 />
-                <button className="btn btn-primary" type="submit" style={{ height: 52 }}>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  style={{ height: 52 }}
+                >
                   Enviar
                 </button>
               </div>
-              <p className="field-help">Enter envia · Shift+Enter quebra linha</p>
+              <p className="field-help">
+                Enter envia · Shift+Enter quebra linha
+              </p>
             </form>
           </section>
 
           <section className="panel">
             <div className="panel-head">
               <h2 className="h3">
-                {proposta !== null ? "Versão gerada" : bloco.preenchido ? "Versão em vigor" : "Versão"}
+                {proposta !== null
+                  ? "Versão gerada"
+                  : bloco.preenchido
+                    ? "Versão em vigor"
+                    : "Versão"}
               </h2>
               {proposta !== null ? (
                 <span className="pill pill-warn">proposta · não aceita</span>
@@ -383,8 +425,9 @@ export function VaultBloco({ chave }: { chave: string }) {
                   <div className="alert-body">
                     <strong>Os códigos em mono são endereços</strong>
                     <p className="small" style={{ marginTop: 3 }}>
-                      A configuração e os briefs apontam para eles. Reescrever o texto ao lado é
-                      seguro; trocar o código quebra a referência.
+                      A configuração e os briefs apontam para eles. Reescrever o
+                      texto ao lado é seguro; trocar o código quebra a
+                      referência.
                     </p>
                   </div>
                 </div>
@@ -393,8 +436,9 @@ export function VaultBloco({ chave }: { chave: string }) {
                 <Prosa texto={mostra} />
               ) : (
                 <p className="small muted">
-                  Nada gerado ainda. Responda o que o agente perguntar e clique em{" "}
-                  <span className="strong">Gerar versão</span> quando quiser ver o bloco montado.
+                  Nada gerado ainda. Responda o que o agente perguntar e clique
+                  em <span className="strong">Gerar versão</span> quando quiser
+                  ver o bloco montado.
                 </p>
               )}
             </div>
@@ -410,8 +454,15 @@ export function VaultBloco({ chave }: { chave: string }) {
             >
               {proposta !== null ? (
                 <>
-                  <button className="btn btn-ok" type="button" onClick={aceitarProposta}>
-                    Aceitar{bloco.preenchido ? ` como v${bloco.versao + 1}` : " e seguir"}
+                  <button
+                    className="btn btn-ok"
+                    type="button"
+                    onClick={aceitarProposta}
+                  >
+                    Aceitar
+                    {bloco.preenchido
+                      ? ` como v${bloco.versao + 1}`
+                      : " e seguir"}
                   </button>
                   <button
                     className="btn btn-secondary"
@@ -420,7 +471,11 @@ export function VaultBloco({ chave }: { chave: string }) {
                       setProposta(null);
                       setConversa((a) => [
                         ...a,
-                        { role: "agent", content: "Certo. O que ficou fora, ou o que eu entendi errado?" },
+                        {
+                          role: "agent",
+                          content:
+                            "Certo. O que ficou fora, ou o que eu entendi errado?",
+                        },
                       ]);
                     }}
                   >
@@ -438,7 +493,9 @@ export function VaultBloco({ chave }: { chave: string }) {
                     Gerar versão
                   </button>
                   {!bloco.preenchido && (
-                    <span className="field-help">Precisa de pelo menos uma resposta.</span>
+                    <span className="field-help">
+                      Precisa de pelo menos uma resposta.
+                    </span>
                   )}
                 </>
               )}
@@ -454,7 +511,11 @@ export function VaultBloco({ chave }: { chave: string }) {
         title="Por que este bloco está mudando?"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setMotivoAberto(false)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setMotivoAberto(false)}
+            >
               Cancelar
             </button>
             <button
@@ -481,12 +542,13 @@ export function VaultBloco({ chave }: { chave: string }) {
         }
       >
         <p className="small">
-          Não há validação possível para prosa — o motivo é o que permite entender depois por que a
-          saída da varredura mudou de tom.
+          Não há validação possível para prosa — o motivo é o que permite
+          entender depois por que a saída da varredura mudou de tom.
         </p>
         <div className="field" style={{ marginTop: 16 }}>
           <label htmlFor="motivo-bloco">
-            Motivo <span className="muted">— vai para o histórico do bloco</span>
+            Motivo{" "}
+            <span className="muted">— vai para o histórico do bloco</span>
           </label>
           <textarea
             className="textarea"

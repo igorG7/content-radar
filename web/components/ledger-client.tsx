@@ -44,14 +44,34 @@ export function LedgerClient({
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
-  const porId = useMemo(() => new Map(briefs.map((b) => [b.briefId, b])), [briefs]);
+  const porId = useMemo(
+    () => new Map(briefs.map((b) => [b.briefId, b])),
+    [briefs],
+  );
   const atores = useMemo(
-    () => [...new Set(eventos.map((e) => e.actor).filter((a): a is string => Boolean(a)))].sort(),
+    () =>
+      [
+        ...new Set(
+          eventos.map((e) => e.actor).filter((a): a is string => Boolean(a)),
+        ),
+      ].sort(),
     [eventos],
   );
-  const tipos = useMemo(() => [...new Set(eventos.map((e) => e.event))].sort(), [eventos]);
+  const tipos = useMemo(
+    () => [...new Set(eventos.map((e) => e.event))].sort(),
+    [eventos],
+  );
   const briefsComEvento = useMemo(
-    () => [...new Set(eventos.map((e) => e.brief_id).filter((id): id is string => Boolean(id)))].sort().reverse(),
+    () =>
+      [
+        ...new Set(
+          eventos
+            .map((e) => e.brief_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ]
+        .sort()
+        .reverse(),
     [eventos],
   );
 
@@ -62,7 +82,11 @@ export function LedgerClient({
     return true;
   });
 
-  const grupoFiltro = (titulo: string, chave: string, opcoes: { v: string; l: string }[]) => (
+  const grupoFiltro = (
+    titulo: string,
+    chave: string,
+    opcoes: { v: string; l: string }[],
+  ) => (
     <div className="filter-group" role="group" aria-label={titulo}>
       <span className="eyebrow" style={{ width: "100%" }}>
         {titulo}
@@ -108,7 +132,9 @@ export function LedgerClient({
               id="brief-sel"
               value={F.brief}
               onChange={(event) =>
-                router.replace(hrefWith({ brief: event.target.value }), { scroll: false })
+                router.replace(hrefWith({ brief: event.target.value }), {
+                  scroll: false,
+                })
               }
             >
               <option value="">Todos os briefs</option>
@@ -121,9 +147,10 @@ export function LedgerClient({
           </div>
           <p className="field-help">
             Atores seguem a convenção <span className="num">human:*</span>,{" "}
-            <span className="num">skill:*</span>, <span className="num">agent:*</span> e{" "}
-            <span className="num">app:radar-web</span> — dá para separar o que foi decisão humana do
-            que foi automação.
+            <span className="num">skill:*</span>,{" "}
+            <span className="num">agent:*</span> e{" "}
+            <span className="num">app:radar-web</span> — dá para separar o que
+            foi decisão humana do que foi automação.
           </p>
         </div>
       </aside>
@@ -135,7 +162,11 @@ export function LedgerClient({
             {F.brief && ` · brief ${F.brief}`}
             {F.ator && ` · ator ${F.ator}`}
           </p>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setJsonlAberto(true)}>
+          <button
+            className="btn btn-ghost btn-sm"
+            type="button"
+            onClick={() => setJsonlAberto(true)}
+          >
             Ver como JSONL
           </button>
         </div>
@@ -147,20 +178,28 @@ export function LedgerClient({
                 title="Nenhum evento neste recorte"
                 body={`O ledger tem ${eventos.length} linhas; nenhuma casa com os filtros atuais. O arquivo em si nunca é filtrado no disco — é sempre append-only.`}
                 action={
-                  <Link className="btn btn-secondary" href={pathname} scroll={false}>
+                  <Link
+                    className="btn btn-secondary"
+                    href={pathname}
+                    scroll={false}
+                  >
                     Limpar filtros
                   </Link>
                 }
               />
             ) : (
               filtrados.map((evento, index) => {
-                const brief = evento.brief_id ? porId.get(evento.brief_id) : undefined;
+                const brief = evento.brief_id
+                  ? porId.get(evento.brief_id)
+                  : undefined;
                 const tone = EVENT_TONE[evento.event] ?? "";
                 const extra = evento.extra ?? {};
                 return (
                   <article className="ev-row" key={`${evento.ts}-${index}`}>
                     <div>
-                      <div className="num small">{fmtDate(evento.ts, true)}</div>
+                      <div className="num small">
+                        {fmtDate(evento.ts, true)}
+                      </div>
                       <div className="meta" style={{ marginTop: 2 }}>
                         {fmtRelative(evento.ts)}
                       </div>
@@ -185,7 +224,10 @@ export function LedgerClient({
                         </Link>
                       ) : (
                         evento.brief_id && (
-                          <span className="meta" style={{ display: "block", marginTop: 6 }}>
+                          <span
+                            className="meta"
+                            style={{ display: "block", marginTop: 6 }}
+                          >
                             {evento.brief_id}
                           </span>
                         )
@@ -193,7 +235,10 @@ export function LedgerClient({
                     </div>
                     <div style={{ minWidth: 0 }}>
                       {brief && (
-                        <p className="small strong clamp-2" style={{ marginBottom: 8 }}>
+                        <p
+                          className="small strong clamp-2"
+                          style={{ marginBottom: 8 }}
+                        >
                           {brief.headline}
                         </p>
                       )}
@@ -247,8 +292,9 @@ export function LedgerClient({
         title="Linhas cruas"
       >
         <p className="small">
-          É assim que o arquivo está no disco. Uma linha por evento, sem vírgula entre elas, sem
-          fechamento — por isso é seguro fazer append concorrente.
+          É assim que o arquivo está no disco. Uma linha por evento, sem vírgula
+          entre elas, sem fechamento — por isso é seguro fazer append
+          concorrente.
         </p>
         <pre
           className="code"

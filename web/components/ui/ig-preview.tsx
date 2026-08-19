@@ -71,13 +71,19 @@ export function IgPreview({
             <strong>{handle}</strong> <span>{head}</span>
             {corta && aberta && <span>{rest}</span>}
             {corta && (
-              <button className="ig-more" type="button" onClick={() => setAberta((v) => !v)}>
+              <button
+                className="ig-more"
+                type="button"
+                onClick={() => setAberta((v) => !v)}
+              >
                 {aberta ? " menos" : "… mais"}
               </button>
             )}
           </p>
           <p className="ig-tags" style={{ marginTop: 6 }}>
-            {hashtags.map((tag) => (tag.startsWith("#") ? tag : `#${tag}`)).join(" ")}
+            {hashtags
+              .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
+              .join(" ")}
           </p>
         </div>
       </div>

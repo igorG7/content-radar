@@ -11,7 +11,11 @@ import { ScoreBar, ScoreStrip } from "@/components/ui/score-bar";
 import { Crumb, EmptyState } from "@/components/ui/pieces";
 import { IconAlert, IconCheck, IconSearch } from "@/components/ui/icons";
 import { fmtScore } from "@/lib/format";
-import { TRANSITION_ERRORS, type BriefView, type MediaView } from "@/lib/view/brief-view";
+import {
+  TRANSITION_ERRORS,
+  type BriefView,
+  type MediaView,
+} from "@/lib/view/brief-view";
 
 type Escolha = number | "none" | undefined;
 
@@ -31,7 +35,7 @@ const ORDENS = [
 
 function escolhaDe(brief: BriefView): Escolha {
   if (!brief.heroChoiceDeclared) return undefined;
-  return brief.heroChoice === null ? "none" : brief.heroChoice ?? undefined;
+  return brief.heroChoice === null ? "none" : (brief.heroChoice ?? undefined);
 }
 
 export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
@@ -43,8 +47,12 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
   // O disco continua sendo a fonte da verdade: o estado local é só a camada
   // otimista por cima dele — o que já saiu da fila e a escolha desta sessão.
   // Assim um router.refresh() traz dados novos sem sobrescrever a decisão.
-  const [removidos, setRemovidos] = useState<ReadonlySet<string>>(() => new Set());
-  const [escolhasLocais, setEscolhasLocais] = useState<Record<string, Escolha>>({});
+  const [removidos, setRemovidos] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [escolhasLocais, setEscolhasLocais] = useState<Record<string, Escolha>>(
+    {},
+  );
   const [cursor, setCursor] = useState(0);
   const [atalhosAbertos, setAtalhosAbertos] = useState(false);
   const [explicando, setExplicando] = useState<BriefView | null>(null);
@@ -56,12 +64,18 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
   const [loteStatus, setLoteStatus] = useState<Record<string, string>>({});
   const [rodandoLote, setRodandoLote] = useState(false);
 
-  const items = useMemo(() => briefs.filter((b) => !removidos.has(b.slug)), [briefs, removidos]);
+  const items = useMemo(
+    () => briefs.filter((b) => !removidos.has(b.slug)),
+    [briefs, removidos],
+  );
 
   const escolhas = useMemo<Record<string, Escolha>>(
     () =>
       Object.fromEntries(
-        briefs.map((b) => [b.slug, b.slug in escolhasLocais ? escolhasLocais[b.slug] : escolhaDe(b)]),
+        briefs.map((b) => [
+          b.slug,
+          b.slug in escolhasLocais ? escolhasLocais[b.slug] : escolhaDe(b),
+        ]),
       ),
     [briefs, escolhasLocais],
   );
@@ -90,16 +104,27 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
   );
 
   const setParam = useCallback(
-    (key: string, value: string) => router.replace(hrefWith({ [key]: value }), { scroll: false }),
+    (key: string, value: string) =>
+      router.replace(hrefWith({ [key]: value }), { scroll: false }),
     [hrefWith, router],
   );
 
   const pilares = useMemo(
-    () => [...new Set(items.map((b) => b.pilar).filter((p): p is string => Boolean(p)))].sort(),
+    () =>
+      [
+        ...new Set(
+          items.map((b) => b.pilar).filter((p): p is string => Boolean(p)),
+        ),
+      ].sort(),
     [items],
   );
   const icps = useMemo(
-    () => [...new Set(items.map((b) => b.icp).filter((p): p is string => Boolean(p)))].sort(),
+    () =>
+      [
+        ...new Set(
+          items.map((b) => b.icp).filter((p): p is string => Boolean(p)),
+        ),
+      ].sort(),
     [items],
   );
 
@@ -111,7 +136,8 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
       if (F.borderline === "0" && b.borderline) return false;
       if (F.midia === "com" && !b.media.some((m) => !m.missing)) return false;
       if (F.midia === "sem" && b.media.length > 0) return false;
-      if (F.midia === "ausente" && !b.media.some((m) => m.missing)) return false;
+      if (F.midia === "ausente" && !b.media.some((m) => m.missing))
+        return false;
       if (F.q) {
         const hay = `${b.headline} ${b.hook} ${b.caption}`.toLowerCase();
         if (!hay.includes(F.q.toLowerCase())) return false;
@@ -119,12 +145,15 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
       return true;
     });
 
-    const porScore = (a: BriefView, b: BriefView) => (b.matchScore ?? 0) - (a.matchScore ?? 0);
+    const porScore = (a: BriefView, b: BriefView) =>
+      (b.matchScore ?? 0) - (a.matchScore ?? 0);
     const ordem: Record<string, (a: BriefView, b: BriefView) => number> = {
       score: porScore,
       "score-asc": (a, b) => (a.matchScore ?? 0) - (b.matchScore ?? 0),
-      data: (a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || porScore(a, b),
-      pilar: (a, b) => (a.pilar ?? "").localeCompare(b.pilar ?? "") || porScore(a, b),
+      data: (a, b) =>
+        (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || porScore(a, b),
+      pilar: (a, b) =>
+        (a.pilar ?? "").localeCompare(b.pilar ?? "") || porScore(a, b),
     };
     return [...filtrados].sort(ordem[F.ordenar] ?? porScore);
   }, [items, F.pilar, F.icp, F.borderline, F.midia, F.q, F.ordenar]);
@@ -143,7 +172,9 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
       const resposta = await fetch(`/api/briefs/${slug}/hero`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ heroChoice: proximo === "none" ? null : proximo }),
+        body: JSON.stringify({
+          heroChoice: proximo === "none" ? null : proximo,
+        }),
       }).catch(() => null);
 
       if (!resposta?.ok) {
@@ -152,7 +183,8 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         toast({
           tone: "danger",
           title: `HTTP ${resposta?.status ?? "—"} · HERO_CHOICE`,
-          detail: corpo?.error ?? "Não foi possível gravar a escolha no frontmatter.",
+          detail:
+            corpo?.error ?? "Não foi possível gravar a escolha no frontmatter.",
         });
       }
     },
@@ -171,7 +203,10 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         return;
       }
       // `escolha` é o index declarado no frontmatter, não a posição na lista.
-      if (typeof escolha === "number" && brief.media.find((m) => m.index === escolha)?.missing) {
+      if (
+        typeof escolha === "number" &&
+        brief.media.find((m) => m.index === escolha)?.missing
+      ) {
         toast({
           tone: "danger",
           title: "HTTP 422 · MEDIA_MISSING",
@@ -203,7 +238,9 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         title: `Aprovado · ${brief.briefId}`,
         detail:
           `Movido para pendente-publicacao. ` +
-          (apagadas.length ? `${apagadas.length} mídia(s) apagada(s) do cache. ` : "") +
+          (apagadas.length
+            ? `${apagadas.length} mídia(s) apagada(s) do cache. `
+            : "") +
           `Evento mv-approved gravado no ledger — reverter é operação de terminal (radar-mv).`,
       });
       router.refresh();
@@ -273,7 +310,8 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
     toast({
       tone: "ok",
       title: "Lote concluído",
-      detail: "Relatório por item na janela. Todos os eventos foram para o ledger.",
+      detail:
+        "Relatório por item na janela. Todos os eventos foram para o ledger.",
     });
     router.refresh();
   }, [lote, router, toast]);
@@ -282,7 +320,8 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
      Só quando não há modal aberto e o foco não está num campo de texto. */
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (atalhosAbertos || explicando || ampliando || rejeitando || lote) return;
+      if (atalhosAbertos || explicando || ampliando || rejeitando || lote)
+        return;
       const tag = (event.target as HTMLElement | null)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -345,14 +384,30 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
 
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [ampliando, aprovar, atalhosAbertos, cursor, escolher, explicando, lote, rejeitando, router, visiveis]);
+  }, [
+    ampliando,
+    aprovar,
+    atalhosAbertos,
+    cursor,
+    escolher,
+    explicando,
+    lote,
+    rejeitando,
+    router,
+    visiveis,
+  ]);
 
   useEffect(() => {
     const alvo = visiveis[cursor];
-    if (alvo) document.getElementById(alvo.slug)?.scrollIntoView({ block: "nearest" });
+    if (alvo)
+      document.getElementById(alvo.slug)?.scrollIntoView({ block: "nearest" });
   }, [cursor, visiveis]);
 
-  const grupoFiltro = (titulo: string, chave: string, opcoes: { v: string; l: string }[]) => (
+  const grupoFiltro = (
+    titulo: string,
+    chave: string,
+    opcoes: { v: string; l: string }[],
+  ) => (
     <div className="filter-group" role="group" aria-label={titulo}>
       <span className="eyebrow" style={{ width: "100%" }}>
         {titulo}
@@ -384,281 +439,325 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         <div className="row-between" style={{ marginTop: 12 }}>
           <h1 className="display">Fila de aprovação</h1>
           <div className="row-tight">
-          <button className="btn btn-secondary" type="button" onClick={() => setAtalhosAbertos(true)}>
-            Atalhos <span className="kbd">?</span>
-          </button>
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={() => {
-              if (decididos.length === 0) {
-                toast({
-                  tone: "danger",
-                  title: "Nada pronto para lote",
-                  detail:
-                    "Nenhum brief do recorte atual tem a escolha de arte decidida. Decida a arte de pelo menos um antes.",
-                });
-                return;
-              }
-              setLoteStatus(Object.fromEntries(decididos.map((b) => [b.slug, "na fila"])));
-              setLote(decididos);
-            }}
-          >
-            Aprovar em lote
-          </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setAtalhosAbertos(true)}
+            >
+              Atalhos <span className="kbd">?</span>
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => {
+                if (decididos.length === 0) {
+                  toast({
+                    tone: "danger",
+                    title: "Nada pronto para lote",
+                    detail:
+                      "Nenhum brief do recorte atual tem a escolha de arte decidida. Decida a arte de pelo menos um antes.",
+                  });
+                  return;
+                }
+                setLoteStatus(
+                  Object.fromEntries(decididos.map((b) => [b.slug, "na fila"])),
+                );
+                setLote(decididos);
+              }}
+            >
+              Aprovar em lote
+            </button>
           </div>
         </div>
         {ilegiveis > 0 && (
           <p className="field-error" style={{ marginTop: 10 }}>
-            {ilegiveis} arquivo(s) desta pasta não puderam ser lidos e ficam fora da fila.
+            {ilegiveis} arquivo(s) desta pasta não puderam ser lidos e ficam
+            fora da fila.
           </p>
         )}
       </div>
 
       <PipelineGate variant="fila">
-      <div className="grid-side">
-        <aside className="panel" aria-label="Filtros">
-          <div className="panel-head">
-            <h2 className="h3">Filtros</h2>
-            <Link className="btn btn-ghost btn-sm" href={pathname} scroll={false}>
-              Limpar
-            </Link>
-          </div>
-          <div className="panel-body filterbar">
-            <div className="search">
-              <IconSearch />
-              <input
-                type="search"
-                id="busca"
-                placeholder="Buscar em headline, hook e caption"
-                defaultValue={F.q}
-                aria-label="Buscar nos briefs da fila"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") setParam("q", event.currentTarget.value.trim());
-                  if (event.key === "Escape") {
-                    event.currentTarget.value = "";
-                    event.currentTarget.blur();
-                  }
-                }}
-              />
-            </div>
-            {grupoFiltro("Pilar", "pilar", [
-              { v: "", l: "Todos" },
-              ...pilares.map((p) => ({ v: p, l: p })),
-            ])}
-            {grupoFiltro("ICP", "icp", [{ v: "", l: "Todos" }, ...icps.map((p) => ({ v: p, l: p }))])}
-            {grupoFiltro("Decisão", "borderline", [
-              { v: "", l: "Todos" },
-              { v: "1", l: "Só borderline" },
-              { v: "0", l: "Sem borderline" },
-            ])}
-            {grupoFiltro("Mídia em cache", "midia", [
-              { v: "", l: "Todas" },
-              { v: "com", l: "Com candidata" },
-              { v: "ausente", l: "Com arquivo ausente" },
-              { v: "sem", l: "Sem candidata" },
-            ])}
-            <p className="field-help">
-              Os filtros vivem na URL — este recorte é compartilhável e sobrevive ao refresh.
-            </p>
-          </div>
-        </aside>
-
-        <section>
-          <div className="row-between" style={{ marginBottom: 14 }}>
-            <p className="meta" aria-live="polite">
-              {visiveis.length} de {items.length} briefs
-              {visiveis.filter((b) => b.borderline).length > 0 &&
-                ` · ${visiveis.filter((b) => b.borderline).length} borderline`}
-              {` · ${visiveis.length - decididos.length} sem arte decidida`}
-            </p>
-            <div className="row-tight">
-              <label className="eyebrow" htmlFor="ordenar">
-                Ordenar
-              </label>
-              <select
-                className="select"
-                id="ordenar"
-                style={{ width: "auto" }}
-                value={F.ordenar}
-                onChange={(event) => setParam("ordenar", event.target.value)}
+        <div className="grid-side">
+          <aside className="panel" aria-label="Filtros">
+            <div className="panel-head">
+              <h2 className="h3">Filtros</h2>
+              <Link
+                className="btn btn-ghost btn-sm"
+                href={pathname}
+                scroll={false}
               >
-                {ORDENS.map((o) => (
-                  <option value={o.v} key={o.v}>
-                    {o.l}
-                  </option>
-                ))}
-              </select>
+                Limpar
+              </Link>
             </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-body-flush">
-              {visiveis.length === 0 ? (
-                items.length > 0 ? (
-                  <EmptyState
-                    title="Nenhum brief neste recorte"
-                    body={`Os ${items.length} briefs da fila continuam no disco — o filtro atual é que não deixa nenhum passar.`}
-                    action={
-                      <Link className="btn btn-secondary" href={pathname} scroll={false}>
-                        Limpar filtros
-                      </Link>
+            <div className="panel-body filterbar">
+              <div className="search">
+                <IconSearch />
+                <input
+                  type="search"
+                  id="busca"
+                  placeholder="Buscar em headline, hook e caption"
+                  defaultValue={F.q}
+                  aria-label="Buscar nos briefs da fila"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter")
+                      setParam("q", event.currentTarget.value.trim());
+                    if (event.key === "Escape") {
+                      event.currentTarget.value = "";
+                      event.currentTarget.blur();
                     }
-                  />
+                  }}
+                />
+              </div>
+              {grupoFiltro("Pilar", "pilar", [
+                { v: "", l: "Todos" },
+                ...pilares.map((p) => ({ v: p, l: p })),
+              ])}
+              {grupoFiltro("ICP", "icp", [
+                { v: "", l: "Todos" },
+                ...icps.map((p) => ({ v: p, l: p })),
+              ])}
+              {grupoFiltro("Decisão", "borderline", [
+                { v: "", l: "Todos" },
+                { v: "1", l: "Só borderline" },
+                { v: "0", l: "Sem borderline" },
+              ])}
+              {grupoFiltro("Mídia em cache", "midia", [
+                { v: "", l: "Todas" },
+                { v: "com", l: "Com candidata" },
+                { v: "ausente", l: "Com arquivo ausente" },
+                { v: "sem", l: "Sem candidata" },
+              ])}
+              <p className="field-help">
+                Os filtros vivem na URL — este recorte é compartilhável e
+                sobrevive ao refresh.
+              </p>
+            </div>
+          </aside>
+
+          <section>
+            <div className="row-between" style={{ marginBottom: 14 }}>
+              <p className="meta" aria-live="polite">
+                {visiveis.length} de {items.length} briefs
+                {visiveis.filter((b) => b.borderline).length > 0 &&
+                  ` · ${visiveis.filter((b) => b.borderline).length} borderline`}
+                {` · ${visiveis.length - decididos.length} sem arte decidida`}
+              </p>
+              <div className="row-tight">
+                <label className="eyebrow" htmlFor="ordenar">
+                  Ordenar
+                </label>
+                <select
+                  className="select"
+                  id="ordenar"
+                  style={{ width: "auto" }}
+                  value={F.ordenar}
+                  onChange={(event) => setParam("ordenar", event.target.value)}
+                >
+                  {ORDENS.map((o) => (
+                    <option value={o.v} key={o.v}>
+                      {o.l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="panel">
+              <div className="panel-body-flush">
+                {visiveis.length === 0 ? (
+                  items.length > 0 ? (
+                    <EmptyState
+                      title="Nenhum brief neste recorte"
+                      body={`Os ${items.length} briefs da fila continuam no disco — o filtro atual é que não deixa nenhum passar.`}
+                      action={
+                        <Link
+                          className="btn btn-secondary"
+                          href={pathname}
+                          scroll={false}
+                        >
+                          Limpar filtros
+                        </Link>
+                      }
+                    />
+                  ) : (
+                    <EmptyState
+                      title="Fila zerada"
+                      body="Nada pendente de aprovação. A próxima varredura escreve direto em store/briefs/pendente-aprovacao/."
+                      action={
+                        <Link className="btn btn-secondary" href="/acervo">
+                          Ver o acervo
+                        </Link>
+                      }
+                    />
+                  )
                 ) : (
-                  <EmptyState
-                    title="Fila zerada"
-                    body="Nada pendente de aprovação. A próxima varredura escreve direto em store/briefs/pendente-aprovacao/."
-                    action={
-                      <Link className="btn btn-secondary" href="/acervo">
-                        Ver o acervo
-                      </Link>
-                    }
-                  />
-                )
-              ) : (
-                visiveis.map((brief, index) => {
-                  const escolha = escolhas[brief.slug];
-                  const decidido = escolha !== undefined;
-                  return (
-                    <article
-                      className={`brief-row${brief.borderline ? " is-borderline" : ""}${index === cursor ? " is-cursor" : ""}`}
-                      id={brief.slug}
-                      key={brief.slug}
-                      tabIndex={-1}
-                      aria-label={brief.headline}
-                      onClick={() => setCursor(index)}
-                    >
-                      <div className="queue-score">
-                        <span className="num strong" style={{ fontSize: 19, lineHeight: 1 }}>
-                          {brief.matchScore === null ? "—" : fmtScore(brief.matchScore)}
-                        </span>
-                        <ScoreStrip breakdown={brief.breakdown} score={brief.matchScore} />
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          style={{ justifyContent: "flex-start", paddingInline: 0 }}
-                          onClick={() => setExplicando(brief)}
-                        >
-                          Por quê?
-                        </button>
-                      </div>
-
-                      <div style={{ minWidth: 0 }}>
-                        <h2 className="brief-headline">
-                          <Link href={`/briefs/${brief.state}/${brief.slug}`}>{brief.headline}</Link>
-                        </h2>
-                        <p className="brief-hook clamp-2">{brief.hook}</p>
-
-                        <div className="row-tight" style={{ marginTop: 10 }}>
-                          <span className="meta">{brief.briefId}</span>
-                          {brief.pilar && <span className="tag">{brief.pilar}</span>}
-                          {brief.icp && <span className="tag">{brief.icp}</span>}
-                          {brief.borderline && (
-                            <span className="pill pill-warn">borderline · decisão sua</span>
-                          )}
-                        </div>
-
-                        {brief.warnings.length > 0 && (
-                          <div
-                            className="alert alert-warning"
-                            style={{ marginTop: 11, padding: "8px 11px" }}
+                  visiveis.map((brief, index) => {
+                    const escolha = escolhas[brief.slug];
+                    const decidido = escolha !== undefined;
+                    return (
+                      <article
+                        className={`brief-row${brief.borderline ? " is-borderline" : ""}${index === cursor ? " is-cursor" : ""}`}
+                        id={brief.slug}
+                        key={brief.slug}
+                        tabIndex={-1}
+                        aria-label={brief.headline}
+                        onClick={() => setCursor(index)}
+                      >
+                        <div className="queue-score">
+                          <span
+                            className="num strong"
+                            style={{ fontSize: 19, lineHeight: 1 }}
                           >
-                            <IconAlert />
-                            <div className="alert-body">
-                              <span className="small">{brief.warnings.join(" · ")}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="queue-media">
-                          <MediaNoneTile
-                            selected={escolha === "none"}
-                            compact
-                            onSelect={() => void escolher(brief.slug, "none")}
+                            {brief.matchScore === null
+                              ? "—"
+                              : fmtScore(brief.matchScore)}
+                          </span>
+                          <ScoreStrip
+                            breakdown={brief.breakdown}
+                            score={brief.matchScore}
                           />
-                          {brief.media.map((media, i) => (
-                            <MediaTile
-                              key={`${brief.slug}-${media.index}`}
-                              media={media}
-                              position={i + 1}
-                              compact
-                              selected={escolha === media.index}
-                              onSelect={() => void escolher(brief.slug, media.index)}
-                            />
-                          ))}
-                          {brief.media.length > 0 && (
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              type="button"
-                              style={{ alignSelf: "center" }}
-                              onClick={() => setAmpliando(brief)}
-                            >
-                              Ampliar
-                            </button>
-                          )}
-                        </div>
-
-                        <p
-                          className={`hero-status ${decidido ? "is-set" : "is-pending"}`}
-                          style={{ marginTop: 9 }}
-                        >
-                          {decidido ? <IconCheck /> : <IconAlert />}
-                          {decidido
-                            ? escolha === "none"
-                              ? "Sem foto — o Open Design compõe card só-tipografia"
-                              : `Foto ${escolha} escolhida: ${brief.media.find((m) => m.index === escolha)?.file ?? "—"}`
-                            : "Escolha da arte pendente — aprovar exige uma decisão explícita"}
-                        </p>
-
-                        <div className="brief-actions">
                           <button
-                            className="btn btn-ok"
+                            className="btn btn-ghost btn-sm"
                             type="button"
-                            title="Atalho: a"
-                            onClick={() => void aprovar(brief)}
-                          >
-                            Aprovar
-                          </button>
-                          <button
-                            className="btn btn-danger"
-                            type="button"
-                            title="Atalho: r"
-                            onClick={() => {
-                              setMotivo("");
-                              setMotivoErro(false);
-                              setRejeitando(brief);
+                            style={{
+                              justifyContent: "flex-start",
+                              paddingInline: 0,
                             }}
+                            onClick={() => setExplicando(brief)}
                           >
-                            Rejeitar
+                            Por quê?
                           </button>
-                          <Link
-                            className="btn btn-ghost"
-                            href={`/briefs/${brief.state}/${brief.slug}`}
-                          >
-                            Ver detalhes
-                          </Link>
                         </div>
-                      </div>
-                    </article>
-                  );
-                })
-              )}
-            </div>
-          </div>
 
-          <p className="shortcut-hint" style={{ marginTop: 14 }}>
-            <span className="kbd">j</span>
-            <span className="kbd">k</span> navegar
-            <span className="dot-sep" />
-            <span className="kbd">1</span>–<span className="kbd">9</span> escolher foto
-            <span className="dot-sep" />
-            <span className="kbd">a</span> aprovar
-            <span className="dot-sep" />
-            <span className="kbd">r</span> rejeitar
-          </p>
-        </section>
-      </div>
+                        <div style={{ minWidth: 0 }}>
+                          <h2 className="brief-headline">
+                            <Link href={`/briefs/${brief.state}/${brief.slug}`}>
+                              {brief.headline}
+                            </Link>
+                          </h2>
+                          <p className="brief-hook clamp-2">{brief.hook}</p>
+
+                          <div className="row-tight" style={{ marginTop: 10 }}>
+                            <span className="meta">{brief.briefId}</span>
+                            {brief.pilar && (
+                              <span className="tag">{brief.pilar}</span>
+                            )}
+                            {brief.icp && (
+                              <span className="tag">{brief.icp}</span>
+                            )}
+                            {brief.borderline && (
+                              <span className="pill pill-warn">
+                                borderline · decisão sua
+                              </span>
+                            )}
+                          </div>
+
+                          {brief.warnings.length > 0 && (
+                            <div
+                              className="alert alert-warning"
+                              style={{ marginTop: 11, padding: "8px 11px" }}
+                            >
+                              <IconAlert />
+                              <div className="alert-body">
+                                <span className="small">
+                                  {brief.warnings.join(" · ")}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="queue-media">
+                            <MediaNoneTile
+                              selected={escolha === "none"}
+                              compact
+                              onSelect={() => void escolher(brief.slug, "none")}
+                            />
+                            {brief.media.map((media, i) => (
+                              <MediaTile
+                                key={`${brief.slug}-${media.index}`}
+                                media={media}
+                                position={i + 1}
+                                compact
+                                selected={escolha === media.index}
+                                onSelect={() =>
+                                  void escolher(brief.slug, media.index)
+                                }
+                              />
+                            ))}
+                            {brief.media.length > 0 && (
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                type="button"
+                                style={{ alignSelf: "center" }}
+                                onClick={() => setAmpliando(brief)}
+                              >
+                                Ampliar
+                              </button>
+                            )}
+                          </div>
+
+                          <p
+                            className={`hero-status ${decidido ? "is-set" : "is-pending"}`}
+                            style={{ marginTop: 9 }}
+                          >
+                            {decidido ? <IconCheck /> : <IconAlert />}
+                            {decidido
+                              ? escolha === "none"
+                                ? "Sem foto — o Open Design compõe card só-tipografia"
+                                : `Foto ${escolha} escolhida: ${brief.media.find((m) => m.index === escolha)?.file ?? "—"}`
+                              : "Escolha da arte pendente — aprovar exige uma decisão explícita"}
+                          </p>
+
+                          <div className="brief-actions">
+                            <button
+                              className="btn btn-ok"
+                              type="button"
+                              title="Atalho: a"
+                              onClick={() => void aprovar(brief)}
+                            >
+                              Aprovar
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              type="button"
+                              title="Atalho: r"
+                              onClick={() => {
+                                setMotivo("");
+                                setMotivoErro(false);
+                                setRejeitando(brief);
+                              }}
+                            >
+                              Rejeitar
+                            </button>
+                            <Link
+                              className="btn btn-ghost"
+                              href={`/briefs/${brief.state}/${brief.slug}`}
+                            >
+                              Ver detalhes
+                            </Link>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <p className="shortcut-hint" style={{ marginTop: 14 }}>
+              <span className="kbd">j</span>
+              <span className="kbd">k</span> navegar
+              <span className="dot-sep" />
+              <span className="kbd">1</span>–<span className="kbd">9</span>{" "}
+              escolher foto
+              <span className="dot-sep" />
+              <span className="kbd">a</span> aprovar
+              <span className="dot-sep" />
+              <span className="kbd">r</span> rejeitar
+            </p>
+          </section>
+        </div>
       </PipelineGate>
 
       {/* ── atalhos ─────────────────────────────────────────────────────── */}
@@ -719,17 +818,24 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
             />
             <hr className="rule" style={{ margin: "20px 0" }} />
             <p className="field-label">Por que casou com o perfil</p>
-            <p className="small" style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-              {explicando.whyMatch ?? "O frontmatter deste brief não traz why_match."}
+            <p
+              className="small"
+              style={{ marginTop: 6, whiteSpace: "pre-wrap" }}
+            >
+              {explicando.whyMatch ??
+                "O frontmatter deste brief não traz why_match."}
             </p>
             {explicando.borderlineReason && (
               <div className="sunken" style={{ marginTop: 16 }}>
-                <p className="field-label">Por que veio marcado como borderline</p>
+                <p className="field-label">
+                  Por que veio marcado como borderline
+                </p>
                 <p className="small" style={{ marginTop: 5 }}>
                   {explicando.borderlineReason}
                 </p>
                 <p className="meta" style={{ marginTop: 4 }}>
-                  faixa {fmtScore(scoring.borderlineMin)} – {fmtScore(scoring.matchScoreMin)}
+                  faixa {fmtScore(scoring.borderlineMin)} –{" "}
+                  {fmtScore(scoring.matchScoreMin)}
                 </p>
               </div>
             )}
@@ -749,8 +855,10 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
           <>
             <p className="small muted">
               Proporção pedida no visual_brief:{" "}
-              <span className="num strong">{ampliando.visualBrief.aspectRatio}</span>. Clique para
-              escolher.
+              <span className="num strong">
+                {ampliando.visualBrief.aspectRatio}
+              </span>
+              . Clique para escolher.
             </p>
             <div className="grid-2" style={{ marginTop: 16 }}>
               {ampliando.media.map((media) => (
@@ -780,10 +888,18 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         title="Rejeitar este brief?"
         footer={
           <>
-            <button className="btn btn-secondary" type="button" onClick={() => setRejeitando(null)}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => setRejeitando(null)}
+            >
               Cancelar
             </button>
-            <button className="btn btn-danger" type="button" onClick={() => void rejeitar()}>
+            <button
+              className="btn btn-danger"
+              type="button"
+              onClick={() => void rejeitar()}
+            >
               Rejeitar e apagar mídias
             </button>
           </>
@@ -792,13 +908,17 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         {rejeitando && (
           <>
             <p className="small">
-              Rejeitar move o arquivo para <span className="num">store/briefs/rejeitado/</span> e{" "}
-              <strong>apaga todas as {rejeitando.media.length} mídias em cache</strong>. O brief é
-              preservado para a checagem de anti-repetição.
+              Rejeitar move o arquivo para{" "}
+              <span className="num">store/briefs/rejeitado/</span> e{" "}
+              <strong>
+                apaga todas as {rejeitando.media.length} mídias em cache
+              </strong>
+              . O brief é preservado para a checagem de anti-repetição.
             </p>
             <div className="field" style={{ marginTop: 16 }}>
               <label htmlFor="motivo">
-                Motivo <span className="muted">— obrigatório, vai para o ledger</span>
+                Motivo{" "}
+                <span className="muted">— obrigatório, vai para o ledger</span>
               </label>
               <textarea
                 className="textarea"
@@ -811,7 +931,11 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
                 }}
                 placeholder="Ex.: fora do escopo — o produto citado não é lote, sítio, chácara nem MCMV."
               />
-              {motivoErro && <p className="field-error">{TRANSITION_ERRORS.REASON_REQUIRED}</p>}
+              {motivoErro && (
+                <p className="field-error">
+                  {TRANSITION_ERRORS.REASON_REQUIRED}
+                </p>
+              )}
             </div>
           </>
         )}
@@ -847,8 +971,8 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
       >
         <p className="small">
           Cada transição escreve uma linha no ledger, então o lote roda{" "}
-          <strong>sequencialmente</strong> e reporta item a item. Briefs sem arte decidida ficam de
-          fora.
+          <strong>sequencialmente</strong> e reporta item a item. Briefs sem
+          arte decidida ficam de fora.
         </p>
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table className="ds-table">
@@ -866,17 +990,26 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
                   <td>
                     <span className="meta">{brief.briefId}</span>
                     <br />
-                    <span className="truncate" style={{ maxWidth: "34ch", display: "block" }}>
+                    <span
+                      className="truncate"
+                      style={{ maxWidth: "34ch", display: "block" }}
+                    >
                       {brief.headline}
                     </span>
                   </td>
                   <td className="small">
-                    {escolhas[brief.slug] === "none" ? "sem foto" : `foto ${escolhas[brief.slug]}`}
+                    {escolhas[brief.slug] === "none"
+                      ? "sem foto"
+                      : `foto ${escolhas[brief.slug]}`}
                   </td>
                   <td className="num-col">
-                    {brief.matchScore === null ? "—" : fmtScore(brief.matchScore)}
+                    {brief.matchScore === null
+                      ? "—"
+                      : fmtScore(brief.matchScore)}
                   </td>
-                  <td className="small muted">{loteStatus[brief.slug] ?? "na fila"}</td>
+                  <td className="small muted">
+                    {loteStatus[brief.slug] ?? "na fila"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -903,10 +1036,18 @@ function CandidataAmpliada({
         <img
           src={media.url}
           alt={media.alt ?? ""}
-          style={{ width: "100%", borderRadius: "8px 8px 0 0", objectFit: "cover" }}
+          style={{
+            width: "100%",
+            borderRadius: "8px 8px 0 0",
+            objectFit: "cover",
+          }}
         />
       ) : (
-        <div className="ph-img missing" style={{ borderRadius: "8px 8px 0 0" }} aria-hidden="true">
+        <div
+          className="ph-img missing"
+          style={{ borderRadius: "8px 8px 0 0" }}
+          aria-hidden="true"
+        >
           ⚠ arquivo ausente do cache
         </div>
       )}
@@ -919,23 +1060,29 @@ function CandidataAmpliada({
           {media.licenseHint ?? "sem license_hint no frontmatter"}
         </p>
         {media.licensable === false && (
-          <div className="alert alert-danger" style={{ marginTop: 10, padding: "8px 10px" }}>
+          <div
+            className="alert alert-danger"
+            style={{ marginTop: 10, padding: "8px 10px" }}
+          >
             <IconAlert />
             <div className="alert-body">
               <span className="small">
-                Sem cessão comercial. Usar imagem de veículo de imprensa em post patrocinado tem
-                implicação legal.
+                Sem cessão comercial. Usar imagem de veículo de imprensa em post
+                patrocinado tem implicação legal.
               </span>
             </div>
           </div>
         )}
         {media.missing && (
-          <div className="alert alert-warning" style={{ marginTop: 10, padding: "8px 10px" }}>
+          <div
+            className="alert alert-warning"
+            style={{ marginTop: 10, padding: "8px 10px" }}
+          >
             <IconAlert />
             <div className="alert-body">
               <span className="small">
-                Declarada no frontmatter mas ausente do disco. Aprovar com ela selecionada devolve
-                422.
+                Declarada no frontmatter mas ausente do disco. Aprovar com ela
+                selecionada devolve 422.
               </span>
             </div>
           </div>

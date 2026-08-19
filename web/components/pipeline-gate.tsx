@@ -12,7 +12,13 @@ import { IconLock } from "@/components/ui/icons";
  * contador zerado, que pareceria defeito — e fila vazia por falta de vault não
  * é a mesma coisa que fila vazia por trabalho terminado.
  */
-export function PipelineGate({ variant, children }: { variant: "painel" | "fila"; children: ReactNode }) {
+export function PipelineGate({
+  variant,
+  children,
+}: {
+  variant: "painel" | "fila";
+  children: ReactNode;
+}) {
   const { progresso } = useVault();
 
   if (progresso.podeRodar) return <>{children}</>;
@@ -43,8 +49,9 @@ export function PipelineGate({ variant, children }: { variant: "painel" | "fila"
           O pipeline ainda não rodou
         </h1>
         <p className="lead">
-          Faltam {progresso.faltam.length} bloco(s) obrigatório(s) do vault. Não é queda de
-          qualidade — sem eles a varredura não tem o que classificar nem onde procurar.
+          Faltam {progresso.faltam.length} bloco(s) obrigatório(s) do vault. Não
+          é queda de qualidade — sem eles a varredura não tem o que classificar
+          nem onde procurar.
         </p>
       </div>
 
@@ -59,7 +66,10 @@ export function PipelineGate({ variant, children }: { variant: "painel" | "fila"
             </div>
             <div className="panel-body-flush">
               {progresso.faltam.map((bloco) => (
-                <div className="bloco-card is-pendente-obrigatorio" key={bloco.key}>
+                <div
+                  className="bloco-card is-pendente-obrigatorio"
+                  key={bloco.key}
+                >
                   <span className="bloco-mark" aria-hidden="true">
                     {bloco.trancado ? <IconLock /> : "!"}
                   </span>
@@ -84,7 +94,7 @@ export function PipelineGate({ variant, children }: { variant: "painel" | "fila"
                         bloco.trancado
                           ? `/config/vault/${bloco.bloqueador?.key}`
                           : bloco.tipo === "config"
-                            ? bloco.href ?? "/config"
+                            ? (bloco.href ?? "/config")
                             : `/config/vault/${bloco.key}`
                       }
                     >
@@ -113,13 +123,15 @@ export function PipelineGate({ variant, children }: { variant: "painel" | "fila"
             </div>
             <div className="panel-body stack-sm">
               <p className="small">
-                A ordem sai da dependência real, não de preferência. Blocos livres podem ser
-                respondidos em qualquer sequência; os trancados esperam o insumo do anterior.
+                A ordem sai da dependência real, não de preferência. Blocos
+                livres podem ser respondidos em qualquer sequência; os trancados
+                esperam o insumo do anterior.
               </p>
               <hr className="rule" />
               <p className="small muted">
-                Identidade e origem não trava nada — mas quem pula troca copy com alma por copy
-                correta. Ela alimenta o posicionamento que entra em toda execução.
+                Identidade e origem não trava nada — mas quem pula troca copy
+                com alma por copy correta. Ela alimenta o posicionamento que
+                entra em toda execução.
               </p>
             </div>
           </div>
