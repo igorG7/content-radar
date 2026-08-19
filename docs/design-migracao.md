@@ -84,7 +84,64 @@ A conversão das skills determinísticas (`radar-mark-published`, `radar-houseke
 natural de trocar a persistência, porque a função está sendo reescrita de
 qualquer forma.
 
-## 5. Riscos
+## 5. O relatório de reconciliação do importador
+
+O importador não escreve no banco e segue em frente: ele **produz um relatório**
+que a pessoa lê antes de confiar na carga. A alternativa — aviso no meio da
+saída — é como a divergência entra no banco sem ninguém ver.
+
+### 5.1 Fonte canônica declarada, não inferida
+
+Vários blocos do vault têm duas origens que descrevem a mesma coisa. O
+importador não adivinha qual vale: o mapeamento é explícito na configuração
+dele.
+
+| Bloco | Canônica | Secundária | O que compara |
+|---|---|---|---|
+| `publicos` | `prompts/icp-modifiers.json` | `strategy/positioning.md` | conjunto de códigos |
+| `pilares` | `strategy/content-pillars.md` | `manifest.search_scopes.*.pillars_alvo` | códigos citados vs declarados |
+| `temas` | `strategy/content-bank/pilar-*.md` | citações nos briefs (`§B10`) | a citação aponta para tema existente? |
+| `geografia` | bloco do vault | `manifest.geografia_reframe_floor` | há praça declarada para o piso reancorar? |
+
+**Critério da escolha:** vence a fonte com mais estrutura, porque é a que o
+pipeline consome de fato. No caso dos públicos, o `icp-modifiers.json` carrega
+overlays de tom, palavras-chave, direção visual e CTA; o `positioning.md`
+carrega só nomes.
+
+### 5.2 O relatório mostra o descartado, não só o adotado
+
+```
+publicos          ⚠ divergência
+  icp-modifiers.json  → comprador, investidor, proprietario
+  positioning.md      → primeiro-comprador, sem-banco, investidor, sair-do-aluguel
+  em comum            → investidor
+  adotado             → icp-modifiers.json (tem overlays de tom, CTA e visual)
+  não adotados        → primeiro-comprador, sem-banco, sair-do-aluguel
+                        entraram como texto no corpo do bloco
+```
+
+Um relatório que dissesse apenas "adotei os três" esconderia exatamente a
+informação que importa. Este caso é real: ver
+[`design-vault-onboarding.md`](./design-vault-onboarding.md) §8.
+
+### 5.3 Aviso não trava; referência órfã trava
+
+Mesmo padrão da tela de configuração — **erro bloqueia, aviso não**.
+
+**Aviso:** conjuntos divergentes. A carga roda, adota o canônico, e o resto vira
+prosa no corpo do bloco.
+
+**Erro:** referência órfã — um escopo de busca citando pilar que não existe, ou
+um brief citando `§B10` num banco que não tem `B10`. Não é ambiguidade, é
+quebra, e é o que a chave estrangeira composta vai recusar de qualquer forma
+([esquema §2.1](./design-esquema-banco.md)). Melhor descobrir no relatório do
+que num erro de constraint no meio da carga.
+
+A checagem das citações de tema é a mais valiosa das quatro: é ela que pegaria
+uma renumeração silenciosa do content-bank — o modo de falha que motivou os
+identificadores estáveis.
+
+## 6. Riscos
 
 **A anti-repetição falha em silêncio.** É o único ponto sem volta. Se a projeção
 estiver errada — janela achatada, critério faltando —, o sistema não quebra:
@@ -106,9 +163,10 @@ caminho, e nada mais no código concatena diretórios de run.
 workspace fica órfão com saída parcial — é preciso uma política (ingerir o que
 estiver completo ou descartar) e uma varredura de limpeza.
 
-## 6. Em aberto
+## 7. Em aberto
 
 - **Convivência dos dois backends** durante a transição, ou corte seco por fase.
 - **Rollback** — o que fazer se a fase 2 ou 3 falhar em produção.
-- **Migração do vault**, que tem forma diferente da dos briefs (documentos, mais
-  o content-bank estruturado — ver [vault §5](./design-vault-onboarding.md)).
+- **Migração do vault**, que tem forma diferente da dos briefs (blocos, mais o
+  content-bank estruturado — ver [vault §5](./design-vault-onboarding.md)). O
+  conjunto de blocos está decidido ([vault §7](./design-vault-onboarding.md)).

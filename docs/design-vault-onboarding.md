@@ -311,9 +311,78 @@ exigências contra isso:
   quantas conversas são e ver o que está sendo produzido muda a disposição de
   começar e é o controle de qualidade da pessoa.
 
-## 7. Em aberto
-- **Quais blocos compõem o contrato mínimo** — a forma está decidida (marca por
-  bloco, §6); falta cravar o conjunto.
+## 7. O conjunto de blocos (decidido)
+
+**Treze blocos**, decididos em 2026-08-17. A base é o catálogo implementado em
+`web/lib/vault/blocos.ts`, com uma mudança: **cadência sai de dentro de pilares
+e vira bloco próprio**. Pelo critério de coerência de §5.2, *"em que assuntos a
+marca fala"* e *"quantos posts por semana"* são duas perguntas, logo dois blocos.
+
+| Bloco | Contrato | Id? |
+|---|---|---|
+| identidade | degrada | — |
+| voz | obrigatório | — |
+| guardrails | obrigatório | sim |
+| foco | obrigatório | — |
+| geografia | obrigatório | — |
+| contato | obrigatório | — |
+| publicos | obrigatório | sim |
+| pilares | obrigatório | sim |
+| cadencia | degrada | — |
+| fontes | obrigatório | — (tipo config) |
+| temas | opcional | sim |
+| ajustes | default do produto | — (tipo config) |
+| visual | degrada | — |
+
+Duas fusões da versão anterior ficam mantidas, porque passam no mesmo critério:
+posicionamento é parte de *"quem é a marca e por que alguém a escolheria"*, e
+"o que não entra" é parte de *"o que entra na pauta e o que não entra"*.
+
+`fontes` e `ajustes` são de tipo `config`: aparecem no mapa porque fazem parte
+da sequência, mas apontam para a tela de configuração em vez de abrir conversa,
+e não entram no documento montado.
+
+## 8. Os públicos: um conflito que não era conflito (decidido)
+
+O vault da Avanz declarava dois conjuntos de ICP, e ambos citavam
+`identity/brand.json#/target_audience` como fonte:
+
+- `prompts/icp-modifiers.json` — **comprador, investidor, proprietário**
+- `strategy/positioning.md` — primeiro-comprador, sem-banco, investidor,
+  sair-do-aluguel
+
+**Só o primeiro deriva da fonte de fato.** O `brand.json` tem exatamente três
+perfis, e é o que o `icp-modifiers.json` consome. O `positioning.md` lista
+quatro que não existem lá e aponta para lá como se existissem.
+
+Mas os quatro nomes **não são invenção do posicionamento**: circulam no
+vocabulário operacional da empresa em cinco lugares independentes — playbook de
+objeções, templates de WhatsApp, matriz de autonomia do CRM, KPIs comerciais
+(*"20–45 dias para primeiro-comprador, 5–15 para investidor"*) e plano de SEO.
+
+São **dois eixos distintos que ganharam o mesmo nome**:
+
+| Eixo | Valores | O que muda |
+|---|---|---|
+| O que a pessoa quer fazer com o imóvel | comprador · investidor · proprietário | o registro da copy: didático, analítico, consultivo |
+| Em que situação ela está | primeiro-comprador · sem-banco · sair-do-aluguel | objeção, tempo de fechamento, jornada no CRM |
+
+E os três do segundo eixo são recortes de **comprador** — nenhum é investidor
+ou proprietário.
+
+**Decisão: os três códigos do score permanecem.** Os perfis situacionais entram
+como recortes descritos na prosa do bloco `publicos`, que é exatamente o que a
+forma de bloco existe para comportar. Elevar um deles a código misturaria dois
+eixos numa dimensão só do score — e o componente `icp_fit` já tem teto quando o
+público fica ambíguo.
+
+Custo de migração: **zero**. Os 33 briefs já carregam esses valores.
+
+**Correção pendente no vault da empresa:** o `positioning.md` aponta para uma
+fonte que não confirma o que ele afirma. Vale ajustar a referência, ou trazer os
+quatro perfis para o corpo do bloco `publicos` como segmentos.
+
+## 9. Em aberto
 - **Quem mantém depois do onboarding** — o cliente, o operador do produto, ou o
   próprio radar aprendendo do que foi aprovado e rejeitado.
 - **Realimentação** — se o sistema deve propor entradas novas de content-bank a

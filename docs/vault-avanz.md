@@ -1,20 +1,24 @@
 ---
 vault: avanz-imoveis
-versao: 1
-forma: blocos (design-vault-onboarding §5)
-atualizado: 2026-08-13
+versao: 2
+forma: 11 blocos de vault (design-vault-onboarding §7)
+atualizado: 2026-08-18
 origem: /srv/my-mind/Empresas/avanz-imoveis — always_load + content-bank
 ---
 
 # Vault — Avanz Imóveis
 
-Blocos na ordem de montagem. Os marcados `sempre` entram em toda execução; os
-marcados `por pilar` entram só quando a pauta é daquele pilar.
+Blocos na ordem de montagem, e **fonte da importação** — o parser lê os
+marcadores `bloco:` deste arquivo (`web/db/seed/vault.mts`).
+
+Os marcados `escopo: sempre` entram em toda execução; `por-pilar` entra só
+quando a pauta é daquele pilar. `fontes` e `ajustes`, que completam os 13 do
+esquema, não aparecem aqui: são configuração, não vault.
 
 ---
 
 ## Identidade e origem
-`bloco: identidade` · `sempre` · degrada sem
+`bloco: identidade` · escopo: sempre · contrato: degrada
 
 A Avanz é curadoria imobiliária orientada à decisão. Não vende imóveis:
 organiza o caminho até a decisão certa. A tagline é **"Entender para atender"**,
@@ -31,11 +35,6 @@ Os princípios de experiência, na ordem em que valem quando conflitam:
 3. Confiança antes de conversão
 4. Simplicidade antes de complexidade
 5. Velocidade antes de perfeição
-
----
-
-## Posicionamento e promessa
-`bloco: posicionamento` · `sempre` · degrada sem
 
 A Avanz não vende lote — atua como **facilitadora de aquisição patrimonial**,
 ajudando o cliente a conquistar um ativo com potencial de valorização, com
@@ -54,11 +53,10 @@ bancária**. É o que atende quem não passa no crédito tradicional.
 
 Outros diferenciais: alta velocidade no atendimento, conhecimento profundo do
 mercado local, comunicação simples e direta.
-
 ---
 
 ## Voz da marca
-`bloco: voz` · `sempre` · **obrigatório**
+`bloco: voz` · escopo: sempre · contrato: obrigatorio
 
 Especialista acessível: **direto, transparente, orientador, humano, didático
 sem ser técnico demais.**
@@ -83,7 +81,7 @@ Registro de referência, do jeito que a Avanz fala de fato:
 ---
 
 ## Foco editorial
-`bloco: foco-editorial` · `sempre` · **obrigatório**
+`bloco: foco` · escopo: sempre · contrato: obrigatorio
 
 O que o conteúdo cobre:
 
@@ -102,10 +100,20 @@ transacione:
 Este é o filtro de maior peso do radar. Quando uma pauta é boa mas cai fora
 deste recorte, ela é descartada — não adaptada.
 
+**O que nunca vira pauta**, mesmo que renda engajamento:
+
+- dica de feng shui e conteúdo de revista
+- "bom dia, segunda-feira" e qualquer conteúdo de calendário sem propósito
+- frase motivacional sobre o sonho da casa própria sem ligação concreta com
+  produto
+- repost de meme genérico
+- selfie sem narrativa
+- urgência fabricada: "compre antes que acabe"
+
 ---
 
 ## Área de atuação
-`bloco: geografia` · `sempre` · **obrigatório**
+`bloco: geografia` · escopo: sempre · contrato: obrigatorio
 
 Região Metropolitana de Belo Horizonte, com foco principal em:
 
@@ -120,7 +128,7 @@ região: o que isso muda para quem compra em Mateus Leme.
 ---
 
 ## Públicos
-`bloco: publicos` · `sempre` · **obrigatório** · blocos com id
+`bloco: publicos` · escopo: sempre · contrato: obrigatorio
 
 ### `comprador`
 Pessoa buscando lote, terreno ou casa com segurança e clareza. Geralmente
@@ -190,7 +198,7 @@ jornada principal — mas a pauta fica marcada como ambígua e tem teto de score
 ---
 
 ## Pilares editoriais
-`bloco: pilares` · `sempre` · **obrigatório** · blocos com id
+`bloco: pilares` · escopo: sempre · contrato: obrigatorio
 
 Todo conteúdo precisa servir a pelo menos um destes objetivos: **atrair lead
 qualificado** na RMBH e no público certo, **educar** sobre decisão imobiliária,
@@ -264,23 +272,8 @@ Estrutura: fato ou notícia → análise da Avanz → implicação para o client
 
 ---
 
-## O que não entra
-`bloco: exclusoes` · `sempre` · **obrigatório**
-
-Nunca vira pauta, mesmo que renda engajamento:
-
-- dica de feng shui e conteúdo de revista
-- "bom dia, segunda-feira" e qualquer conteúdo de calendário sem propósito
-- frase motivacional sobre o sonho da casa própria sem ligação concreta com
-  produto
-- repost de meme genérico
-- selfie sem narrativa
-- urgência fabricada: "compre antes que acabe"
-
----
-
 ## Guardrails
-`bloco: guardrails` · `sempre` · **obrigatório** · blocos com id
+`bloco: guardrails` · escopo: sempre · contrato: obrigatorio
 
 ### Restrições
 - `nao-prometer-aprovacao` — nunca prometer aprovação garantida de crédito ou
@@ -305,7 +298,7 @@ falha na condução.**
 ---
 
 ## Cadência
-`bloco: cadencia` · `sempre` · degrada sem
+`bloco: cadencia` · escopo: sempre · contrato: degrada
 
 **Decisão vigente: 4 posts por semana no feed.**
 
@@ -323,7 +316,7 @@ O radar só gera pauta de **feed**. Stories são decisão humana ad-hoc.
 ---
 
 ## Contato e CTA
-`bloco: contato` · `sempre` · **obrigatório**
+`bloco: contato` · escopo: sempre · contrato: obrigatorio
 
 Canal principal: **WhatsApp**. Todo CTA aponta para lá.
 
@@ -334,7 +327,7 @@ Canal principal: **WhatsApp**. Todo CTA aponta para lá.
 ---
 
 ## Identidade visual
-`bloco: visual` · `sempre` · opcional para o radar
+`bloco: visual` · escopo: sempre · contrato: opcional
 
 | Papel | Cor |
 |---|---|
@@ -348,8 +341,8 @@ Consumido pelo Smart Design na geração da arte, não pelo radar.
 
 ---
 
-## Banco de temas — `decisao-inteligente`
-`bloco: banco/decisao-inteligente` · `por pilar` · blocos com id
+## Banco de temas
+`bloco: temas` · escopo: por-pilar · contrato: degrada
 
 Cada tema é um gancho pronto para virar post. O código é atribuído na criação e
 **nunca é recalculado** — remover um tema não renumera os outros.
@@ -416,8 +409,7 @@ Cada tema é um gancho pronto para virar post. O código é atribuído na criaç
 
 ---
 
-## Bancos de temas dos demais pilares
-`bloco: banco/*` · `por pilar`
+## Nota — bancos dos demais pilares
 
 Existem e são migrados como estão, na mesma forma da seção acima:
 `imovel-da-semana`, `inteligencia-imobiliaria`, `bastidor`, `quem-comprou`,

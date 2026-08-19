@@ -35,23 +35,33 @@ Sob demanda: `strategy/content-bank/pilar-*.md` (banco de temas) e
 `obrigatório` = sem ele o pipeline não roda. `degrada` = roda, com perda de
 qualidade. `opcional` = não afeta o radar.
 
+Conjunto decidido em 2026-08-17
+([`design-vault-onboarding.md`](./design-vault-onboarding.md) §7):
+
 | # | Bloco | Id? | Contrato | Origem hoje |
 |---|---|---|---|---|
-| 1 | Identidade e origem | — | degrada | `brand.md` |
-| 2 | Posicionamento e promessa | — | degrada | `positioning.md` |
-| 3 | Voz da marca | — | **obrigatório** | `brand.md` |
-| 4 | **Foco editorial** | — | **obrigatório** | **não existe** — ver §4.1 |
-| 5 | Área de atuação | — | **obrigatório** | `positioning.md` |
-| 6 | Públicos (ICPs) | **sim** | **obrigatório** | `icp-modifiers.json` |
-| 7 | Pilares editoriais | **sim** | **obrigatório** | `content-pillars.md` |
-| 8 | O que não entra | — | **obrigatório** | `content-pillars.md` |
-| 9 | Guardrails | **sim** | **obrigatório** | `guardrails.md` |
-| 10 | Cadência | — | degrada | `cadencia-editorial.md` |
-| 11 | Banco de temas | **sim** | degrada | `content-bank/pilar-*.md` |
-| 12 | Identidade visual | — | opcional (importa no Smart Design) | `brand.md`, `logo/` |
-| 13 | Contato e CTA | — | **obrigatório** | `manifest.brand_facts` — ver §4.2 |
+| 1 | `identidade` — identidade, origem e posicionamento | — | degrada | `brand.md`, `positioning.md` |
+| 2 | `voz` | — | **obrigatório** | `brand.md` |
+| 3 | `guardrails` | **sim** | **obrigatório** | `guardrails.md` |
+| 4 | `foco` — o que entra **e o que não entra** | — | **obrigatório** | **não existe** — ver §4.1 |
+| 5 | `geografia` | — | **obrigatório** | `positioning.md` |
+| 6 | `contato` | — | **obrigatório** | `manifest.brand_facts` — ver §4.2 |
+| 7 | `publicos` | **sim** | **obrigatório** | `icp-modifiers.json` |
+| 8 | `pilares` | **sim** | **obrigatório** | `content-pillars.md` |
+| 9 | `cadencia` | — | degrada | `cadencia-editorial.md` |
+| 10 | `fontes` | — | **obrigatório** | `manifest.search_scopes` — tipo config |
+| 11 | `temas` | **sim** | opcional | `content-bank/pilar-*.md` |
+| 12 | `ajustes` | — | default do produto | `manifest.anti_repetition` — tipo config |
+| 13 | `visual` | — | degrada (pesa no Smart Design) | `brand.md`, `logo/` |
 
-**Mínimo para o primeiro scan:** blocos 3, 4, 5, 6, 7, 8, 9, 13.
+**Mínimo para o primeiro scan:** 2, 3, 4, 5, 6, 7, 8 e 10.
+
+Duas fusões em relação ao levantamento original: **posicionamento** entra em
+`identidade` e **o que não entra** entra em `foco` — nos dois casos porque é uma
+pergunta só na entrevista. As descrições de §3 continuam valendo; o que muda é o
+agrupamento. `fontes` e `ajustes` são de tipo config: aparecem na sequência do
+onboarding mas apontam para a tela de configuração e não entram no documento
+montado.
 
 ## 3. Os blocos, um a um
 
@@ -69,7 +79,7 @@ caminho para a decisão certa. Tagline "Entender para atender". Evolução de
 Arquétipos: o Guia + o Estrategista. Princípios: clareza antes de volume,
 orientação antes de venda, confiança antes de conversão.
 
-### 3.2 Posicionamento e promessa — prosa, degrada
+### 3.2 Posicionamento e promessa — parte de `identidade`
 
 > *Por que um cliente deveria escolher vocês, e não a imobiliária da esquina?*
 
@@ -130,8 +140,9 @@ o que evitar) e um padrão de CTA.
 
 Default quando o ICP é ambíguo: `comprador`, com teto de score em 0,45.
 
-**Atenção:** o `positioning.md` declara *quatro* públicos com outros nomes —
-primeiro-comprador, sem-banco, investidor, sair-do-aluguel. Ver §4.3.
+Os perfis situacionais que a operação usa — primeiro-comprador, sem-banco,
+sair-do-aluguel — são recortes de `comprador` e vivem na prosa deste bloco, não
+como códigos próprios. Ver §4.3.
 
 ### 3.7 Pilares editoriais — blocos com id, **obrigatório**
 
@@ -163,7 +174,7 @@ abre com *"Validar com o Ivan antes de virar plano editorial"*. A validação
 nunca foi registrada — mas os pilares são usados em produção há meses. Na
 migração, isso vira uma versão com motivo explícito, e a pendência morre.
 
-### 3.8 O que não entra — prosa, **obrigatório**
+### 3.8 O que não entra — parte de `foco`
 
 > *Que tipo de post você não quer ver publicado, mesmo que dê engajamento?*
 
@@ -284,9 +295,17 @@ Os dois entram no contexto do briefer ao mesmo tempo. O segundo conjunto é mais
 específico e provavelmente mais útil comercialmente — "sem-banco" é exatamente
 quem o financiamento próprio atende — mas o score pontua pelo primeiro.
 
-**Precisa ser resolvido antes da migração**, não durante: são recortes
-diferentes do mesmo público, não sinônimos, e escolher um é decisão editorial do
-cliente. Com blocos identificados, essa duplicação deixa de ser possível.
+**Resolvido em 2026-08-17: ficam os três de `icp-modifiers.json`.** A
+investigação mostrou que não era conflito entre duas definições, e sim dois
+eixos com o mesmo nome — o que a pessoa quer fazer com o imóvel (comprar, render,
+vender) contra a situação em que ela está (primeira compra, sem crédito, saindo
+do aluguel). Os três situacionais são recortes de `comprador`, e passam a viver
+na prosa do bloco. Raciocínio completo em
+[`design-vault-onboarding.md`](./design-vault-onboarding.md) §8.
+
+Fica pendente uma correção no vault da empresa: o `positioning.md` cita
+`brand.json#/target_audience` como fonte dos quatro perfis, mas esse arquivo tem
+exatamente três.
 
 ## 5. Duas correções que a migração precisa fazer
 
@@ -351,8 +370,6 @@ realimentação, elas voltam à discussão.
   identidade visual).
 - **Recorte por estágio** — hoje `always_load` é o mesmo para matcher e briefer.
   Com blocos, dá para injetar menos no matcher; falta medir se compensa.
-- **Resolução dos dois conjuntos de ICP** (§4.3) — decisão editorial do cliente,
-  não técnica.
 - **Estado do banco de temas** — o `[USADO YYYY-MM-DD]` manual vira estado com
   data, mas falta decidir se o radar marca sozinho ao aprovar um brief que citou
   o tema.
