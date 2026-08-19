@@ -2,7 +2,7 @@
 brief_id: 2026-W26-017
 slug: 2026-W26-017_caixa-bate-r-1-trilhao-em-credito-imobiliario-mcmv-e-58-da
 created_at: 2026-07-03T13:56:36-03:00
-updated_at: 2026-07-03T13:56:36-03:00
+updated_at: 2026-08-17T15:45:35-03:00
 
 scope: trends
 scan_id: 2026-W26-scan-010
@@ -115,8 +115,9 @@ review_notes: |
   taxa/prazo (o finding não fala de juros). Hero é foto institucional do evento (referência) → preferir
   arte gerada com o "R$ 1 tri" tipográfico; hero_choice=null.
 
-handoff_at: null
-package_path: null
+handoff_at: 2026-08-17T15:45:35-03:00
+package_path: ./store/packages/2026-W26-017_caixa-bate-r-1-trilhao-em-credito-imobiliario-mcmv-e-58-da
+cloudinary_public_id: null
 
 published_at: null
 ig_post_url: null

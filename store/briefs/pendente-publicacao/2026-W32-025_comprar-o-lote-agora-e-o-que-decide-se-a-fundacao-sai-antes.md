@@ -2,7 +2,7 @@
 brief_id: 2026-W32-025
 slug: 2026-W32-025_comprar-o-lote-agora-e-o-que-decide-se-a-fundacao-sai-antes
 created_at: 2026-08-03T10:45:00-03:00
-updated_at: 2026-08-03T10:45:00-03:00
+updated_at: 2026-08-17T15:45:35-03:00
 
 # Origem — NÃO vem de scan. Pauta escolhida pelo humano na sessão de 2026-08-03
 # a partir de lista de ideias derivada dos content banks da Avanz.
@@ -69,6 +69,10 @@ cta: "Quer entender se dá tempo de começar sua obra ainda neste ano? Manda 'AV
 
 hero_image_candidates: []
 hero_choice: null
+
+handoff_at: 2026-08-17T15:45:35-03:00
+package_path: ./store/packages/2026-W32-025_comprar-o-lote-agora-e-o-que-decide-se-a-fundacao-sai-antes
+cloudinary_public_id: null
 
 visual_brief:
   base_template: post-mes
