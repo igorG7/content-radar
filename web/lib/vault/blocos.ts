@@ -16,7 +16,8 @@
  */
 
 export type Criticidade = "obrigatorio" | "degrada" | "opcional" | "default";
-export type EstadoBloco = "preenchido" | "pendente-obrigatorio" | "pendente-opcional" | "trancado";
+export type EstadoBloco =
+  "preenchido" | "pendente-obrigatorio" | "pendente-opcional" | "trancado";
 
 export interface Bloco {
   key: string;
@@ -36,12 +37,14 @@ export const BLOCOS: Bloco[] = [
   {
     key: "identidade",
     titulo: "Identidade e origem",
-    pergunta: "Quem é a marca, de onde ela veio e por que alguém escolheria ela?",
+    pergunta:
+      "Quem é a marca, de onde ela veio e por que alguém escolheria ela?",
     criticidade: "degrada",
     dependeDe: null,
     temId: false,
     tipo: "bloco",
-    resumo: "Posicionamento, origem e os princípios que valem quando entram em conflito.",
+    resumo:
+      "Posicionamento, origem e os princípios que valem quando entram em conflito.",
     conteudo: `A operação é curadoria imobiliária orientada à decisão. Não vende imóvel: organiza o caminho até a decisão certa. A promessa é entender o perfil antes de oferecer qualquer coisa.
 
 Nasceu como marca pessoal de corretor e virou operação estruturada. O nome mudou; o jeito de atender, não.
@@ -78,13 +81,15 @@ Um post bom termina com a pessoa sabendo o que fazer em seguida. Um post ruim te
   {
     key: "guardrails",
     titulo: "Guardrails",
-    pergunta: "Que restrições a marca impõe a si mesma, e como ela conduz uma conversa?",
+    pergunta:
+      "Que restrições a marca impõe a si mesma, e como ela conduz uma conversa?",
     criticidade: "obrigatorio",
     dependeDe: null,
     temId: true,
     tipo: "bloco",
     resumo: "Restrições operáveis item a item, condução e a regra de ouro.",
-    porque: "Sem eles nada impede o texto de prometer o que não pode ser prometido.",
+    porque:
+      "Sem eles nada impede o texto de prometer o que não pode ser prometido.",
     conteudo: `## Restrições
 
 - \`nao-prometer-aprovacao\` — nunca prometer aprovação garantida de crédito ou financiamento
@@ -112,7 +117,8 @@ Toda interação caminha para um próximo passo claro. Se não há avanço, há 
     temId: false,
     tipo: "bloco",
     resumo: "O filtro que decide se um assunto vira pauta ou fica de fora.",
-    porque: "Sem ele o filtro aceita tudo — a fila enche de assunto que não gera decisão.",
+    porque:
+      "Sem ele o filtro aceita tudo — a fila enche de assunto que não gera decisão.",
     conteudo: `Entra o que muda a decisão de quem compra lote, sítio, chácara ou casa do programa popular com simulação bancária prévia: mudança de regra, obra que altera acesso, número que reposiciona uma praça.
 
 Não entra lançamento de terceiro, imóvel urbano pronto de alto padrão, leilão, nem assunto que gere contato que a operação não atende.
@@ -122,7 +128,8 @@ O teste é sempre o mesmo: alguém decide diferente depois de ler isto? Se não,
   {
     key: "geografia",
     titulo: "Área de atuação",
-    pergunta: "Onde a operação atua — e o que fazer com notícia de alcance nacional?",
+    pergunta:
+      "Onde a operação atua — e o que fazer com notícia de alcance nacional?",
     criticidade: "obrigatorio",
     dependeDe: null,
     temId: false,
@@ -145,7 +152,8 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     temId: false,
     tipo: "bloco",
     resumo: "O canal de destino e o número que vai no rodapé da arte.",
-    porque: "Sem ele o CTA fica sem destino e a arte sai sem o número do rodapé.",
+    porque:
+      "Sem ele o CTA fica sem destino e a arte sai sem o número do rodapé.",
     conteudo: `Canal principal: WhatsApp. Todo CTA aponta para lá.
 
 - exibição na arte e no texto: (31) 9 9077-4580
@@ -160,7 +168,8 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     dependeDe: "foco",
     temId: true,
     tipo: "bloco",
-    resumo: "Os perfis que o score usa como componente. Cada um com código estável.",
+    resumo:
+      "Os perfis que o score usa como componente. Cada um com código estável.",
     porque: "Sem eles falta um dos cinco componentes do score.",
     conteudo: `- \`investidor-lote\` — compra terreno para revender ou segurar. Decide por matemática: preço do m², módulo mínimo, o que a infraestrutura faz com o valor. Quer número, não adjetivo.
 - \`familia-mcmv\` — compra a primeira casa pelo programa popular. Decide por segurança: cabe no orçamento, o financiamento sai, a documentação está limpa. Precisa de passo a passo, não de urgência.
@@ -168,20 +177,36 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
   },
   {
     key: "pilares",
-    titulo: "Pilares e cadência",
-    pergunta: "Em que assuntos a marca fala com autoridade, e em que proporção?",
+    titulo: "Pilares editoriais",
+    pergunta: "Em que assuntos a marca fala com autoridade?",
     criticidade: "obrigatorio",
     dependeDe: "publicos",
     temId: true,
     tipo: "bloco",
-    resumo: "Os eixos que classificam todo brief. A configuração aponta para estes códigos.",
+    resumo:
+      "Os eixos que classificam todo brief. A configuração aponta para estes códigos.",
     porque: "Sem eles não há como classificar o que a varredura encontra.",
     conteudo: `- \`oportunidade\` — o que abriu agora e fecha depois: mudança de regra, janela de preço, lote que entrou no mercado. Só entra com a condição que explica a janela; sem a condição, vira anúncio.
 - \`educacao-financiamento\` — como o dinheiro funciona: simulação prévia, teto de renda, o que aprova e o que reprova. Casa pronta só entra sendo do programa popular e com simulação bancária prévia. Sem isso não é este pilar, é outro assunto.
 - \`regiao\` — o que acontece no território e mexe com preço: obra, plano diretor, equipamento público novo.
-- \`bastidores\` — como a operação trabalha. Serve para confiança, não para conversão. Nunca é o pilar de maior volume.
+- \`bastidores\` — como a operação trabalha. Serve para confiança, não para conversão. Nunca é o pilar de maior volume.`,
+  },
+  {
+    key: "cadencia",
+    titulo: "Cadência",
+    pergunta: "Quantos posts por semana, e em que proporção entre os pilares?",
+    criticidade: "degrada",
+    dependeDe: "pilares",
+    temId: false,
+    tipo: "bloco",
+    resumo: "O ritmo sustentável e a divisão da semana entre os pilares.",
+    porque:
+      "Sem ela o radar não sabe quantas pautas buscar nem como distribuí-las — gera volume que não vira publicação.",
+    conteudo: `Quatro posts por semana no feed. É o ritmo que se sustenta sem banco de imagens curadas e sem produção assistida rodando bem — subir para sete quando o banco de temas e o fluxo de aprovação aguentarem é melhor que cair de sete para quatro depois, porque queda de frequência lê como abandono.
 
-Cadência da semana: 2 de oportunidade, 1 de educação, 1 de região, 1 de bastidores.`,
+Divisão da semana: 2 de oportunidade, 1 de educação, 1 de região. Bastidores entra quando há material real, e nunca é o pilar de maior volume.
+
+O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
   },
   {
     key: "fontes",
@@ -220,7 +245,8 @@ Cadência da semana: 2 de oportunidade, 1 de educação, 1 de região, 1 de bast
     temId: false,
     tipo: "config",
     href: "/config",
-    resumo: "Não vem da marca nem da entrevista: é default do produto, ajustável a qualquer momento.",
+    resumo:
+      "Não vem da marca nem da entrevista: é default do produto, ajustável a qualquer momento.",
     conteudo: null,
   },
   {
@@ -231,7 +257,8 @@ Cadência da semana: 2 de oportunidade, 1 de educação, 1 de região, 1 de bast
     dependeDe: null,
     temId: false,
     tipo: "bloco",
-    resumo: "Logo, paleta e tipografia. Pesa na geração da arte, não na varredura.",
+    resumo:
+      "Logo, paleta e tipografia. Pesa na geração da arte, não na varredura.",
     conteudo: `Os arquivos — logo, paleta, tipografia — ficam no mesmo armazenamento da mídia, fora do banco de blocos.
 
 A paleta é fria e sóbria: azul-tinta como cor de texto e de marca, papel quente como fundo. Sem gradiente, sem sombra decorativa. A tipografia de display é serifada; o corpo, sem serifa; número em mono, sempre tabular.
@@ -293,7 +320,9 @@ export function mapaDe(aceitos: Aceitos): BlocoMapeado[] {
   return BLOCOS.map((bloco) => {
     const aceito = aceitos[bloco.key];
     const preenchido = Boolean(aceito);
-    const dep = bloco.dependeDe ? BLOCOS.find((b) => b.key === bloco.dependeDe) ?? null : null;
+    const dep = bloco.dependeDe
+      ? (BLOCOS.find((b) => b.key === bloco.dependeDe) ?? null)
+      : null;
     // A trava vale só para a primeira vez: com o bloco já preenchido, reabrir
     // não exige repassar pelo bloqueador.
     const trancado = !preenchido && Boolean(dep) && !aceitos[bloco.dependeDe!];
@@ -303,7 +332,7 @@ export function mapaDe(aceitos: Aceitos): BlocoMapeado[] {
       preenchido,
       versao: preenchido ? aceito.versao : 0,
       atualizado_em: preenchido ? aceito.em : null,
-      motivo: preenchido ? aceito.motivo ?? null : null,
+      motivo: preenchido ? (aceito.motivo ?? null) : null,
       trancado,
       bloqueador: trancado ? dep : null,
       estado: trancado
@@ -326,7 +355,9 @@ export interface Progresso {
 
 export function progressoDe(aceitos: Aceitos): Progresso {
   const mapa = mapaDe(aceitos);
-  const faltam = mapa.filter((b) => b.criticidade === "obrigatorio" && !b.preenchido);
+  const faltam = mapa.filter(
+    (b) => b.criticidade === "obrigatorio" && !b.preenchido,
+  );
   return {
     preenchidos: mapa.filter((b) => b.preenchido).length,
     total: mapa.length,
