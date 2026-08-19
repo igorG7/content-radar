@@ -23,14 +23,7 @@ import {
   type ModeloId,
 } from "@/lib/session";
 
-export interface AtividadeEvento {
-  ts: string;
-  event: string;
-  rotulo: string;
-  briefId: string | null;
-}
-
-export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
+export function PerfilClient() {
   const router = useRouter();
   const toast = useToast();
   const sessao = useSessao();
@@ -80,12 +73,6 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
     );
   }
 
-  const contagem = new Map<string, { rotulo: string; n: number }>();
-  for (const evento of atividade) {
-    const atual = contagem.get(evento.event) ?? { rotulo: evento.rotulo, n: 0 };
-    contagem.set(evento.event, { ...atual, n: atual.n + 1 });
-  }
-
   return (
     <>
       <div className="page-head">
@@ -100,8 +87,6 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
             </h1>
             <p className="lead" style={{ marginTop: 4 }}>
               {sessao.email}
-              <span className="dot-sep" />
-              ator <span className="num">human:*</span> no ledger
             </p>
           </div>
         </div>
@@ -126,7 +111,8 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                   onChange={(event) => setRascunho(event.target.value)}
                 />
                 <p className="field-help">
-                  Aparece no canto da barra de navegação. Vazio, volta a usar o que vem antes do @.
+                  Aparece no canto da barra de navegação. Vazio, volta a usar o
+                  que vem antes do @.
                 </p>
               </div>
               <div className="field">
@@ -139,8 +125,8 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                   style={{ fontFamily: "var(--font-mono)" }}
                 />
                 <p className="field-help">
-                  É a chave da sessão. Trocar de e-mail é sair e entrar de novo — sem backend, não há
-                  cadastro para alterar.
+                  É a chave da sessão. Trocar de e-mail é sair e entrar de novo
+                  — sem backend, não há cadastro para alterar.
                 </p>
               </div>
               <div className="row-tight" style={{ marginTop: 4 }}>
@@ -163,7 +149,11 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                 >
                   Salvar
                 </button>
-                <button className="btn btn-ghost" type="button" onClick={() => setRascunho(null)}>
+                <button
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={() => setRascunho(null)}
+                >
                   Descartar
                 </button>
                 <span className="meta" aria-live="polite">
@@ -201,7 +191,9 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                   aria-label="Modelo padrão do chat"
                   style={{ width: "auto", minWidth: 130 }}
                   value={modelo}
-                  onChange={(event) => gravarModelo(event.target.value as ModeloId)}
+                  onChange={(event) =>
+                    gravarModelo(event.target.value as ModeloId)
+                  }
                 >
                   {CHAT_MODELOS.map((m) => (
                     <option value={m.id} key={m.id}>
@@ -222,7 +214,9 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                   aria-label="Esforço padrão do chat"
                   style={{ width: "auto", minWidth: 130 }}
                   value={esforco}
-                  onChange={(event) => gravarEsforco(event.target.value as EsforcoId)}
+                  onChange={(event) =>
+                    gravarEsforco(event.target.value as EsforcoId)
+                  }
                 >
                   {CHAT_ESFORCOS.map((e) => (
                     <option value={e.id} key={e.id}>
@@ -231,59 +225,8 @@ export function PerfilClient({ atividade }: { atividade: AtividadeEvento[] }) {
                   ))}
                 </select>
               </div>
-              <p className="field-help">O chat abre com estas escolhas — trocar lá também muda aqui.</p>
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-head">
-              <h2 className="h3">Sua atividade</h2>
-              <Link className="btn btn-ghost btn-sm" href="/ledger">
-                Ver o ledger →
-              </Link>
-            </div>
-            <div className="panel-body">
-              {atividade.length > 0 ? (
-                <>
-                  <div className="row-tight" style={{ gap: 8, marginBottom: 14 }}>
-                    {[...contagem.entries()].map(([evento, { rotulo, n }]) => (
-                      <span className="pill" key={evento}>
-                        {rotulo} <span className="num">{n}</span>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="timeline">
-                    {atividade.map((evento, index) => (
-                      <div className="timeline-item" key={`${evento.ts}-${index}`}>
-                        <div className="timeline-rail">
-                          <span className="timeline-dot" />
-                          <span className="timeline-line" />
-                        </div>
-                        <div>
-                          <p className="small">
-                            <span className="strong">{evento.rotulo}</span>
-                            {evento.briefId && (
-                              <>
-                                {" · "}
-                                <Link className="link" href={`/ledger?brief=${evento.briefId}`}>
-                                  <span className="num">{evento.briefId}</span>
-                                </Link>
-                              </>
-                            )}
-                          </p>
-                          <p className="meta">{fmtDate(evento.ts, true)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="small muted">Nenhum evento humano no ledger ainda.</p>
-              )}
-              <p className="field-help" style={{ marginTop: 12 }}>
-                O ledger registra a pessoa por ator (<span className="num">human:*</span>) e o painel
-                não separa contas — esta lista é a atividade humana inteira, não a de um login
-                específico.
+              <p className="field-help">
+                O chat abre com estas escolhas — trocar lá também muda aqui.
               </p>
             </div>
           </section>
@@ -375,7 +318,8 @@ function TemaSegmentado() {
   const [tema, setTema] = useState<"light" | "dark" | null>(null);
   const atual =
     tema ??
-    (typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
+    (typeof document !== "undefined" &&
+    document.documentElement.dataset.theme === "dark"
       ? "dark"
       : "light");
 
@@ -392,10 +336,18 @@ function TemaSegmentado() {
 
   return (
     <div className="segmented" role="group" aria-label="Tema da interface">
-      <button type="button" aria-pressed={atual === "light"} onClick={() => trocar("light")}>
+      <button
+        type="button"
+        aria-pressed={atual === "light"}
+        onClick={() => trocar("light")}
+      >
         Claro
       </button>
-      <button type="button" aria-pressed={atual === "dark"} onClick={() => trocar("dark")}>
+      <button
+        type="button"
+        aria-pressed={atual === "dark"}
+        onClick={() => trocar("dark")}
+      >
         Escuro
       </button>
     </div>
