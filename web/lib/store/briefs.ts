@@ -33,6 +33,8 @@ export interface Brief {
   borderline: boolean;
   borderlineReason?: string;
   whyMatch?: string;
+  /** SHA1 do tema — a chave da anti-repetição entre scans. */
+  topicHash?: string;
   sourceUrls: string[];
   /** `undefined` means the key is absent, which blocks approve.
    *  `null` means "no hero — Smart Design generates the art" (spec 001 §11.C). */
@@ -86,7 +88,9 @@ function num(value: unknown): number | undefined {
 }
 
 function strArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === "string")
+    : [];
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -114,9 +118,13 @@ async function buildCandidates(
       // Resolve by basename inside the state's media dir rather than trusting
       // local_path, which is generated text and could point anywhere.
       const fileName = declared ? path.basename(declared) : null;
-      const exists = fileName ? await fileExists(path.join(mediaDir, fileName)) : false;
+      const exists = fileName
+        ? await fileExists(path.join(mediaDir, fileName))
+        : false;
       if (fileName && !exists) {
-        warnings.push(`candidata ${index} declarada mas ausente do cache: ${fileName}`);
+        warnings.push(
+          `candidata ${index} declarada mas ausente do cache: ${fileName}`,
+        );
       }
 
       return {
@@ -126,7 +134,8 @@ async function buildCandidates(
         imageUrl: str(item.image_url),
         alt: str(item.alt),
         licenseHint: str(item.license_hint),
-        licensable: typeof item.licensable === "boolean" ? item.licensable : undefined,
+        licensable:
+          typeof item.licensable === "boolean" ? item.licensable : undefined,
         cloudUrl: str(item.cloud_url) ?? null,
       };
     }),
@@ -143,7 +152,8 @@ export async function readBrief(
   const warnings: string[] = [];
 
   const slug = str(data.slug) ?? path.basename(filePath, ".md");
-  if (!str(data.slug)) warnings.push("frontmatter sem `slug`; derivado do nome do arquivo");
+  if (!str(data.slug))
+    warnings.push("frontmatter sem `slug`; derivado do nome do arquivo");
 
   const heroChoiceDeclared = Object.hasOwn(data, "hero_choice");
   const rawChoice = data.hero_choice;
@@ -153,15 +163,18 @@ export async function readBrief(
       ? null
       : num(rawChoice);
   if (heroChoiceDeclared && rawChoice !== null && heroChoice === undefined) {
-    warnings.push(`hero_choice com valor inesperado: ${JSON.stringify(rawChoice)}`);
+    warnings.push(
+      `hero_choice com valor inesperado: ${JSON.stringify(rawChoice)}`,
+    );
   }
 
   const breakdown = data.match_score_breakdown;
   const matchScoreBreakdown =
     breakdown && typeof breakdown === "object" && !Array.isArray(breakdown)
       ? Object.fromEntries(
-          Object.entries(breakdown as Record<string, unknown>).flatMap(([key, value]) =>
-            typeof value === "number" ? [[key, value] as const] : [],
+          Object.entries(breakdown as Record<string, unknown>).flatMap(
+            ([key, value]) =>
+              typeof value === "number" ? [[key, value] as const] : [],
           ),
         )
       : undefined;
@@ -184,10 +197,15 @@ export async function readBrief(
     borderline: data.borderline === true,
     borderlineReason: str(data.borderline_reason),
     whyMatch: str(data.why_match),
+    topicHash: str(data.topic_hash),
     sourceUrls: strArray(data.source_urls),
     heroChoice,
     heroChoiceDeclared,
-    candidates: await buildCandidates(data.hero_image_candidates, mediaDir, warnings),
+    candidates: await buildCandidates(
+      data.hero_image_candidates,
+      mediaDir,
+      warnings,
+    ),
     warnings,
     captionDraft: str(data.caption_draft),
     hashtags: strArray(data.hashtags),
@@ -239,7 +257,10 @@ export interface StateListing {
   failures: { filePath: string; message: string }[];
 }
 
-export async function listState(state: BriefState, paths: RadarPaths): Promise<StateListing> {
+export async function listState(
+  state: BriefState,
+  paths: RadarPaths,
+): Promise<StateListing> {
   let entries: string[];
   try {
     entries = await readdir(paths.briefsDir[state]);
@@ -265,6 +286,8 @@ export async function listState(state: BriefState, paths: RadarPaths): Promise<S
   return { state, briefs, failures };
 }
 
-export async function listAllStates(paths: RadarPaths): Promise<StateListing[]> {
+export async function listAllStates(
+  paths: RadarPaths,
+): Promise<StateListing[]> {
   return Promise.all(BRIEF_STATES.map((state) => listState(state, paths)));
 }
