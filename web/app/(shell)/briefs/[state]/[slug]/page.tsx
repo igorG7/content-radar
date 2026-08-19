@@ -18,12 +18,17 @@ function isBriefState(value: string): value is BriefState {
   return (BRIEF_STATES as readonly string[]).includes(value);
 }
 
-export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[state]/[slug]">) {
+export default async function DetalheDoBrief({
+  params,
+}: PageProps<"/briefs/[state]/[slug]">) {
   const { state, slug } = await params;
   if (!isBriefState(state)) notFound();
 
-  const store = radarStore();
-  const [manifest, ledger] = await Promise.all([store.manifest(), store.lerLedger()]);
+  const store = await radarStore();
+  const [manifest, ledger] = await Promise.all([
+    store.manifest(),
+    store.lerLedger(),
+  ]);
   const scoring = scoringOf(manifest);
 
   const encontrado = await store.buscarBrief(slug, state).catch(() => null);
@@ -37,7 +42,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
     ? { href: "/fila", label: "Fila" }
     : { href: `/acervo?estado=${brief.state}`, label: "Acervo" };
   const editavel = naFila || brief.state === "pendente-publicacao";
-  const eventos = ledger.events.filter((e) => e.brief_id === brief.briefId).reverse();
+  const eventos = ledger.events
+    .filter((e) => e.brief_id === brief.briefId)
+    .reverse();
   const captionFlat = brief.caption.replace(/\n+/g, " ");
 
   return (
@@ -52,14 +59,21 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
           tail={<span className="num">{brief.briefId}</span>}
           back={{ href: pai.href, destino: pai.label }}
         />
-        <div className="row-between" style={{ marginTop: 12, alignItems: "flex-start" }}>
+        <div
+          className="row-between"
+          style={{ marginTop: 12, alignItems: "flex-start" }}
+        >
           <div style={{ flex: "1 1 420px", minWidth: 0 }}>
             <div className="row-tight" style={{ marginBottom: 10 }}>
               <StatePill state={brief.state} />
               {brief.pilar && <span className="tag">{brief.pilar}</span>}
               {brief.icp && <span className="tag">{brief.icp}</span>}
-              {brief.scope && <span className="tag">escopo: {brief.scope}</span>}
-              {brief.borderline && <span className="pill pill-warn">borderline</span>}
+              {brief.scope && (
+                <span className="tag">escopo: {brief.scope}</span>
+              )}
+              {brief.borderline && (
+                <span className="pill pill-warn">borderline</span>
+              )}
             </div>
             <h1 className="display">{brief.headline}</h1>
             <p className="lead" style={{ marginTop: 12 }}>
@@ -77,7 +91,8 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
             <div className="panel-head">
               <h2 className="h3">Decisão</h2>
               <span className="meta">
-                match_score_breakdown · {brief.breakdown.length} componentes ponderados
+                match_score_breakdown · {brief.breakdown.length} componentes
+                ponderados
               </span>
             </div>
             <div className="panel-body">
@@ -90,14 +105,18 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               <hr className="rule" style={{ margin: "20px 0" }} />
               <p className="field-label">Por que casou com o perfil</p>
               <p style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-                {brief.whyMatch ?? "O frontmatter deste brief não traz why_match."}
+                {brief.whyMatch ??
+                  "O frontmatter deste brief não traz why_match."}
               </p>
               <div className="grid-2" style={{ marginTop: 20 }}>
                 <div className="sunken">
                   <p className="field-label">Faixa de decisão</p>
                   <p className="small" style={{ marginTop: 6 }}>
-                    Promove a partir de <span className="num">{scoring.matchScoreMin}</span>;
-                    borderline entre <span className="num">{scoring.borderlineMin}</span> e o corte.
+                    Promove a partir de{" "}
+                    <span className="num">{scoring.matchScoreMin}</span>;
+                    borderline entre{" "}
+                    <span className="num">{scoring.borderlineMin}</span> e o
+                    corte.
                   </p>
                   {brief.borderlineReason && (
                     <p className="meta" style={{ marginTop: 6 }}>
@@ -162,7 +181,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               <div className="copy-block">
                 <div className="row-between">
                   <span className="field-label">headline</span>
-                  <Counter value={brief.headline.length} limit={LIMITES.headline} />
+                  <Counter
+                    value={brief.headline.length}
+                    limit={LIMITES.headline}
+                  />
                 </div>
                 <p className="h2" style={{ marginTop: 6 }}>
                   {brief.headline}
@@ -180,7 +202,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               <div className="copy-block">
                 <div className="row-between">
                   <span className="field-label">caption_draft</span>
-                  <Counter value={brief.caption.length} limit={LIMITES.caption} />
+                  <Counter
+                    value={brief.caption.length}
+                    limit={LIMITES.caption}
+                  />
                 </div>
                 <p className="copy-text small" style={{ marginTop: 6 }}>
                   {brief.caption}
@@ -189,7 +214,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               <div className="copy-block">
                 <div className="row-between">
                   <span className="field-label">hashtags</span>
-                  <Counter value={brief.hashtags.length} limit={LIMITES.hashtags} />
+                  <Counter
+                    value={brief.hashtags.length}
+                    limit={LIMITES.hashtags}
+                  />
                 </div>
                 <div className="row-tight" style={{ marginTop: 8 }}>
                   {brief.hashtags.map((tag) => (
@@ -197,7 +225,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                       {tag.startsWith("#") ? tag : `#${tag}`}
                     </span>
                   ))}
-                  {brief.hashtags.length === 0 && <span className="small muted">nenhuma</span>}
+                  {brief.hashtags.length === 0 && (
+                    <span className="small muted">nenhuma</span>
+                  )}
                 </div>
               </div>
               <div className="copy-block">
@@ -217,8 +247,16 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
             </div>
             <div className="panel-body">
               <div className="row-between" style={{ marginBottom: 10 }}>
-                <span className="field-label">Candidatas em store/media/{brief.state}/</span>
-                <span className={!brief.heroChoiceDeclared ? "pill pill-warn" : "pill pill-ok"}>
+                <span className="field-label">
+                  Candidatas em store/media/{brief.state}/
+                </span>
+                <span
+                  className={
+                    !brief.heroChoiceDeclared
+                      ? "pill pill-warn"
+                      : "pill pill-ok"
+                  }
+                >
                   {!brief.heroChoiceDeclared
                     ? "hero_choice pendente"
                     : brief.heroChoice === null
@@ -231,19 +269,28 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                 <>
                   <div className="media-grid">
                     {brief.media.map((media, i) => (
-                      <MediaTile key={media.index} media={media} position={i + 1} />
+                      <MediaTile
+                        key={media.index}
+                        media={media}
+                        position={i + 1}
+                      />
                     ))}
                   </div>
                   <div className="stack-sm" style={{ marginTop: 14 }}>
                     {brief.media
                       .filter((m) => m.licensable === false)
                       .map((m) => (
-                        <div className="alert alert-danger" style={{ padding: "9px 12px" }} key={`l-${m.index}`}>
+                        <div
+                          className="alert alert-danger"
+                          style={{ padding: "9px 12px" }}
+                          key={`l-${m.index}`}
+                        >
                           <IconAlert />
                           <div className="alert-body">
                             <span className="small">
-                              <span className="num">{m.file}</span> — {m.licenseHint ?? "sem license_hint"}.
-                              Sem cessão comercial: não usar como hero.
+                              <span className="num">{m.file}</span> —{" "}
+                              {m.licenseHint ?? "sem license_hint"}. Sem cessão
+                              comercial: não usar como hero.
                             </span>
                           </div>
                         </div>
@@ -251,19 +298,26 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                     {brief.media
                       .filter((m) => m.missing)
                       .map((m) => (
-                        <div className="alert alert-warning" style={{ padding: "9px 12px" }} key={`m-${m.index}`}>
+                        <div
+                          className="alert alert-warning"
+                          style={{ padding: "9px 12px" }}
+                          key={`m-${m.index}`}
+                        >
                           <IconAlert />
                           <div className="alert-body">
                             <span className="small">
-                              <span className="num">{m.file}</span> — declarada no frontmatter,
-                              ausente do cache.
+                              <span className="num">{m.file}</span> — declarada
+                              no frontmatter, ausente do cache.
                             </span>
                           </div>
                         </div>
                       ))}
                   </div>
                   <details style={{ marginTop: 14 }}>
-                    <summary className="field-label" style={{ cursor: "pointer" }}>
+                    <summary
+                      className="field-label"
+                      style={{ cursor: "pointer" }}
+                    >
                       Ver alt e licença de cada candidata
                     </summary>
                     <dl className="kv" style={{ marginTop: 12 }}>
@@ -275,7 +329,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                           <dd>
                             {m.alt ?? "sem alt"}
                             <br />
-                            <span className="meta">{m.licenseHint ?? "sem license_hint"}</span>
+                            <span className="meta">
+                              {m.licenseHint ?? "sem license_hint"}
+                            </span>
                             {m.cloudUrl && (
                               <>
                                 <br />
@@ -316,7 +372,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                     ) : (
                       <li>
                         <span>—</span>
-                        <span className="muted">nada obrigatório declarado</span>
+                        <span className="muted">
+                          nada obrigatório declarado
+                        </span>
                       </li>
                     )}
                   </ul>
@@ -347,7 +405,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                 </dd>
                 <dt>base_template</dt>
                 <dd>
-                  <span className="num">{brief.visualBrief.baseTemplate ?? "—"}</span>
+                  <span className="num">
+                    {brief.visualBrief.baseTemplate ?? "—"}
+                  </span>
                 </dd>
                 <dt>alternativas</dt>
                 <dd>
@@ -387,13 +447,20 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                 {brief.sourceUrls.length > 0 ? (
                   brief.sourceUrls.map((url) => (
                     <li className="small" key={url}>
-                      <a className="link link-ext" href={url} target="_blank" rel="noopener noreferrer">
+                      <a
+                        className="link link-ext"
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         {url}
                       </a>
                     </li>
                   ))
                 ) : (
-                  <li className="small muted">Nenhuma URL registrada — brief de origem interna.</li>
+                  <li className="small muted">
+                    Nenhuma URL registrada — brief de origem interna.
+                  </li>
                 )}
               </ul>
               {brief.sourceExcerpts.length > 0 && (
@@ -403,7 +470,11 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                   </p>
                   <div className="stack-sm" style={{ marginTop: 8 }}>
                     {brief.sourceExcerpts.map((trecho, i) => (
-                      <blockquote className="sunken small" style={{ fontStyle: "italic" }} key={i}>
+                      <blockquote
+                        className="sunken small"
+                        style={{ fontStyle: "italic" }}
+                        key={i}
+                      >
                         {trecho}
                       </blockquote>
                     ))}
@@ -419,7 +490,9 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                 <dt>origin</dt>
                 <dd className="num">{brief.origin ?? "—"}</dd>
                 <dt>created_at</dt>
-                <dd className="num">{brief.createdAt ? fmtDate(brief.createdAt, true) : "—"}</dd>
+                <dd className="num">
+                  {brief.createdAt ? fmtDate(brief.createdAt, true) : "—"}
+                </dd>
                 {brief.updatedAt && (
                   <>
                     <dt>updated_at</dt>
@@ -471,7 +544,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               <h2 className="h3">Prévia da legenda no feed</h2>
               <span className="meta">{brief.visualBrief.aspectRatio}</span>
             </div>
-            <div className="panel-body" style={{ display: "grid", justifyItems: "center" }}>
+            <div
+              className="panel-body"
+              style={{ display: "grid", justifyItems: "center" }}
+            >
               <IgPreview
                 caption={brief.caption}
                 hashtags={brief.hashtags}
@@ -488,7 +564,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
           <div className="panel">
             <div className="panel-head">
               <h2 className="h3">Linha do tempo</h2>
-              <Link className="btn btn-ghost btn-sm" href={`/ledger?brief=${brief.briefId}`}>
+              <Link
+                className="btn btn-ghost btn-sm"
+                href={`/ledger?brief=${brief.briefId}`}
+              >
                 Ledger →
               </Link>
             </div>
@@ -496,7 +575,10 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
               {eventos.length > 0 ? (
                 <div className="timeline">
                   {eventos.map((evento, index) => (
-                    <div className="timeline-item" key={`${evento.ts}-${index}`}>
+                    <div
+                      className="timeline-item"
+                      key={`${evento.ts}-${index}`}
+                    >
                       <div className="timeline-rail">
                         <span
                           className={`timeline-dot${EVENT_TONE[evento.event] ? ` is-${EVENT_TONE[evento.event]}` : ""}`}
@@ -504,33 +586,40 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                         <span className="timeline-line" />
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <p className="small strong">{eventLabel(evento.event)}</p>
+                        <p className="small strong">
+                          {eventLabel(evento.event)}
+                        </p>
                         <p className="meta">
                           {evento.actor ?? "—"}
                           <span className="dot-sep" />
                           {fmtDate(evento.ts, true)}
                         </p>
-                        {evento.extra && Object.keys(evento.extra).length > 0 && (
-                          <div className="json-view" style={{ marginTop: 6 }}>
-                            {Object.entries(evento.extra).map(([chave, valor]) => (
-                              <div className="json-row" key={chave}>
-                                <span className="json-key">{chave}</span>
-                                <span className="json-val">
-                                  {typeof valor === "object" && valor !== null
-                                    ? JSON.stringify(valor)
-                                    : String(valor)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {evento.extra &&
+                          Object.keys(evento.extra).length > 0 && (
+                            <div className="json-view" style={{ marginTop: 6 }}>
+                              {Object.entries(evento.extra).map(
+                                ([chave, valor]) => (
+                                  <div className="json-row" key={chave}>
+                                    <span className="json-key">{chave}</span>
+                                    <span className="json-val">
+                                      {typeof valor === "object" &&
+                                      valor !== null
+                                        ? JSON.stringify(valor)
+                                        : String(valor)}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          )}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="small muted">
-                  Nenhum evento com este brief_id. O ledger só registra transições e correções.
+                  Nenhum evento com este brief_id. O ledger só registra
+                  transições e correções.
                 </p>
               )}
             </div>
@@ -545,13 +634,15 @@ export default async function DetalheDoBrief({ params }: PageProps<"/briefs/[sta
                 <div className="row-between" key={estado}>
                   <span className="small">{STATE_META[estado].label}</span>
                   <span className="meta">
-                    {estado === brief.state ? "aqui" : `store/briefs/${estado}/`}
+                    {estado === brief.state
+                      ? "aqui"
+                      : `store/briefs/${estado}/`}
                   </span>
                 </div>
               ))}
               <p className="field-help">
-                A transição move o arquivo entre pastas — não existe coluna de status em lugar
-                nenhum.
+                A transição move o arquivo entre pastas — não existe coluna de
+                status em lugar nenhum.
               </p>
             </div>
           </div>

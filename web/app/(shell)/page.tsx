@@ -11,7 +11,11 @@ export const dynamic = "force-dynamic";
 
 const CONTADORES: { state: BriefState; label: string; href: string }[] = [
   { state: "pendente-aprovacao", label: "na fila de aprovação", href: "/fila" },
-  { state: "pendente-publicacao", label: "aguardando publicação", href: "/acervo?estado=pendente-publicacao" },
+  {
+    state: "pendente-publicacao",
+    label: "aguardando publicação",
+    href: "/acervo?estado=pendente-publicacao",
+  },
   { state: "publicado", label: "publicados", href: "/acervo?estado=publicado" },
   { state: "rejeitado", label: "rejeitados", href: "/acervo?estado=rejeitado" },
 ];
@@ -30,9 +34,16 @@ function Saude({
   return (
     <>
       {itens.map(([chave, valor, tone]) => (
-        <div className="row-between" style={{ gap: 10, alignItems: "flex-start" }} key={chave}>
+        <div
+          className="row-between"
+          style={{ gap: 10, alignItems: "flex-start" }}
+          key={chave}
+        >
           <span className="small">{chave}</span>
-          <span className="row-tight" style={{ justifyContent: "flex-end", flex: "0 1 auto" }}>
+          <span
+            className="row-tight"
+            style={{ justifyContent: "flex-end", flex: "0 1 auto" }}
+          >
             <span className="meta" style={{ textAlign: "right" }}>
               {valor}
             </span>
@@ -49,7 +60,7 @@ function Saude({
 }
 
 export default async function Painel() {
-  const store = radarStore();
+  const store = await radarStore();
   const [manifest, listings, ledger] = await Promise.all([
     store.manifest(),
     store.listarTodos(),
@@ -58,7 +69,10 @@ export default async function Painel() {
 
   const scoring = scoringOf(manifest);
   const porEstado = new Map<BriefState, BriefView[]>(
-    listings.map((l) => [l.state, l.briefs.map((b) => toBriefView(b, scoring))]),
+    listings.map((l) => [
+      l.state,
+      l.briefs.map((b) => toBriefView(b, scoring)),
+    ]),
   );
   const falhas = listings.flatMap((l) => l.failures);
   const total = [...porEstado.values()].reduce((n, list) => n + list.length, 0);
@@ -69,21 +83,31 @@ export default async function Painel() {
     .flat()
     .filter((b) => diasDesde(b.approvedAt) <= 7).length;
 
-  const midiasAusentes = fila.reduce((n, b) => n + b.media.filter((m) => m.missing).length, 0);
-  const briefsComMidiaAusente = fila.filter((b) => b.media.some((m) => m.missing)).length;
-  const semLicenca = fila.filter((b) => b.media.some((m) => m.licensable === false)).length;
+  const midiasAusentes = fila.reduce(
+    (n, b) => n + b.media.filter((m) => m.missing).length,
+    0,
+  );
+  const briefsComMidiaAusente = fila.filter((b) =>
+    b.media.some((m) => m.missing),
+  ).length;
+  const semLicenca = fila.filter((b) =>
+    b.media.some((m) => m.licensable === false),
+  ).length;
   const borderline = fila.filter((b) => b.borderline).length;
   const semArte = fila.filter((b) => !b.heroChoiceDeclared).length;
 
   const eventos = [...ledger.events].reverse();
   const ultimaVarredura = eventos.find((e) => e.event === "scan-finished");
-  const semana = fila[0] ? weekOf(fila[0].briefId) : weekOf(eventos[0]?.brief_id ?? "");
+  const semana = fila[0]
+    ? weekOf(fila[0].briefId)
+    : weekOf(eventos[0]?.brief_id ?? "");
 
   const previa = [...fila]
     .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
     .slice(0, 6);
 
-  const pct = meta > 0 ? Math.min(100, Math.round((aprovadosNaSemana / meta) * 100)) : 0;
+  const pct =
+    meta > 0 ? Math.min(100, Math.round((aprovadosNaSemana / meta) * 100)) : 0;
 
   return (
     <PipelineGate variant="painel">
@@ -92,15 +116,20 @@ export default async function Painel() {
           <div className="row-between">
             <div>
               <p className="eyebrow">
-                {semana === "sem-semana" ? "painel editorial" : `${weekLabel(semana)} · painel editorial`}
+                {semana === "sem-semana"
+                  ? "painel editorial"
+                  : `${weekLabel(semana)} · painel editorial`}
               </p>
               <h1 className="display" style={{ marginTop: 8 }}>
-                {fila.length} {fila.length === 1 ? "pauta esperando" : "pautas esperando"} sua decisão
+                {fila.length}{" "}
+                {fila.length === 1 ? "pauta esperando" : "pautas esperando"} sua
+                decisão
               </h1>
               <p className="lead">
                 Fonte da verdade é o filesystem: {total} briefs em{" "}
-                <span className="num">store/briefs/</span>, {ledger.events.length} eventos no
-                ledger. Nenhum banco de dados no caminho.
+                <span className="num">store/briefs/</span>,{" "}
+                {ledger.events.length} eventos no ledger. Nenhum banco de dados
+                no caminho.
               </p>
             </div>
             <Link className="btn btn-primary" href="/fila">
@@ -116,7 +145,9 @@ export default async function Painel() {
               href={c.href}
               key={c.state}
             >
-              <div className="counter-num">{porEstado.get(c.state)?.length ?? 0}</div>
+              <div className="counter-num">
+                {porEstado.get(c.state)?.length ?? 0}
+              </div>
               <div className="counter-label">{c.label}</div>
             </Link>
           ))}
@@ -139,8 +170,12 @@ export default async function Painel() {
               <div className="panel-body-flush">
                 {previa.length === 0 && (
                   <p className="small muted" style={{ padding: 18 }}>
-                    Nada pendente de aprovação. A próxima varredura escreve direto em{" "}
-                    <span className="num">store/briefs/pendente-aprovacao/</span>.
+                    Nada pendente de aprovação. A próxima varredura escreve
+                    direto em{" "}
+                    <span className="num">
+                      store/briefs/pendente-aprovacao/
+                    </span>
+                    .
                   </p>
                 )}
                 {previa.map((b) => (
@@ -159,21 +194,32 @@ export default async function Painel() {
                     </div>
                     <div>
                       <h3 className="brief-headline">
-                        <Link href={`/briefs/${b.state}/${b.slug}`}>{b.headline}</Link>
+                        <Link href={`/briefs/${b.state}/${b.slug}`}>
+                          {b.headline}
+                        </Link>
                       </h3>
                       <p className="brief-hook clamp-2">{b.hook}</p>
                       <div className="row-tight" style={{ marginTop: 9 }}>
                         {b.pilar && <span className="tag">{b.pilar}</span>}
                         {b.icp && <span className="tag">{b.icp}</span>}
-                        {b.borderline && <span className="pill pill-warn">borderline</span>}
+                        {b.borderline && (
+                          <span className="pill pill-warn">borderline</span>
+                        )}
                         {b.warnings.length > 0 && (
-                          <span className="pill pill-danger" title={b.warnings.join(" · ")}>
-                            {b.warnings.length} aviso{b.warnings.length > 1 ? "s" : ""}
+                          <span
+                            className="pill pill-danger"
+                            title={b.warnings.join(" · ")}
+                          >
+                            {b.warnings.length} aviso
+                            {b.warnings.length > 1 ? "s" : ""}
                           </span>
                         )}
                       </div>
                     </div>
-                    <Link className="btn btn-secondary btn-sm" href={`/fila#${b.slug}`}>
+                    <Link
+                      className="btn btn-secondary btn-sm"
+                      href={`/fila#${b.slug}`}
+                    >
                       Revisar
                     </Link>
                   </article>
@@ -193,7 +239,8 @@ export default async function Painel() {
                     <div className="row-between" style={{ gap: 8 }}>
                       <span className="field-label">Meta da semana</span>
                       <span className="num small">
-                        <span className="strong">{aprovadosNaSemana}</span> / {meta} aprovados
+                        <span className="strong">{aprovadosNaSemana}</span> /{" "}
+                        {meta} aprovados
                       </span>
                     </div>
                     <div
@@ -202,7 +249,10 @@ export default async function Painel() {
                       role="img"
                       aria-label={`${aprovadosNaSemana} de ${meta} aprovados nesta semana`}
                     >
-                      <div className="score-seg score-seg-1" style={{ width: `${pct}%` }} />
+                      <div
+                        className="score-seg score-seg-1"
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                     <p className="meta" style={{ marginTop: 6 }}>
                       {aprovadosNaSemana >= meta
@@ -215,7 +265,9 @@ export default async function Painel() {
                     itens={[
                       [
                         "Última varredura",
-                        ultimaVarredura ? fmtRelative(ultimaVarredura.ts) : "sem registro no ledger",
+                        ultimaVarredura
+                          ? fmtRelative(ultimaVarredura.ts)
+                          : "sem registro no ledger",
                         ultimaVarredura ? "ok" : "warn",
                       ],
                       [
@@ -263,16 +315,26 @@ export default async function Painel() {
                   {eventos.slice(0, 8).map((evento, index) => {
                     const tone = EVENT_TONE[evento.event] ?? "";
                     return (
-                      <div className="timeline-item" key={`${evento.ts}-${index}`}>
+                      <div
+                        className="timeline-item"
+                        key={`${evento.ts}-${index}`}
+                      >
                         <div className="timeline-rail">
-                          <span className={`timeline-dot${tone ? ` is-${tone}` : ""}`} />
+                          <span
+                            className={`timeline-dot${tone ? ` is-${tone}` : ""}`}
+                          />
                           <span className="timeline-line" />
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div className="row-tight" style={{ gap: 7 }}>
-                            <span className="small strong">{eventLabel(evento.event)}</span>
+                            <span className="small strong">
+                              {eventLabel(evento.event)}
+                            </span>
                             {evento.brief_id && (
-                              <Link className="meta link" href={`/ledger?brief=${evento.brief_id}`}>
+                              <Link
+                                className="meta link"
+                                href={`/ledger?brief=${evento.brief_id}`}
+                              >
                                 {evento.brief_id}
                               </Link>
                             )}
@@ -293,11 +355,15 @@ export default async function Painel() {
             {falhas.length > 0 && (
               <div
                 className="panel"
-                style={{ borderColor: "color-mix(in oklch, var(--danger) 35%, transparent)" }}
+                style={{
+                  borderColor:
+                    "color-mix(in oklch, var(--danger) 35%, transparent)",
+                }}
               >
                 <div className="panel-head">
                   <h2 className="h3">
-                    Briefs ilegíveis <span className="pill pill-danger">{falhas.length}</span>
+                    Briefs ilegíveis{" "}
+                    <span className="pill pill-danger">{falhas.length}</span>
                   </h2>
                 </div>
                 <div className="panel-body stack-sm">
@@ -306,14 +372,17 @@ export default async function Painel() {
                       <p className="meta" style={{ color: "var(--fg-2)" }}>
                         {falha.filePath}
                       </p>
-                      <p className="small" style={{ color: "var(--danger)", marginTop: 3 }}>
+                      <p
+                        className="small"
+                        style={{ color: "var(--danger)", marginTop: 3 }}
+                      >
                         {falha.message}
                       </p>
                     </div>
                   ))}
                   <p className="field-help">
-                    O arquivo continua no disco e não entra em nenhuma contagem. Corrigir o
-                    frontmatter à mão o traz de volta à fila.
+                    O arquivo continua no disco e não entra em nenhuma contagem.
+                    Corrigir o frontmatter à mão o traz de volta à fila.
                   </p>
                 </div>
               </div>
@@ -323,11 +392,14 @@ export default async function Painel() {
               <div className="alert alert-warning">
                 <IconAlert />
                 <div className="alert-body">
-                  <strong>{ledger.malformedLines.length} linha(s) do ledger não parseiam</strong>
+                  <strong>
+                    {ledger.malformedLines.length} linha(s) do ledger não
+                    parseiam
+                  </strong>
                   <p className="small" style={{ marginTop: 3 }}>
                     Linhas {ledger.malformedLines.join(", ")} de{" "}
-                    <span className="num">store/ledger.jsonl</span>. O arquivo é append-only: nada
-                    foi reescrito, só ignorado na leitura.
+                    <span className="num">store/ledger.jsonl</span>. O arquivo é
+                    append-only: nada foi reescrito, só ignorado na leitura.
                   </p>
                 </div>
               </div>

@@ -23,19 +23,26 @@ export async function POST(
   }
 
   const { direction, reason, dryRun } = parsed.data;
-  const store = radarStore();
+  const store = await radarStore();
   const entrada = { slug, direcao: direction, motivo: reason };
 
   try {
     const result = dryRun
-      ? { ...(await store.planejarTransicao(entrada)), applied: false, ledgerEvent: null }
+      ? {
+          ...(await store.planejarTransicao(entrada)),
+          applied: false,
+          ledgerEvent: null,
+        }
       : await store.aplicarTransicao(entrada);
     return Response.json(result);
   } catch (error) {
     if (error instanceof TransitionError) {
       // These are refusals by the skill's hard rules, not server faults.
       const status = error.code === "not_found" ? 404 : 422;
-      return Response.json({ error: error.message, code: error.code }, { status });
+      return Response.json(
+        { error: error.message, code: error.code },
+        { status },
+      );
     }
     throw error;
   }

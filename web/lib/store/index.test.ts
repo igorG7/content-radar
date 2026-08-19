@@ -1,8 +1,8 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { radarStore, AMBIENTE_PADRAO } from "./index";
+import { storeDeArquivo, AMBIENTE_PADRAO } from "./index";
 
-describe("camada de armazenamento", () => {
+describe("camada de armazenamento — backend de arquivo", () => {
   /**
    * Testes de contrato da camada: o que importa é que ela responda em termos de
    * domínio e que ninguém precise saber de caminho para usá-la. Rodam contra o
@@ -10,12 +10,12 @@ describe("camada de armazenamento", () => {
    */
 
   it("a camada nasce com um ambiente", () => {
-    expect(radarStore().ambiente).toBe(AMBIENTE_PADRAO);
-    expect(radarStore("outro").ambiente).toBe("outro");
+    expect(storeDeArquivo().ambiente).toBe(AMBIENTE_PADRAO);
+    expect(storeDeArquivo("outro").ambiente).toBe("outro");
   });
 
   it("listarFila devolve os briefs pendentes de aprovação", async () => {
-    const listagem = await radarStore().listarFila();
+    const listagem = await storeDeArquivo().listarFila();
     expect(listagem.state).toBe("pendente-aprovacao");
     expect(Array.isArray(listagem.briefs)).toBe(true);
     // Falha de parse é reportada, nunca escondida.
@@ -23,7 +23,7 @@ describe("camada de armazenamento", () => {
   });
 
   it("listarTodos cobre os quatro estados", async () => {
-    const estados = (await radarStore().listarTodos()).map((l) => l.state);
+    const estados = (await storeDeArquivo().listarTodos()).map((l) => l.state);
     expect(estados).toEqual([
       "pendente-aprovacao",
       "pendente-publicacao",
@@ -33,7 +33,7 @@ describe("camada de armazenamento", () => {
   });
 
   it("buscarBrief encontra pelo slug, sem que o chamador monte caminho", async () => {
-    const store = radarStore();
+    const store = storeDeArquivo();
     const { briefs } = await store.listarFila();
     if (briefs.length === 0) return; // fila vazia é estado válido
 
@@ -43,7 +43,7 @@ describe("camada de armazenamento", () => {
   });
 
   it("planejarTransicao não aplica nada", async () => {
-    const store = radarStore();
+    const store = storeDeArquivo();
     const { briefs } = await store.listarFila();
     const alvo = briefs.find((b) => b.heroChoiceDeclared);
     if (!alvo) return;
@@ -61,7 +61,7 @@ describe("camada de armazenamento", () => {
   });
 
   it("lerLedger reporta linhas malformadas em vez de descartar", async () => {
-    const { events, malformedLines } = await radarStore().lerLedger();
+    const { events, malformedLines } = await storeDeArquivo().lerLedger();
     expect(events.length > 0).toBe(true);
     expect(Array.isArray(malformedLines)).toBe(true);
     // O normalizador cobre o formato antigo, em que `event` vinha dentro de `extra`.
@@ -71,7 +71,7 @@ describe("camada de armazenamento", () => {
   });
 
   it("caminhoMidia não deixa o nome escapar do diretório do estado", async () => {
-    const store = radarStore();
+    const store = storeDeArquivo();
     const escapado = await store.caminhoMidia(
       "pendente-aprovacao",
       "../../etc/passwd",

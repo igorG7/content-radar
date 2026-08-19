@@ -4,7 +4,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { selectablePillars } from "../lib/manifest";
-import { radarStore } from "../lib/store";
+import { storeDeArquivo } from "../lib/store";
 import { parseFrontmatter, patchScalars } from "../lib/store/frontmatter";
 
 let failures = 0;
@@ -14,7 +14,7 @@ function check(label: string, ok: boolean, detail = "") {
   console.log(`${ok ? "  ok " : "FAIL "} ${label}${detail ? ` — ${detail}` : ""}`);
 }
 
-const store = radarStore();
+const store = storeDeArquivo();
 const manifest = await store.manifest();
 
 console.log("\n== manifest ==");

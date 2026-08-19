@@ -7,8 +7,11 @@ import { radarStore } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export default async function Ledger() {
-  const store = radarStore();
-  const [ledger, listings] = await Promise.all([store.lerLedger(), store.listarTodos()]);
+  const store = await radarStore();
+  const [ledger, listings] = await Promise.all([
+    store.lerLedger(),
+    store.listarTodos(),
+  ]);
 
   const briefs: BriefRef[] = listings.flatMap((listing) =>
     listing.briefs.map((brief) => ({
@@ -37,8 +40,8 @@ export default async function Ledger() {
           Auditoria
         </h1>
         <p className="lead">
-          Uma linha JSON por evento, nunca reescrita. É o que permite responder “quem aprovou isso,
-          quando, e por quê” sem banco de dados.
+          Uma linha JSON por evento, nunca reescrita. É o que permite responder
+          “quem aprovou isso, quando, e por quê” sem banco de dados.
         </p>
       </div>
 
@@ -46,10 +49,12 @@ export default async function Ledger() {
         <div className="alert alert-warning" style={{ marginBottom: 20 }}>
           <IconAlert />
           <div className="alert-body">
-            <strong>{ledger.malformedLines.length} linha(s) não parseiam</strong>
+            <strong>
+              {ledger.malformedLines.length} linha(s) não parseiam
+            </strong>
             <p className="small" style={{ marginTop: 3 }}>
-              Linhas {ledger.malformedLines.join(", ")}. Elas continuam no arquivo — a leitura só as
-              ignora.
+              Linhas {ledger.malformedLines.join(", ")}. Elas continuam no
+              arquivo — a leitura só as ignora.
             </p>
           </div>
         </div>

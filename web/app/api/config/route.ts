@@ -17,10 +17,13 @@ const Body = z.object({
 export async function PATCH(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ error: "corpo inválido: esperado { edits: [...] }" }, { status: 400 });
+    return Response.json(
+      { error: "corpo inválido: esperado { edits: [...] }" },
+      { status: 400 },
+    );
   }
 
-  const store = radarStore();
+  const store = await radarStore();
   const raw = await store.lerManifestBruto();
 
   let output: string;
@@ -34,7 +37,10 @@ export async function PATCH(request: Request) {
   // on its own can still break an invariant that spans fields.
   const { errors, warnings } = validateManifestText(output);
   if (errors.length > 0) {
-    return Response.json({ error: "configuração inválida", errors, warnings }, { status: 422 });
+    return Response.json(
+      { error: "configuração inválida", errors, warnings },
+      { status: 422 },
+    );
   }
 
   await store.gravarManifestBruto(output);

@@ -13,13 +13,15 @@ const Body = z.object({
   suggestedSlot: z.string().max(120).optional(),
   format: z.string().max(120).optional(),
   reviewNotes: z.string().max(8000).optional(),
-  visualBrief: z.object({
-    baseTemplate: z.string().max(240).optional(),
-    compositionNotes: z.string().max(8000).optional(),
-    mustHave: z.array(z.string().max(300)).max(50),
-    avoidVisual: z.array(z.string().max(300)).max(50),
-    aspectRatio: z.string().max(80).optional(),
-  }).optional(),
+  visualBrief: z
+    .object({
+      baseTemplate: z.string().max(240).optional(),
+      compositionNotes: z.string().max(8000).optional(),
+      mustHave: z.array(z.string().max(300)).max(50),
+      avoidVisual: z.array(z.string().max(300)).max(50),
+      aspectRatio: z.string().max(80).optional(),
+    })
+    .optional(),
 });
 
 function cleanString(value: string | undefined): string | undefined {
@@ -43,7 +45,10 @@ export async function PATCH(
 
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return Response.json({ error: "corpo inválido", details: parsed.error.flatten() }, { status: 400 });
+    return Response.json(
+      { error: "corpo inválido", details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   const input = parsed.data;
@@ -61,7 +66,8 @@ export async function PATCH(
   if (input.visualBrief) {
     patches.visual_brief = {
       base_template: cleanString(input.visualBrief.baseTemplate) ?? null,
-      composition_notes: cleanString(input.visualBrief.compositionNotes) ?? null,
+      composition_notes:
+        cleanString(input.visualBrief.compositionNotes) ?? null,
       must_have: input.visualBrief.mustHave,
       avoid_visual: input.visualBrief.avoidVisual,
       aspect_ratio: cleanString(input.visualBrief.aspectRatio) ?? null,
@@ -69,7 +75,8 @@ export async function PATCH(
   }
 
   try {
-    await radarStore().editarBrief(parsedState.data, slug, patches);
+    const store = await radarStore();
+    await store.editarBrief(parsedState.data, slug, patches);
   } catch (error) {
     if (error instanceof StoreError) {
       return Response.json(

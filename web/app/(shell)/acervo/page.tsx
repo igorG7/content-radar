@@ -7,8 +7,11 @@ import { scoringOf, toBriefView } from "@/lib/view/brief-view";
 export const dynamic = "force-dynamic";
 
 export default async function Acervo() {
-  const store = radarStore();
-  const [manifest, listings] = await Promise.all([store.manifest(), store.listarTodos()]);
+  const store = await radarStore();
+  const [manifest, listings] = await Promise.all([
+    store.manifest(),
+    store.listarTodos(),
+  ]);
   const scoring = scoringOf(manifest);
 
   const briefs = listings
@@ -36,13 +39,18 @@ export default async function Acervo() {
           Acervo
         </h1>
         <p className="lead">
-          O que já saiu da fila. Consultar antes de aprovar algo parecido é a defesa contra
-          repetição — as janelas de anti-repetição são de {janelas.join(", ")} dias.
+          O que já saiu da fila. Consultar antes de aprovar algo parecido é a
+          defesa contra repetição — as janelas de anti-repetição são de{" "}
+          {janelas.join(", ")} dias.
         </p>
       </div>
 
       <Suspense>
-        <ArchiveClient briefs={briefs} janelas={janelas} agoraIso={new Date().toISOString()} />
+        <ArchiveClient
+          briefs={briefs}
+          janelas={janelas}
+          agoraIso={new Date().toISOString()}
+        />
       </Suspense>
     </>
   );

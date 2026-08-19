@@ -15,7 +15,7 @@ process.env.RADAR_ROOT ??= path.resolve(
   "../..",
 );
 
-const { radarStore, TransitionError } = await import("../lib/store");
+const { storeDeArquivo, TransitionError } = await import("../lib/store");
 type Direction = "approve" | "reject";
 
 function fail(message: string): never {
@@ -42,7 +42,7 @@ const reason = flags
   ?.slice("--reason=".length)
   .replace(/^["']|["']$/g, "");
 
-const store = radarStore();
+const store = storeDeArquivo();
 
 // The skill accepts a unique prefix, not only the full slug.
 const pending = (await store.listarFila()).briefs.map((brief) => brief.slug);

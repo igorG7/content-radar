@@ -6,7 +6,7 @@ import { scoringOf, toBriefView } from "@/lib/view/brief-view";
 export const dynamic = "force-dynamic";
 
 export default async function Fila() {
-  const store = radarStore();
+  const store = await radarStore();
   const [manifest, { briefs, failures }] = await Promise.all([
     store.manifest(),
     store.listarFila(),
@@ -21,7 +21,10 @@ export default async function Fila() {
       <QueueClient
         briefs={fila}
         ilegiveis={failures.length}
-        scoring={{ matchScoreMin: scoring.matchScoreMin, borderlineMin: scoring.borderlineMin }}
+        scoring={{
+          matchScoreMin: scoring.matchScoreMin,
+          borderlineMin: scoring.borderlineMin,
+        }}
       />
     </Suspense>
   );

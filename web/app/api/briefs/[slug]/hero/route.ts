@@ -2,7 +2,9 @@ import path from "node:path";
 import { z } from "zod";
 import { radarStore, StoreError } from "@/lib/store";
 
-const Body = z.object({ heroChoice: z.number().int().nonnegative().nullable() });
+const Body = z.object({
+  heroChoice: z.number().int().nonnegative().nullable(),
+});
 
 /**
  * Records the human's hero pick. Kept separate from the transition so the
@@ -27,7 +29,8 @@ export async function PATCH(
   const { heroChoice } = parsed.data;
 
   try {
-    await radarStore().gravarEscolhaHero(slug, heroChoice);
+    const store = await radarStore();
+    await store.gravarEscolhaHero(slug, heroChoice);
   } catch (error) {
     if (error instanceof StoreError) {
       return Response.json(

@@ -25,7 +25,13 @@ import {
   type Manifest,
   type RadarPaths,
 } from "../manifest";
-import { listAllStates, listState, readBrief, type Brief, type StateListing } from "./briefs";
+import {
+  listAllStates,
+  listState,
+  readBrief,
+  type Brief,
+  type StateListing,
+} from "./briefs";
 import {
   patchScalars,
   readFileWithFrontmatter,
@@ -45,13 +51,12 @@ import {
   type TransitionResult,
 } from "../transitions/mv";
 
-/**
- * Identificador do ambiente. Hoje há um só — o valor vem de env para que o
- * ponto de configuração já exista, mesmo sem multi-ambiente.
- */
+/** Identificador do ambiente — o mesmo valor que sustenta o RLS no banco. */
 export type AmbienteId = string;
 
-export const AMBIENTE_PADRAO: AmbienteId = process.env.RADAR_AMBIENTE ?? "avanz-imoveis";
+/** Só o backend de arquivo usa: lá o ambiente é rótulo, não escopo de consulta. */
+export const AMBIENTE_PADRAO: AmbienteId =
+  process.env.RADAR_AMBIENTE ?? "avanz-imoveis";
 
 export interface TransicaoEntrada {
   slug: string;
@@ -122,14 +127,19 @@ export interface RadarStore {
   ): Promise<void>;
 
   lerLedger(): Promise<LedgerReadResult>;
-  registrarEvento(evento: Omit<LedgerEvent, "ts"> & { ts?: string }): Promise<LedgerEvent>;
+  registrarEvento(
+    evento: Omit<LedgerEvent, "ts"> & { ts?: string },
+  ): Promise<LedgerEvent>;
 
   /**
    * Bytes de um arquivo de mídia, ou `null` se não estiver no cache. Devolve
    * conteúdo e não caminho porque com armazenamento de objetos não haverá
    * caminho — a rota que serve a imagem não deve depender de haver disco.
    */
-  lerMidia(estado: BriefState, arquivo: string): Promise<Uint8Array<ArrayBuffer> | null>;
+  lerMidia(
+    estado: BriefState,
+    arquivo: string,
+  ): Promise<Uint8Array<ArrayBuffer> | null>;
 
   /**
    * Caminho absoluto de um arquivo de mídia. Necessário enquanto o backend é
@@ -142,7 +152,8 @@ export interface RadarStore {
 /** Backend de arquivo. Quando o Postgres entrar, nasce um irmão deste módulo. */
 function backendArquivo(ambiente: AmbienteId): RadarStore {
   // Resolvido a cada operação para que edições no manifest valham de imediato.
-  const caminhos = async (): Promise<RadarPaths> => resolvePaths(await loadManifest());
+  const caminhos = async (): Promise<RadarPaths> =>
+    resolvePaths(await loadManifest());
 
   const entradaLegada = (e: TransicaoEntrada) => ({
     slug: e.slug,
@@ -178,11 +189,18 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async buscarBrief(slug, estado) {
       const p = await caminhos();
-      return readBrief(path.join(p.briefsDir[estado], `${slug}.md`), estado, p.mediaDir[estado]);
+      return readBrief(
+        path.join(p.briefsDir[estado], `${slug}.md`),
+        estado,
+        p.mediaDir[estado],
+      );
     },
 
     async planejarTransicao(entrada) {
-      return planTransition({ ...entradaLegada(entrada), dryRun: true }, await caminhos());
+      return planTransition(
+        { ...entradaLegada(entrada), dryRun: true },
+        await caminhos(),
+      );
     },
 
     async aplicarTransicao(entrada) {
@@ -191,14 +209,20 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async gravarEscolhaHero(slug, indice) {
       const p = await caminhos();
-      const filePath = path.join(p.briefsDir["pendente-aprovacao"], `${slug}.md`);
+      const filePath = path.join(
+        p.briefsDir["pendente-aprovacao"],
+        `${slug}.md`,
+      );
 
       let data: Record<string, unknown>;
       try {
         ({ data } = await readFileWithFrontmatter(filePath));
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-          throw new StoreError("nao_encontrado", "brief não está em pendente-aprovacao");
+          throw new StoreError(
+            "nao_encontrado",
+            "brief não está em pendente-aprovacao",
+          );
         }
         throw error;
       }
@@ -208,12 +232,19 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
           ? (data.hero_image_candidates as { index?: unknown }[])
           : [];
         if (!candidatas.some((c) => c?.index === indice)) {
-          throw new StoreError("candidata_invalida", `não existe candidata com índice ${indice}`);
+          throw new StoreError(
+            "candidata_invalida",
+            `não existe candidata com índice ${indice}`,
+          );
         }
       }
 
       const raw = await readFile(filePath, "utf8");
-      await writeFile(filePath, patchScalars(raw, { hero_choice: indice }), "utf8");
+      await writeFile(
+        filePath,
+        patchScalars(raw, { hero_choice: indice }),
+        "utf8",
+      );
     },
 
     async editarBrief(estado, slug, campos) {
@@ -224,12 +255,18 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
         await readFileWithFrontmatter(filePath);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-          throw new StoreError("nao_encontrado", "brief não encontrado neste estado");
+          throw new StoreError(
+            "nao_encontrado",
+            "brief não encontrado neste estado",
+          );
         }
         throw error;
       }
 
-      await replaceFrontmatterFields(filePath, campos as Record<string, unknown>);
+      await replaceFrontmatterFields(
+        filePath,
+        campos as Record<string, unknown>,
+      );
     },
 
     async lerLedger() {
@@ -242,7 +279,9 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async lerMidia(estado, arquivo) {
       try {
-        return Uint8Array.from(await readFile(await this.caminhoMidia(estado, arquivo)));
+        return Uint8Array.from(
+          await readFile(await this.caminhoMidia(estado, arquivo)),
+        );
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
         throw error;
@@ -257,10 +296,53 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
   };
 }
 
-export function radarStore(ambiente: AmbienteId = AMBIENTE_PADRAO): RadarStore {
+/**
+ * Backend de arquivo, explícito. É o que o importador usa — a função dele é
+ * justamente ler arquivos, então pedir "o store" e receber o banco seria ler o
+ * que ele está tentando popular.
+ */
+export function storeDeArquivo(
+  ambiente: AmbienteId = AMBIENTE_PADRAO,
+): RadarStore {
   return backendArquivo(ambiente);
 }
 
-export type { Brief, StateListing, LedgerEvent, LedgerReadResult, TransitionPlan, TransitionResult };
+/**
+ * O store do ambiente da sessão. Assíncrono porque o ambiente vem do cookie, e
+ * é ele que vira `SET LOCAL app.ambiente` na transação.
+ *
+ * Nenhum ponto de chamada passa o ambiente à mão: fazer isso traria de volta a
+ * disciplina espalhada que a camada existe para eliminar, agora com o dado que
+ * separa um cliente do outro.
+ */
+export async function radarStore(): Promise<RadarStore> {
+  if (process.env.RADAR_BACKEND === "arquivo" || !process.env.DATABASE_URL) {
+    return backendArquivo(AMBIENTE_PADRAO);
+  }
+
+  const { sessaoAtual } = await import("../sessao");
+  const sessao = await sessaoAtual();
+  if (!sessao) throw new SemSessao();
+
+  const { backendPostgres } = await import("../../db/backend");
+  return backendPostgres(sessao.ambienteId);
+}
+
+/** Sem sessão não há ambiente, e sem ambiente o banco não devolve nada. */
+export class SemSessao extends Error {
+  constructor() {
+    super("sem sessão — não há ambiente para consultar");
+    this.name = "SemSessao";
+  }
+}
+
+export type {
+  Brief,
+  StateListing,
+  LedgerEvent,
+  LedgerReadResult,
+  TransitionPlan,
+  TransitionResult,
+};
 export { APP_ACTOR } from "./ledger";
 export { TransitionError } from "../transitions/mv";

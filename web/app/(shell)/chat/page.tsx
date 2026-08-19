@@ -5,8 +5,11 @@ import { radarStore } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export default async function Chat() {
-  const store = radarStore();
-  const [manifest, { briefs }] = await Promise.all([store.manifest(), store.listarFila()]);
+  const store = await radarStore();
+  const [manifest, { briefs }] = await Promise.all([
+    store.manifest(),
+    store.listarFila(),
+  ]);
 
   return (
     <>
@@ -22,8 +25,8 @@ export default async function Chat() {
           Chat com o agente editorial
         </h1>
         <p className="lead">
-          A interface está pronta para streaming. O backend ainda não existe — nada aqui inventa
-          endpoint, e a UI diz isso na cara.
+          A interface está pronta para streaming. O backend ainda não existe —
+          nada aqui inventa endpoint, e a UI diz isso na cara.
         </p>
       </div>
 

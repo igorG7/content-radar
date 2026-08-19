@@ -40,12 +40,16 @@ export async function GET(
     return new Response("unsupported media type", { status: 415 });
   }
 
-  const bytes = await radarStore().lerMidia(state, fileName);
+  const store = await radarStore();
+  const bytes = await store.lerMidia(state, fileName);
   if (!bytes) {
     return new Response("not found", { status: 404 });
   }
 
   return new Response(bytes, {
-    headers: { "content-type": contentType, "cache-control": "private, max-age=60" },
+    headers: {
+      "content-type": contentType,
+      "cache-control": "private, max-age=60",
+    },
   });
 }
