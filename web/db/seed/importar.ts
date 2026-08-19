@@ -41,6 +41,8 @@ export interface RelatorioImportacao {
   eventos: number;
   /** Contagens por estado, para comparar com o store de arquivos. */
   porEstado: Record<string, number>;
+  escopos: number;
+  fontes: number;
   /** Quantos saíram sem foto — normal, mas vale ver a proporção. */
   semFoto: number;
   /** Não travam a carga: ficam registrados para leitura. */
@@ -190,11 +192,55 @@ export async function importar(
               eventos: 0,
               porEstado: {},
               semFoto: 0,
+              escopos: 0,
+              fontes: 0,
               avisos,
               orfas,
             },
           },
         );
+      }
+
+      // ── escopos de busca e fontes ────────────────────────────────────────
+      // O pilar vem do vocabulário do vault; a lista de domínios é entrada
+      // manual. A chave estrangeira impede escopo apontando para pilar
+      // inexistente — hoje, no YAML, é string digitada.
+      const manifest = await store.manifest();
+      let escopos = 0;
+      let fontes = 0;
+
+      for (const [slug, escopo] of Object.entries(manifest.search_scopes)) {
+        await tx
+          .insert(schema.escopoBusca)
+          .values({ ambienteId, slug, label: escopo.label })
+          .onConflictDoUpdate({
+            target: [schema.escopoBusca.ambienteId, schema.escopoBusca.slug],
+            set: { label: escopo.label },
+          });
+        escopos++;
+
+        for (const pilarAntigo of escopo.pillars_alvo ?? []) {
+          const pilarSlug = PILAR_ANTIGO_PARA_NOVO[pilarAntigo];
+          if (!pilarSlug || !pilares.has(pilarSlug)) {
+            avisos.push({
+              onde: `escopo ${slug}`,
+              detalhe: `pilar_alvo sem correspondência no vault: ${pilarAntigo}`,
+            });
+            continue;
+          }
+          await tx
+            .insert(schema.escopoPilar)
+            .values({ ambienteId, escopoSlug: slug, pilarSlug })
+            .onConflictDoNothing();
+        }
+
+        for (const fonte of escopo.sources) {
+          await tx
+            .insert(schema.fonte)
+            .values({ ambienteId, escopoSlug: slug, slug: fonte, url: fonte })
+            .onConflictDoNothing();
+          fontes++;
+        }
       }
 
       // ── scans ────────────────────────────────────────────────────────────
@@ -366,6 +412,8 @@ export async function importar(
         porEstado[brief.state] = (porEstado[brief.state] ?? 0) + 1;
 
       return {
+        escopos,
+        fontes,
         briefs: briefs.length,
         candidatas,
         scans: idDoScan.size,

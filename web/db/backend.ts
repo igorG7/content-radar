@@ -368,6 +368,67 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
           .where(eq(t.brief.id, linha.id));
       }),
 
+    listarBlocos: () =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select()
+          .from(t.vaultBloco)
+          .orderBy(t.vaultBloco.ordem);
+        return linhas.map((l) => ({
+          slug: l.slug,
+          titulo: l.titulo,
+          corpo: l.corpo,
+          ordem: l.ordem,
+          escopo: l.escopo,
+          contrato: l.contrato,
+          versao: l.versao,
+          atualizadoEm: l.atualizadoEm.toISOString(),
+        }));
+      }),
+
+    /**
+     * Bloco e versão numa transação só: a versão nova e o histórico dela nascem
+     * juntos ou não nascem. Se o registro do porquê pudesse falhar sozinho, o
+     * histórico teria buracos justamente onde alguém foi olhar.
+     */
+    gravarBloco: (slug, corpo, motivo) =>
+      dentro(async (tx) => {
+        const [atual] = await tx
+          .select()
+          .from(t.vaultBloco)
+          .where(eq(t.vaultBloco.slug, slug));
+        if (!atual)
+          throw new StoreError("nao_encontrado", `bloco não existe: ${slug}`);
+
+        // Bloco vazio virando conteúdo é a versão 1 — o provisionamento cria a
+        // linha, mas não é uma versão: ninguém respondeu nada ainda.
+        const versao = atual.corpo === "" ? 1 : atual.versao + 1;
+
+        await tx
+          .update(t.vaultBloco)
+          .set({ corpo, versao, atualizadoEm: new Date() })
+          .where(eq(t.vaultBloco.slug, slug));
+
+        await tx.insert(t.vaultBlocoVersao).values({
+          ambienteId: ambiente,
+          slug,
+          versao,
+          corpo,
+          motivo,
+        });
+      }),
+
+    estadoDaConfig: () =>
+      dentro(async (tx) => {
+        const [fontes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.fonte);
+        const [ajustes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.config);
+        return { temFontes: fontes.n > 0, temAjustes: ajustes.n > 0 };
+      }),
+
     lerLedger: () =>
       dentro(async (tx): Promise<LedgerReadResult> => {
         const linhas = await tx

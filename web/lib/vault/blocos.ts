@@ -1,5 +1,10 @@
 /**
- * Vault — os blocos que definem o vocabulário editorial.
+ * Catálogo dos blocos do vault — **metadado de produto, não conteúdo**.
+ *
+ * A divisão importa: a pergunta que gera o bloco, o porquê de ele ser
+ * obrigatório e de quem ele depende são iguais para todo cliente, e vivem
+ * aqui. O corpo em prosa é do cliente e vive no banco, versionado com motivo
+ * (tabela `vault_bloco`).
  *
  * Um bloco é prosa. Alguns carregam identidade estável, porque algo de fora
  * aponta para eles (a configuração referencia pilar por código; o brief carrega
@@ -10,9 +15,6 @@
  * ajustes numéricos são trabalho manual acumulado, sem origem na marca. Elas
  * aparecem no mapa porque fazem parte da sequência, e apontam para a tela de
  * Configuração em vez de abrir conversa.
- *
- * Esta tela é casca: os blocos vivem no localStorage, não no store. A
- * persistência real está desenhada em docs/design-vault-onboarding.md.
  */
 
 export type Criticidade = "obrigatorio" | "degrada" | "opcional" | "default";
@@ -30,7 +32,6 @@ export interface Bloco {
   href?: string;
   resumo: string;
   porque?: string;
-  conteudo: string | null;
 }
 
 export const BLOCOS: Bloco[] = [
@@ -45,17 +46,6 @@ export const BLOCOS: Bloco[] = [
     tipo: "bloco",
     resumo:
       "Posicionamento, origem e os princípios que valem quando entram em conflito.",
-    conteudo: `A operação é curadoria imobiliária orientada à decisão. Não vende imóvel: organiza o caminho até a decisão certa. A promessa é entender o perfil antes de oferecer qualquer coisa.
-
-Nasceu como marca pessoal de corretor e virou operação estruturada. O nome mudou; o jeito de atender, não.
-
-Os arquétipos são o Guia e o Estrategista — seguro, calmo, objetivo, prestativo. Os princípios de experiência, na ordem em que valem quando conflitam:
-
-1. Clareza antes de volume
-2. Orientação antes de venda
-3. Confiança antes de conversão
-4. Simplicidade antes de complexidade
-5. Velocidade antes de perfeição`,
   },
   {
     key: "voz",
@@ -67,16 +57,6 @@ Os arquétipos são o Guia e o Estrategista — seguro, calmo, objetivo, prestat
     tipo: "bloco",
     resumo: "Registro, ritmo da frase e a lista do que não se escreve.",
     porque: "Sem ela cada post sai num registro diferente do anterior.",
-    conteudo: `Fala como quem já explicou isso mil vezes e não perdeu a paciência. Frase curta, verbo no presente, número quando existe número. Nada de rodeio antes do assunto.
-
-O que a marca não diz:
-
-- superlativo de corretor — "oportunidade única", "imperdível", "não perca"
-- pergunta retórica na abertura
-- promessa de retorno, valorização ou aprovação
-- explicação que trata o leitor como leigo; explica sem infantilizar
-
-Um post bom termina com a pessoa sabendo o que fazer em seguida. Um post ruim termina com ela impressionada.`,
   },
   {
     key: "guardrails",
@@ -90,23 +70,6 @@ Um post bom termina com a pessoa sabendo o que fazer em seguida. Um post ruim te
     resumo: "Restrições operáveis item a item, condução e a regra de ouro.",
     porque:
       "Sem eles nada impede o texto de prometer o que não pode ser prometido.",
-    conteudo: `## Restrições
-
-- \`nao-prometer-aprovacao\` — nunca prometer aprovação garantida de crédito ou financiamento
-- \`nao-inventar-imovel\` — nunca inventar informação sobre um imóvel: metragem, documentação, valor, disponibilidade
-- \`nao-valor-sem-contexto\` — nunca citar valor solto, sem a condição que o explica
-- \`nao-sair-do-escopo\` — não sair do escopo imobiliário
-
-## Condução
-
-- entender o perfil antes de sugerir opção
-- evitar resposta longa e teórica; priorizar clareza e ação
-- manter tom humano e natural
-- direcionar sempre para um próximo passo concreto: simulação, visita, fechamento
-
-## Regra de ouro
-
-Toda interação caminha para um próximo passo claro. Se não há avanço, há falha na condução.`,
   },
   {
     key: "foco",
@@ -119,11 +82,6 @@ Toda interação caminha para um próximo passo claro. Se não há avanço, há 
     resumo: "O filtro que decide se um assunto vira pauta ou fica de fora.",
     porque:
       "Sem ele o filtro aceita tudo — a fila enche de assunto que não gera decisão.",
-    conteudo: `Entra o que muda a decisão de quem compra lote, sítio, chácara ou casa do programa popular com simulação bancária prévia: mudança de regra, obra que altera acesso, número que reposiciona uma praça.
-
-Não entra lançamento de terceiro, imóvel urbano pronto de alto padrão, leilão, nem assunto que gere contato que a operação não atende.
-
-O teste é sempre o mesmo: alguém decide diferente depois de ler isto? Se não, é informação — não é pauta.`,
   },
   {
     key: "geografia",
@@ -137,11 +95,6 @@ O teste é sempre o mesmo: alguém decide diferente depois de ler isto? Se não,
     resumo: "As praças que contam e a regra para pauta que vem de fora delas.",
     porque:
       "Sem ela o segundo maior componente do score (20%) é julgado sem referência: nada diz quais praças contam.",
-    conteudo: `Região Metropolitana de Belo Horizonte, com foco principal em Mateus Leme, Esmeraldas, Ribeirão das Neves, Juatuba, Jaboticatubas e Caetanópolis.
-
-Pauta de alcance nacional entra quando o efeito é direto sobre este público — programa habitacional, condições de crédito imobiliário, índices de custo de construção, intenção de compra. Nesses casos a análise precisa aterrissar na região: o que isso muda para quem compra aqui.
-
-Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
   },
   {
     key: "contato",
@@ -154,11 +107,6 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     resumo: "O canal de destino e o número que vai no rodapé da arte.",
     porque:
       "Sem ele o CTA fica sem destino e a arte sai sem o número do rodapé.",
-    conteudo: `Canal principal: WhatsApp. Todo CTA aponta para lá.
-
-- exibição na arte e no texto: (31) 9 9077-4580
-- canônico: +5531990774580
-- secundário: +5531971375793`,
   },
   {
     key: "publicos",
@@ -171,9 +119,6 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     resumo:
       "Os perfis que o score usa como componente. Cada um com código estável.",
     porque: "Sem eles falta um dos cinco componentes do score.",
-    conteudo: `- \`investidor-lote\` — compra terreno para revender ou segurar. Decide por matemática: preço do m², módulo mínimo, o que a infraestrutura faz com o valor. Quer número, não adjetivo.
-- \`familia-mcmv\` — compra a primeira casa pelo programa popular. Decide por segurança: cabe no orçamento, o financiamento sai, a documentação está limpa. Precisa de passo a passo, não de urgência.
-- \`refugio-sitio\` — procura sítio ou chácara para uso próprio. Decide pela sensação, mas trava na documentação: outorga de água, georreferenciamento, acesso.`,
   },
   {
     key: "pilares",
@@ -186,10 +131,6 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     resumo:
       "Os eixos que classificam todo brief. A configuração aponta para estes códigos.",
     porque: "Sem eles não há como classificar o que a varredura encontra.",
-    conteudo: `- \`oportunidade\` — o que abriu agora e fecha depois: mudança de regra, janela de preço, lote que entrou no mercado. Só entra com a condição que explica a janela; sem a condição, vira anúncio.
-- \`educacao-financiamento\` — como o dinheiro funciona: simulação prévia, teto de renda, o que aprova e o que reprova. Casa pronta só entra sendo do programa popular e com simulação bancária prévia. Sem isso não é este pilar, é outro assunto.
-- \`regiao\` — o que acontece no território e mexe com preço: obra, plano diretor, equipamento público novo.
-- \`bastidores\` — como a operação trabalha. Serve para confiança, não para conversão. Nunca é o pilar de maior volume.`,
   },
   {
     key: "cadencia",
@@ -202,11 +143,6 @@ Fora disso, assunto de outra praça não entra, mesmo sendo bom.`,
     resumo: "O ritmo sustentável e a divisão da semana entre os pilares.",
     porque:
       "Sem ela o radar não sabe quantas pautas buscar nem como distribuí-las — gera volume que não vira publicação.",
-    conteudo: `Quatro posts por semana no feed. É o ritmo que se sustenta sem banco de imagens curadas e sem produção assistida rodando bem — subir para sete quando o banco de temas e o fluxo de aprovação aguentarem é melhor que cair de sete para quatro depois, porque queda de frequência lê como abandono.
-
-Divisão da semana: 2 de oportunidade, 1 de educação, 1 de região. Bastidores entra quando há material real, e nunca é o pilar de maior volume.
-
-O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
   },
   {
     key: "fontes",
@@ -220,7 +156,6 @@ O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
     resumo:
       "A lista de domínios é decisão operacional e vive no manifest. Do vault vem só o vocabulário de pilar que cada grupo alimenta.",
     porque: "Sem elas não há onde procurar.",
-    conteudo: null,
   },
   {
     key: "temas",
@@ -232,9 +167,6 @@ O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
     tipo: "bloco",
     resumo:
       "Nasce vazio e enche com o uso. Cada tema pertence a um pilar e é citado por código nos briefs.",
-    conteudo: `- \`modulo-minimo\` — pertence a \`regiao\`. Mudança de módulo mínimo em plano diretor e o efeito na conta do investidor.
-- \`outorga-agua\` — pertence a \`educacao-financiamento\`. Outorga de uso de água em imóvel rural: quando exige, quanto demora.
-- \`teto-renda\` — pertence a \`educacao-financiamento\`. Faixas do programa popular e o que muda quando o teto é reajustado.`,
   },
   {
     key: "ajustes",
@@ -247,7 +179,6 @@ O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
     href: "/config",
     resumo:
       "Não vem da marca nem da entrevista: é default do produto, ajustável a qualquer momento.",
-    conteudo: null,
   },
   {
     key: "visual",
@@ -259,53 +190,66 @@ O radar só gera pauta de feed. Stories são decisão humana ad-hoc.`,
     tipo: "bloco",
     resumo:
       "Logo, paleta e tipografia. Pesa na geração da arte, não na varredura.",
-    conteudo: `Os arquivos — logo, paleta, tipografia — ficam no mesmo armazenamento da mídia, fora do banco de blocos.
-
-A paleta é fria e sóbria: azul-tinta como cor de texto e de marca, papel quente como fundo. Sem gradiente, sem sombra decorativa. A tipografia de display é serifada; o corpo, sem serifa; número em mono, sempre tabular.
-
-Este bloco não entra na varredura — ele é lido na hora de gerar a arte.`,
   },
 ];
 
-export interface BlocoAceito {
+/**
+ * O estado do vault vem do banco: `corpo` vazio é bloco por preencher. Não há
+ * rascunho meio-salvo — bloco confirmado é uma versão, e retomar é continuar de
+ * onde a lista de vazios começa.
+ */
+export interface BlocoVault {
+  slug: string;
+  titulo: string;
+  corpo: string;
+  ordem: number;
+  escopo: string;
+  contrato: string;
   versao: number;
-  em: string;
-  motivo?: string | null;
-  conteudo?: string | null;
+  atualizadoEm: string;
 }
 
-export type Aceitos = Record<string, BlocoAceito>;
+export type Aceitos = Record<string, BlocoVault>;
 
-/**
- * `completo` é o app em regime: vault preenchido, pipeline rodando.
- * `onboarding` é o primeiro acesso: quase tudo vazio, pipeline parado.
- * Trocar por ?vault=onboarding na URL; a escolha persiste como o tema.
- */
-export type ModoVault = "completo" | "onboarding";
+/** Indexa por slug o que o banco devolveu. */
+export function porSlug(
+  blocos: BlocoVault[],
+  config: { temFontes: boolean; temAjustes: boolean } = {
+    temFontes: false,
+    temAjustes: false,
+  },
+): Aceitos {
+  const aceitos: Aceitos = Object.fromEntries(
+    blocos.filter((b) => b.corpo !== "").map((b) => [b.slug, b]),
+  );
 
-export const SEEDS: Record<ModoVault, Aceitos> = {
-  completo: {
-    identidade: { versao: 2, em: "2026-05-04T10:20:00-03:00" },
-    voz: { versao: 3, em: "2026-06-02T15:41:00-03:00" },
-    guardrails: { versao: 1, em: "2026-04-28T09:05:00-03:00" },
-    foco: { versao: 2, em: "2026-05-19T11:12:00-03:00" },
-    geografia: { versao: 1, em: "2026-04-28T09:12:00-03:00" },
-    contato: { versao: 2, em: "2026-07-09T10:04:00-03:00" },
-    publicos: { versao: 1, em: "2026-04-29T14:33:00-03:00" },
-    pilares: { versao: 4, em: "2026-06-18T08:57:00-03:00" },
-    fontes: { versao: 1, em: "2026-05-02T16:00:00-03:00" },
-    ajustes: { versao: 1, em: "2026-04-28T09:40:00-03:00" },
-  },
-  onboarding: {
-    identidade: { versao: 1, em: "2026-06-22T09:31:00-03:00" },
-  },
-};
+  // Blocos de tipo `config` — fontes e ajustes — não têm linha no vault: o
+  // conteúdo deles é configuração. Sem isto ficariam eternamente por preencher,
+  // e `fontes`, que é obrigatório, travaria um ambiente já configurado.
+  const sintetico = (slug: string, titulo: string): BlocoVault => ({
+    slug,
+    titulo,
+    corpo: "(configuração)",
+    ordem: 0,
+    escopo: "config",
+    contrato: "obrigatorio",
+    versao: 1,
+    atualizadoEm: new Date(0).toISOString(),
+  });
+
+  if (config.temFontes) {
+    aceitos.fontes = sintetico("fontes", "Fontes de pesquisa");
+  }
+  if (config.temAjustes) {
+    aceitos.ajustes = sintetico("ajustes", "Pesos, limiares e volume");
+  }
+  return aceitos;
+}
 
 export interface BlocoMapeado extends Bloco {
   preenchido: boolean;
   versao: number;
   atualizado_em: string | null;
-  motivo: string | null;
   trancado: boolean;
   bloqueador: Bloco | null;
   estado: EstadoBloco;
@@ -318,8 +262,8 @@ export interface BlocoMapeado extends Bloco {
  */
 export function mapaDe(aceitos: Aceitos): BlocoMapeado[] {
   return BLOCOS.map((bloco) => {
-    const aceito = aceitos[bloco.key];
-    const preenchido = Boolean(aceito);
+    const gravado = aceitos[bloco.key];
+    const preenchido = Boolean(gravado);
     const dep = bloco.dependeDe
       ? (BLOCOS.find((b) => b.key === bloco.dependeDe) ?? null)
       : null;
@@ -330,9 +274,8 @@ export function mapaDe(aceitos: Aceitos): BlocoMapeado[] {
     return {
       ...bloco,
       preenchido,
-      versao: preenchido ? aceito.versao : 0,
-      atualizado_em: preenchido ? aceito.em : null,
-      motivo: preenchido ? (aceito.motivo ?? null) : null,
+      versao: gravado?.versao ?? 0,
+      atualizado_em: gravado?.atualizadoEm ?? null,
       trancado,
       bloqueador: trancado ? dep : null,
       estado: trancado
@@ -367,8 +310,7 @@ export function progressoDe(aceitos: Aceitos): Progresso {
 }
 
 export function conteudoDe(aceitos: Aceitos, key: string): string | null {
-  const catalogo = BLOCOS.find((b) => b.key === key);
-  return aceitos[key]?.conteudo ?? catalogo?.conteudo ?? null;
+  return aceitos[key]?.corpo ?? null;
 }
 
 /**

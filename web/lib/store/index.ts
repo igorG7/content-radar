@@ -76,6 +76,18 @@ export class StoreError extends Error {
   }
 }
 
+/** Um bloco do vault, como o banco o guarda. */
+export interface BlocoVault {
+  slug: string;
+  titulo: string;
+  corpo: string;
+  ordem: number;
+  escopo: string;
+  contrato: string;
+  versao: number;
+  atualizadoEm: string;
+}
+
 /** Campos do brief que a edição pela interface pode tocar. */
 export interface EdicaoBrief {
   headline?: string | null;
@@ -125,6 +137,26 @@ export interface RadarStore {
     slug: string,
     campos: EdicaoBrief,
   ): Promise<void>;
+
+  /**
+   * Os blocos do vault do ambiente. O corpo é do cliente; a pergunta que gera
+   * o bloco é do produto e vive no catálogo (lib/vault/blocos.ts).
+   */
+  listarBlocos(): Promise<BlocoVault[]>;
+
+  /**
+   * Quais blocos de tipo config já estão satisfeitos. Não vêm do vault: o
+   * conteúdo deles é configuração, e sem isto `fontes` — que é obrigatório —
+   * travaria o pipeline de um ambiente já configurado.
+   */
+  estadoDaConfig(): Promise<{ temFontes: boolean; temAjustes: boolean }>;
+
+  /**
+   * Grava uma versão nova do bloco. `motivo` é obrigatório: prosa não tem
+   * validação automática, então o histórico é a única rede de segurança — e
+   * histórico sem o porquê responde metade da pergunta.
+   */
+  gravarBloco(slug: string, corpo: string, motivo: string): Promise<void>;
 
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
@@ -267,6 +299,31 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
         filePath,
         campos as Record<string, unknown>,
       );
+    },
+
+    async listarBlocos(): Promise<BlocoVault[]> {
+      // O store de arquivos nunca teve vault: ele vive no espaço de trabalho da
+      // empresa, fora daqui. Devolver lista vazia faria a interface concluir
+      // que o vault está por preencher.
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda vault",
+      );
+    },
+
+    async gravarBloco() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda vault",
+      );
+    },
+
+    async estadoDaConfig() {
+      const manifest = await loadManifest();
+      return {
+        temFontes: Object.keys(manifest.search_scopes).length > 0,
+        temAjustes: true,
+      };
     },
 
     async lerLedger() {

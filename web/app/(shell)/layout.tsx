@@ -17,11 +17,15 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
   if (!sessao) redirect("/login");
 
   const store = await radarStore();
-  const { briefs } = await store.listarFila();
+  const [{ briefs }, blocos, configuracao] = await Promise.all([
+    store.listarFila(),
+    store.listarBlocos(),
+    store.estadoDaConfig(),
+  ]);
 
   return (
     <Suspense>
-      <VaultProvider>
+      <VaultProvider blocos={blocos} configuracao={configuracao}>
         <ToastProvider>
           <AppShell filaCount={briefs.length}>{children}</AppShell>
         </ToastProvider>

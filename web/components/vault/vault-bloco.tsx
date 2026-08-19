@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useVault } from "@/components/vault-provider";
+import { gravarBlocoAcao } from "@/app/(shell)/config/vault/acoes";
 import { EmptyState, Crumb } from "@/components/ui/pieces";
 import { Prosa, ProsaInline } from "@/components/ui/prosa";
 import { IconAlert, IconInfo, IconLock } from "@/components/ui/icons";
@@ -104,7 +105,8 @@ interface Mensagem {
 export function VaultBloco({ chave }: { chave: string }) {
   const router = useRouter();
   const toast = useToast();
-  const { mapa, aceitos, aceitar } = useVault();
+  const { mapa, aceitos } = useVault();
+  const [gravando, setGravando] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   const bloco = mapa.find((b) => b.key === chave);
@@ -213,18 +215,38 @@ export function VaultBloco({ chave }: { chave: string }) {
     }, 1100);
   }
 
+  async function gravar(texto: string, porque: string) {
+    if (!bloco) return;
+    setGravando(true);
+    const dados = new FormData();
+    dados.set("slug", chave);
+    dados.set("corpo", texto);
+    dados.set("motivo", porque);
+    const r = await gravarBlocoAcao({}, dados);
+    setGravando(false);
+
+    if (r.erro) {
+      toast({ tone: "danger", title: "Não gravou", detail: r.erro });
+      return;
+    }
+    const versao = bloco.preenchido ? bloco.versao + 1 : 1;
+    toast({
+      tone: "ok",
+      title: `${bloco.titulo} · v${versao} aceita`,
+      detail: bloco.preenchido
+        ? "A próxima varredura já roda contra esta versão."
+        : "O bloco passou a existir. Reabrir a partir de agora gera versão nova.",
+    });
+    setTimeout(() => router.push("/config/vault"), 700);
+  }
+
   function aceitarProposta() {
     if (proposta === null || !bloco) return;
-    // Prosa não tem invariante verificável: o motivo é a única rede.
+    // A primeira versão nasce com motivo automático: não houve mudança a
+    // explicar, houve o bloco passando a existir. Da segunda em diante, prosa
+    // não tem invariante verificável e o motivo é a única rede.
     if (!bloco.preenchido) {
-      aceitar(chave, proposta, null);
-      toast({
-        tone: "ok",
-        title: `${bloco.titulo} · v1 aceita`,
-        detail:
-          "O bloco passou a existir. Reabrir a partir de agora gera versão nova.",
-      });
-      setTimeout(() => router.push("/config/vault"), 700);
+      void gravar(proposta, "criado nos primeiros passos");
       return;
     }
     setMotivo("");
@@ -432,13 +454,24 @@ export function VaultBloco({ chave }: { chave: string }) {
                   </div>
                 </div>
               )}
-              {mostra ? (
+              {proposta !== null ? (
+                // Editável de propósito: é este texto que vai como contexto na
+                // varredura, e revisar é mais fácil que aceitar no escuro.
+                <textarea
+                  className="textarea"
+                  aria-label={`Texto do bloco ${bloco.titulo}`}
+                  rows={18}
+                  value={proposta}
+                  onChange={(e) => setProposta(e.target.value)}
+                  placeholder={bloco.pergunta ?? "Escreva o bloco."}
+                />
+              ) : mostra ? (
                 <Prosa texto={mostra} />
               ) : (
                 <p className="small muted">
-                  Nada gerado ainda. Responda o que o agente perguntar e clique
-                  em <span className="strong">Gerar versão</span> quando quiser
-                  ver o bloco montado.
+                  Nada escrito ainda. Clique em{" "}
+                  <span className="strong">Gerar versão</span> para abrir o
+                  texto e escrever.
                 </p>
               )}
             </div>
@@ -458,6 +491,7 @@ export function VaultBloco({ chave }: { chave: string }) {
                     className="btn btn-ok"
                     type="button"
                     onClick={aceitarProposta}
+                    disabled={gravando || !proposta.trim()}
                   >
                     Aceitar
                     {bloco.preenchido
@@ -526,14 +560,8 @@ export function VaultBloco({ chave }: { chave: string }) {
                   setMotivoErro(true);
                   return;
                 }
-                aceitar(chave, proposta, motivo.trim());
                 setMotivoAberto(false);
-                toast({
-                  tone: "ok",
-                  title: `${bloco.titulo} · v${bloco.versao + 1} aceita`,
-                  detail: "A próxima varredura já roda contra esta versão.",
-                });
-                setTimeout(() => router.push("/config/vault"), 700);
+                void gravar(proposta ?? "", motivo.trim());
               }}
             >
               Aceitar como v{bloco.versao + 1}
