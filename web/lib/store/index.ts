@@ -76,6 +76,17 @@ export class StoreError extends Error {
   }
 }
 
+/**
+ * Um scan simultâneo por ambiente. Recusa, não erro: a fila do servidor tem
+ * outro limite, e este aqui é justiça entre clientes (design-execucao-scan §4).
+ */
+export class JaRodando extends Error {
+  constructor() {
+    super("já existe uma varredura em andamento neste ambiente");
+    this.name = "JaRodando";
+  }
+}
+
 export interface Configuracao {
   pesos: Record<string, number>;
   caps: Record<string, number>;
@@ -119,6 +130,59 @@ export interface BlocoVault {
 export interface Publicacao {
   igPostUrl: string;
   publicadoEm: Date;
+}
+
+/**
+ * O pedido de varredura. Vive aqui e não no executor porque é vocabulário de
+ * domínio: a tela monta um destes, a fila guarda um destes, e o executor é só
+ * quem acaba rodando.
+ */
+export interface PedidoDeScan {
+  escopo: string;
+  pilar?: string;
+  alvo?: number;
+}
+
+export type Estagio = "pesquisa" | "filtragem" | "redacao";
+
+/**
+ * Uma varredura em voo, como a tela precisa vê-la.
+ *
+ * `posicao` só existe enquanto o pedido espera vaga global: sem ela,
+ * "iniciando" fica parado por minutos sem explicação (design-execucao-scan §7).
+ */
+export interface ScanEmAndamento {
+  scanId: string;
+  scanRef: string;
+  estado: "enfileirado" | "rodando" | Estagio;
+  pedido: PedidoDeScan;
+  pedidoEm: string;
+  iniciadoEm: string | null;
+  posicao: number | null;
+  /** Cada estágio já atingido, com o minuto e a contagem parcial que produziu. */
+  estagios: {
+    estagio: Estagio;
+    minuto: number;
+    extra: Record<string, unknown>;
+  }[];
+}
+
+/**
+ * Os pilares e públicos do ambiente — o vocabulário com que se fala de pauta.
+ *
+ * Existe para o chat: sem isto o agente teria de adivinhar quais pilares
+ * existem, e um `--pillar` inventado só falharia dentro da execução, vinte
+ * minutos e um custo depois.
+ */
+export interface Vocabulario {
+  pilares: {
+    slug: string;
+    nome: string;
+    corpo: string;
+    ordem: number;
+    noRadar: boolean;
+  }[];
+  publicos: { slug: string; nome: string; corpo: string; padrao: boolean }[];
 }
 
 /** Campos do brief que a edição pela interface pode tocar. */
@@ -191,6 +255,9 @@ export interface RadarStore {
   /** Os escopos de busca com suas fontes e os pilares que cada um alimenta. */
   escoposDeBusca(): Promise<EscopoBusca[]>;
 
+  /** Pilares e públicos do ambiente. É o vocabulário editorial, não a prosa. */
+  vocabulario(): Promise<Vocabulario>;
+
   /**
    * Grava a configuração. O banco é a fonte da verdade; o `manifest.yaml`
    * recebe a mesma mudança por recorte cirúrgico enquanto as skills o lerem —
@@ -230,6 +297,21 @@ export interface RadarStore {
    * design-persistencia-multiusuario §4.1.
    */
   exportar(slug: string): Promise<{ nome: string; conteudo: string }>;
+
+  /**
+   * Pede uma varredura. **Não roda nada** — quem roda é o trabalhador, noutro
+   * processo, porque o scan leva de 12 a 63 minutos.
+   *
+   * Recusa com `JaRodando` se este ambiente já tem uma em andamento. Recusar é
+   * melhor que enfileirar em silêncio: a pessoa descobriria o acúmulo só
+   * depois, quando dois scans idênticos gerassem pauta repetida.
+   */
+  enfileirarScan(
+    pedido: PedidoDeScan,
+  ): Promise<{ scanId: string; scanRef: string; posicao: number }>;
+
+  /** A varredura em voo deste ambiente, ou `null`. É o que a tela acompanha. */
+  scanEmAndamento(): Promise<ScanEmAndamento | null>;
 
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
@@ -385,6 +467,26 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       throw new StoreError(
         "nao_encontrado",
         "o backend de arquivo não exporta package",
+      );
+    },
+
+    async enfileirarScan() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não tem fila — a varredura vive no banco",
+      );
+    },
+
+    async scanEmAndamento() {
+      return null;
+    },
+
+    async vocabulario(): Promise<Vocabulario> {
+      // Pilares e públicos são prosa do vault, e o manifest não os descreve.
+      // Devolver vazio faria parecer que o ambiente não tem nenhum.
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não conhece o vocabulário — ele vive no vault",
       );
     },
 

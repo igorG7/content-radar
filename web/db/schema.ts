@@ -387,9 +387,16 @@ export const scan = pgTable(
     /** Contra qual estado do vault o scan rodou — é o que torna respondível
      *  "esta pauta ruim saiu de qual versão dos pilares?". */
     vaultVersao: bigint("vault_versao", { mode: "number" }),
-    iniciadoEm: timestamp("iniciado_em", { withTimezone: true })
+    /**
+     * Quando foi **pedido** e quando **começou** são momentos diferentes desde
+     * que existe fila: entre um e outro cabe a espera por vaga global. Sem os
+     * dois, "esperando há 4 minutos" não é calculável, e a duração do scan
+     * passaria a incluir o tempo parado.
+     */
+    pedidoEm: timestamp("pedido_em", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    iniciadoEm: timestamp("iniciado_em", { withTimezone: true }),
     encerradoEm: timestamp("encerrado_em", { withTimezone: true }),
   },
   (t) => [

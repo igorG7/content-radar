@@ -29,10 +29,12 @@ import { TransitionError } from "../lib/transitions/mv";
 import type {
   AmbienteId,
   EdicaoBrief,
+  Estagio,
   RadarStore,
+  ScanEmAndamento,
   TransicaoEntrada,
 } from "../lib/store";
-import { StoreError } from "../lib/store";
+import { JaRodando, StoreError } from "../lib/store";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -745,6 +747,148 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         });
 
         return { nome: `${linha.slug}.md`, conteudo };
+      }),
+
+    enfileirarScan: (pedido) =>
+      dentro(async (tx) => {
+        const emAndamento = await tx
+          .select({ id: t.scan.id })
+          .from(t.scan)
+          .where(
+            sql`${t.scan.estado} in ('enfileirado','rodando','pesquisa','filtragem','redacao')`,
+          );
+        if (emAndamento.length > 0) throw new JaRodando();
+
+        const todos = await tx.select({ id: t.scan.id }).from(t.scan);
+        const agora = new Date();
+        const ano = agora.getUTCFullYear();
+        const semana = Math.ceil(
+          ((agora.getTime() - Date.UTC(ano, 0, 1)) / 86400000 + 1) / 7,
+        );
+        const ref = `${ano}-W${String(semana).padStart(2, "0")}-scan-${String(
+          todos.length + 1,
+        ).padStart(3, "0")}`;
+
+        const [linha] = await tx
+          .insert(t.scan)
+          .values({
+            ambienteId: ambiente,
+            scanRef: ref,
+            escopo: pedido.escopo,
+            pilarFiltro: pedido.pilar ?? null,
+            alvoQtd: pedido.alvo ?? null,
+            estado: "enfileirado",
+          })
+          .returning({ id: t.scan.id });
+
+        // A entrada da fila carrega só identificadores — é o que permite
+        // escolher o próximo sem enxergar conteúdo de ninguém.
+        await tx.insert(t.filaPedido).values({
+          scanId: linha.id,
+          ambienteId: ambiente,
+        });
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: "scan-enfileirado",
+          ator: "app:radar-web",
+          scanId: linha.id,
+          extra: { ...pedido },
+        });
+
+        const [{ n }] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.filaPedido)
+          .where(sql`${t.filaPedido.reivindicadoEm} is null`);
+
+        return { scanId: linha.id, scanRef: ref, posicao: n };
+      }),
+
+    vocabulario: () =>
+      dentro(async (tx) => {
+        const [pilares, publicos] = await Promise.all([
+          tx.select().from(t.pilar).orderBy(t.pilar.ordem),
+          tx.select().from(t.publico).orderBy(t.publico.slug),
+        ]);
+        return {
+          pilares: pilares.map((p) => ({
+            slug: p.slug,
+            nome: p.nome,
+            corpo: p.corpo,
+            ordem: p.ordem,
+            noRadar: p.noRadar,
+          })),
+          publicos: publicos.map((p) => ({
+            slug: p.slug,
+            nome: p.nome,
+            corpo: p.corpo,
+            padrao: p.padrao,
+          })),
+        };
+      }),
+
+    scanEmAndamento: () =>
+      dentro(async (tx): Promise<ScanEmAndamento | null> => {
+        const [linha] = await tx
+          .select()
+          .from(t.scan)
+          .where(
+            sql`${t.scan.estado} in ('enfileirado','rodando','pesquisa','filtragem','redacao')`,
+          )
+          .orderBy(desc(t.scan.pedidoEm))
+          .limit(1);
+        if (!linha) return null;
+
+        const eventos = await tx
+          .select({ extra: t.evento.extra })
+          .from(t.evento)
+          .where(
+            and(eq(t.evento.scanId, linha.id), eq(t.evento.tipo, "scan-stage")),
+          )
+          .orderBy(t.evento.ts);
+
+        /**
+         * A posição só vale enquanto o pedido espera vaga: depois de
+         * reivindicado, "3º da fila" seria mentira. Conta como dono? Não —
+         * `fila_pedido` não tem RLS, então a contagem enxerga a fila inteira,
+         * que é justamente o que dá sentido à posição.
+         */
+        let posicao: number | null = null;
+        if (linha.estado === "enfileirado") {
+          const [{ n }] = await tx
+            .select({ n: sql<number>`count(*)::int` })
+            .from(t.filaPedido)
+            .where(
+              sql`${t.filaPedido.reivindicadoEm} is null
+                  and ${t.filaPedido.criadoEm} <= (
+                    select criado_em from fila_pedido where scan_id = ${linha.id}
+                  )`,
+            );
+          posicao = n;
+        }
+
+        return {
+          scanId: linha.id,
+          scanRef: linha.scanRef,
+          estado: linha.estado as ScanEmAndamento["estado"],
+          pedido: {
+            escopo: linha.escopo,
+            pilar: linha.pilarFiltro ?? undefined,
+            alvo: linha.alvoQtd ?? undefined,
+          },
+          pedidoEm: linha.pedidoEm.toISOString(),
+          iniciadoEm: linha.iniciadoEm?.toISOString() ?? null,
+          posicao,
+          estagios: eventos.map((e) => {
+            const extra = (e.extra ?? {}) as Record<string, unknown>;
+            const { estagio, minuto, ...resto } = extra;
+            return {
+              estagio: estagio as Estagio,
+              minuto: typeof minuto === "number" ? minuto : 0,
+              extra: resto,
+            };
+          }),
+        };
       }),
 
     lerLedger: () =>

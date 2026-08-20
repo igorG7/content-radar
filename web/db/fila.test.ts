@@ -1,8 +1,14 @@
 import { describe, expect, it, afterAll, beforeAll } from "vitest";
 import { Pool } from "pg";
-import { enfileirar, reivindicar } from "./fila";
-import { JaRodando } from "./executor";
+import { reivindicar } from "./fila";
+import { backendPostgres } from "./backend";
+import { JaRodando } from "../lib/store";
 import { encerrarPool } from "./cliente";
+
+const enfileirar = (
+  ambienteId: string,
+  pedido: { escopo: string; alvo?: number },
+) => backendPostgres(ambienteId).enfileirarScan(pedido);
 
 /**
  * A fila é a própria tabela `scan`. O que se exige dela: reivindicação atômica,

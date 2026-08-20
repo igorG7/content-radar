@@ -19,8 +19,10 @@ import { comAmbiente } from "./cliente";
 import * as t from "./schema";
 import { materializar, descartar, type Workspace } from "./workspace";
 import { ingerir, type RelatorioIngestao } from "./ingerir";
+import { JaRodando, type Estagio, type PedidoDeScan } from "../lib/store";
 
-export type Estagio = "pesquisa" | "filtragem" | "redacao";
+export type { Estagio, PedidoDeScan };
+export { JaRodando };
 
 /**
  * O estágio é inferido de qual subagente está rodando — sinal real, não
@@ -33,12 +35,6 @@ const ESTAGIO_DO_AGENTE: Record<string, Estagio> = {
   "instagram-briefer": "redacao",
 };
 
-export interface PedidoDeScan {
-  escopo: string;
-  pilar?: string;
-  alvo?: number;
-}
-
 export interface ResultadoScan {
   scanId: string;
   scanRef: string;
@@ -49,14 +45,6 @@ export interface ResultadoScan {
   estagios: { estagio: Estagio; minuto: number }[];
   ingestao?: RelatorioIngestao;
   erro?: string;
-}
-
-/** Um scan simultâneo por ambiente — justiça entre clientes (§4 do desenho). */
-export class JaRodando extends Error {
-  constructor() {
-    super("já existe um scan rodando neste ambiente");
-    this.name = "JaRodando";
-  }
 }
 
 function refDeScan(agora: Date, sequencia: number): string {
@@ -133,6 +121,7 @@ export async function executar(
           pilarFiltro: pedido.pilar ?? null,
           alvoQtd: pedido.alvo ?? null,
           estado: "rodando",
+          iniciadoEm: new Date(),
         })
         .returning({ id: t.scan.id });
 
