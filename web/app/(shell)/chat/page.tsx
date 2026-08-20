@@ -1,16 +1,13 @@
 import { ChatClient } from "@/components/chat/chat-client";
 import { Crumb } from "@/components/ui/pieces";
-import { radarStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * O resumo da fila não vem mais daqui. O agente pergunta pelas ferramentas, e
+ * pré-carregar um número que ele não usa só o deixaria desatualizado na tela.
+ */
 export default async function Chat() {
-  const store = await radarStore();
-  const [config, { briefs }] = await Promise.all([
-    store.configuracao(),
-    store.listarFila(),
-  ]);
-
   return (
     <>
       <div className="page-head">
@@ -19,27 +16,18 @@ export default async function Chat() {
             items={[{ label: "Painel", href: "/" }, { label: "Chat" }]}
             back={{ href: "/", destino: "Painel" }}
           />
-          <span className="eyebrow">components/chat/chat-client.tsx</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>
           Chat com o agente editorial
         </h1>
         <p className="lead">
-          A interface está pronta para streaming. O backend ainda não existe —
-          nada aqui inventa endpoint, e a UI diz isso na cara.
+          Converse sobre a fila, os pilares e a configuração — e peça a
+          varredura por aqui. O que ele sabe vem do banco deste ambiente, e
+          rodar a varredura é enfileirar: ela acontece fora da conversa.
         </p>
       </div>
 
-      <ChatClient
-        fila={{
-          total: briefs.length,
-          semArte: briefs.filter((b) => !b.heroChoiceDeclared).length,
-          borderline: briefs.filter((b) => b.borderline).length,
-          matchScoreMin: config.caps.match_score_min,
-          borderlineMin: config.caps.borderline_min,
-        }}
-        agoraIso={new Date().toISOString()}
-      />
+      <ChatClient agoraIso={new Date().toISOString()} />
     </>
   );
 }

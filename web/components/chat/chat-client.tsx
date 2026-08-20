@@ -31,15 +31,8 @@ import {
   type EsforcoId,
   type ModeloId,
 } from "@/lib/session";
-import { CONVERSAS_EXEMPLO, type Conversa, type Mensagem } from "./exemplos";
-
-export interface FilaResumo {
-  total: number;
-  semArte: number;
-  borderline: number;
-  matchScoreMin: number;
-  borderlineMin: number;
-}
+import { conversaVazia, type Conversa, type Mensagem } from "./exemplos";
+import { PainelVarredura } from "./painel-varredura";
 
 export interface Anexo {
   id: string;
@@ -62,13 +55,6 @@ const SUGESTOES = [
   "Quais briefs estão sem arte decidida?",
   "O que muda se eu subir o match_score_min?",
 ];
-
-/** Esforço alto demora mais — a espera é o que faz a escolha significar algo. */
-const ESPERA: Record<EsforcoId, number> = {
-  baixo: 700,
-  medio: 1400,
-  alto: 2600,
-};
 
 const tamanhoLegivel = (n: number) =>
   n < 1024
@@ -137,13 +123,7 @@ function AnexoChip({
   );
 }
 
-export function ChatClient({
-  fila,
-  agoraIso,
-}: {
-  fila: FilaResumo;
-  agoraIso: string;
-}) {
+export function ChatClient({ agoraIso }: { agoraIso: string }) {
   const toast = useToast();
   const logRef = useRef<HTMLDivElement>(null);
   const entradaRef = useRef<HTMLTextAreaElement>(null);
@@ -151,16 +131,20 @@ export function ChatClient({
   const menuRef = useRef<HTMLDivElement>(null);
   const maisRef = useRef<HTMLButtonElement>(null);
   const resumoRef = useRef<HTMLButtonElement>(null);
-  // O timer é detalhe de agendamento e mora num ref; qual conversa está
+  // O aborto é detalhe de transporte e mora num ref; qual conversa está
   // esperando é estado, porque o composer troca Enviar por Parar por causa dele.
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortoRef = useRef<AbortController | null>(null);
   const [pendencia, setPendencia] = useState<{
     conversaId: string;
     msgId: string;
   } | null>(null);
 
-  const [conversas, setConversas] = useState<Conversa[]>(CONVERSAS_EXEMPLO);
-  const [ativa, setAtiva] = useState(CONVERSAS_EXEMPLO[0].id);
+  // Uma função de inicialização, não um valor: `conversaVazia()` carimba a
+  // hora, e chamá-la a cada render criaria conversa nova a cada tecla.
+  const [conversas, setConversas] = useState<Conversa[]>(() => [
+    conversaVazia(),
+  ]);
+  const [ativa, setAtiva] = useState(() => conversas[0].id);
   const [entrada, setEntrada] = useState("");
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
@@ -233,7 +217,15 @@ export function ChatClient({
   }, []);
 
   /* ── enviar, responder, interromper ───────────────────────────────────── */
-  function responder(conversaId: string) {
+
+  /**
+   * Pergunta ao agente e vai preenchendo a bolha conforme a resposta chega.
+   *
+   * SSE e não uma resposta de uma vez: o agente consulta ferramentas antes de
+   * escrever, e alguns segundos de silêncio parecem travamento. Os nomes das
+   * consultas aparecem acima do texto enquanto acontecem.
+   */
+  async function responder(conversaId: string, pergunta: string) {
     const msgId = `p${Date.now()}`;
     const agora = new Date().toISOString();
     atualizar(conversaId, (c) => ({
@@ -252,45 +244,101 @@ export function ChatClient({
       ],
     }));
 
-    const timer = setTimeout(() => {
-      setPendencia(null);
-      setConversas((atual) =>
-        atual.map((c) => {
-          if (c.id !== conversaId) return c;
-          const enviados = [...c.mensagens]
-            .reverse()
-            .find((m) => m.role === "user")?.anexos;
-          const texto =
-            (enviados?.length
-              ? `Recebi **${enviados.length} arquivo(s)**: ${enviados.map((a) => `\`${a.nome}\``).join(", ")}. ` +
-                "Sem backend eu não consigo abrir nem ler o conteúdo — o arquivo ficou só no seu navegador. " +
-                "Quando `onSend` estiver ligado, ele sobe junto com a mensagem.\n\n"
-              : "") +
-            "Sem backend conectado eu não consigo responder de verdade — o que segue é o formato que a resposta vai ter.\n" +
-            `\nLendo o mesmo store que a fila lê: **${fila.total} briefs** pendentes, **${fila.semArte}** ainda sem \`hero_choice\` decidido e **${fila.borderline}** marcados como borderline.` +
-            "\n\nQuando `onSend` estiver ligado ao endpoint, esta bolha recebe o texto por streaming e as chamadas de ferramenta aparecem acima dela em tempo real.";
-          return {
-            ...c,
-            mensagens: c.mensagens.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    status: "done",
-                    tool: {
-                      name: "listState",
-                      args: { estado: "pendente-aprovacao" },
-                    },
-                    content: texto,
-                  }
-                : m,
-            ),
-          };
-        }),
-      );
-    }, ESPERA[esforco]);
-
-    timerRef.current = timer;
+    const controle = new AbortController();
+    abortoRef.current = controle;
     setPendencia({ conversaId, msgId });
+
+    const alterarBolha = (mudanca: (m: Mensagem) => Mensagem) =>
+      setConversas((atual) =>
+        atual.map((c) =>
+          c.id !== conversaId
+            ? c
+            : {
+                ...c,
+                mensagens: c.mensagens.map((m) =>
+                  m.id === msgId ? mudanca(m) : m,
+                ),
+              },
+        ),
+      );
+
+    try {
+      const conversaAtual = conversas.find((c) => c.id === conversaId);
+      const resposta = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controle.signal,
+        body: JSON.stringify({
+          mensagem: pergunta,
+          sessaoAgente: conversaAtual?.sessaoAgente,
+        }),
+      });
+
+      if (!resposta.ok || !resposta.body) {
+        const corpo = await resposta.json().catch(() => null);
+        throw new Error(corpo?.error ?? `HTTP ${resposta.status}`);
+      }
+
+      const leitor = resposta.body.getReader();
+      const decodificador = new TextDecoder();
+      let sobra = "";
+
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        sobra += decodificador.decode(value, { stream: true });
+
+        // Um evento SSE termina em linha em branco. Sem juntar as sobras, um
+        // JSON partido no meio do chunk viraria erro de parse.
+        const partes = sobra.split("\n\n");
+        sobra = partes.pop() ?? "";
+
+        for (const parte of partes) {
+          const linha = parte.split("\n").find((l) => l.startsWith("data: "));
+          if (!linha) continue;
+          const evento = JSON.parse(linha.slice(6));
+
+          if (evento.tipo === "texto") {
+            alterarBolha((m) => ({ ...m, content: m.content + evento.delta }));
+          }
+          if (evento.tipo === "ferramenta") {
+            alterarBolha((m) => ({
+              ...m,
+              ferramentas: [...(m.ferramentas ?? []), evento.nome],
+            }));
+          }
+          if (evento.tipo === "erro") {
+            throw new Error(evento.mensagem);
+          }
+          if (evento.tipo === "fim" && evento.sessaoId) {
+            atualizar(conversaId, (c) => ({
+              ...c,
+              sessaoAgente: evento.sessaoId,
+            }));
+          }
+        }
+      }
+
+      alterarBolha((m) => ({ ...m, status: "done" }));
+    } catch (erro) {
+      // Aborto é decisão da pessoa, e `parar` já escreveu o que aconteceu na
+      // bolha — tratar como falha sobrescreveria isso com um erro que não houve.
+      if ((erro as Error).name === "AbortError") return;
+      alterarBolha((m) => ({
+        ...m,
+        status: "done",
+        role: "error",
+        content: `Não consegui responder: ${(erro as Error).message}`,
+      }));
+      toast({
+        tone: "danger",
+        title: "Falha na conversa",
+        detail: (erro as Error).message,
+      });
+    } finally {
+      abortoRef.current = null;
+      setPendencia(null);
+    }
   }
 
   /**
@@ -299,8 +347,8 @@ export function ChatClient({
    */
   const parar = useCallback(() => {
     if (!pendencia) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
+    abortoRef.current?.abort();
+    abortoRef.current = null;
     setPendencia(null);
     setConversas((atual) =>
       atual.map((c) =>
@@ -368,7 +416,7 @@ export function ChatClient({
     setErroAnexo(null);
     setEntrada("");
     if (entradaRef.current) entradaRef.current.style.height = "";
-    responder(conversa.id);
+    void responder(conversa.id, texto);
   }
 
   /* ── teclado e cliques fora ───────────────────────────────────────────── */
@@ -470,13 +518,16 @@ export function ChatClient({
         }}
       >
         <p className="drop-hint">Solte para anexar à mensagem</p>
+        {/* A conversa em si ainda não é gravada em lugar nenhum. Dizer isso é
+            o mínimo: sem o aviso, a pessoa perde uma conversa longa ao
+            recarregar e descobre depois. */}
         <div className="disconnected-banner">
           <span>
             <IconPlug />
           </span>
           <span>
-            Desconectado — nenhum endpoint de chat configurado. As respostas
-            abaixo são exemplos estáticos do formato esperado.
+            A conversa vive nesta aba — recarregar a página perde o histórico. O
+            que o agente faz, esse sim, fica registrado.
           </span>
         </div>
 
@@ -583,15 +634,16 @@ export function ChatClient({
                         </span>
                       )}
                     </div>
-                    {m.tool && (
+                    {/* O que foi consultado fica à vista: sem isso a resposta
+                        parece adivinhação em vez de apuração. */}
+                    {m.ferramentas?.length ? (
                       <div className="msg-tool">
-                        <IconTool /> {m.tool.name}({JSON.stringify(m.tool.args)}
-                        )
+                        <IconTool /> {m.ferramentas.join(" · ")}
                       </div>
-                    )}
+                    ) : null}
                     <div
                       className="msg-body"
-                      style={{ marginTop: m.tool ? 8 : 0 }}
+                      style={{ marginTop: m.ferramentas?.length ? 8 : 0 }}
                     >
                       {m.status === "streaming" ? (
                         <span
@@ -819,7 +871,7 @@ export function ChatClient({
           <p className="field-help">
             {pendente
               ? "O agente está respondendo — Parar ou Esc interrompe. O que já chegou fica na conversa."
-              : "Enter envia · Shift+Enter quebra linha · arraste arquivos para cá ou use o clipe. Sem backend, nada é enviado ao servidor — o anexo fica na sessão."}
+              : "Enter envia · Shift+Enter quebra linha. O anexo ainda fica só no navegador: a mensagem vai para o agente, o arquivo não."}
           </p>
         </form>
       </section>
@@ -906,153 +958,7 @@ export function ChatClient({
           </div>
         </div>
 
-        <div className="panel">
-          <div className="panel-head">
-            <h2 className="h3">Contrato de props</h2>
-          </div>
-          <div className="panel-body" style={{ padding: 12 }}>
-            <pre className="code">
-              <span className="c-com">
-                {"// components/chat/chat-client.tsx"}
-              </span>
-              {`
-`}
-              <span className="c-key">type</span> ChatMessage = {"{"}
-              {`
-  id: string
-  role: `}
-              <span className="c-key">&quot;user&quot;</span> |{" "}
-              <span className="c-key">&quot;agent&quot;</span> |{" "}
-              <span className="c-key">&quot;tool&quot;</span>
-              {`
-  content: string        `}
-              <span className="c-com">{"// markdown"}</span>
-              {`
-  tool?: { name, args, result? }
-  status?: `}
-              <span className="c-key">&quot;streaming&quot;</span> |{" "}
-              <span className="c-key">&quot;done&quot;</span>
-              {`
-           | `}
-              <span className="c-key">&quot;error&quot;</span> |{" "}
-              <span className="c-key">&quot;stopped&quot;</span>
-              {`
-  model?: string         `}
-              <span className="c-com">{"// carimbo de quem respondeu"}</span>
-              {`
-  effort?: `}
-              <span className="c-key">&quot;baixo&quot;</span> |{" "}
-              <span className="c-key">&quot;medio&quot;</span> |{" "}
-              <span className="c-key">&quot;alto&quot;</span>
-              {`
-  attachments?: Attachment[]
-  ts: string
-}
-
-`}
-              <span className="c-key">type</span> Attachment = {"{"}
-              {`
-  id, name, mime: string
-  size: number           `}
-              <span className="c-com">{"// bytes"}</span>
-              {`
-  url?: string           `}
-              <span className="c-com">{"// preview local"}</span>
-              {`
-}
-
-`}
-              <span className="c-key">type</span> Conversation = {"{"}
-              {`
-  id: string
-  title: string          `}
-              <span className="c-com">{"// derivado da 1ª pergunta"}</span>
-              {`
-  updatedAt: string
-  messages: ChatMessage[]
-}
-
-`}
-              <span className="c-key">type</span> AgentChatProps = {"{"}
-              {`
-  conversations: Conversation[]
-  activeId: string
-  connected: boolean
-  pending: boolean
-  onSend: (text, files) => void
-  accept: string
-  maxFiles: number
-  maxSizeMb: number
-  models: { id, label, hint? }[]
-  model: string
-  effort: `}
-              <span className="c-key">&quot;baixo&quot;</span> |{" "}
-              <span className="c-key">&quot;medio&quot;</span> |{" "}
-              <span className="c-key">&quot;alto&quot;</span>
-              {`
-  onModelChange: (id) => void
-  onEffortChange: (e) => void
-  onCancel: () => void   `}
-              <span className="c-com">{"// botão Parar / Esc"}</span>
-              {`
-  onSelect: (id) => void
-  onNew: () => void
-  onRename: (id, title) => void
-  onDelete: (id) => void
-  error?: { code, message }
-}`}
-            </pre>
-            <p className="field-help" style={{ marginTop: 12 }}>
-              O backend futuro só precisa preencher isso. Nenhum estado do chat
-              mora fora dessas props — a casca já é controlada.
-            </p>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-head">
-            <h2 className="h3">Estados cobertos</h2>
-          </div>
-          <div className="panel-body stack-sm">
-            {[
-              ["agora", "Desconectado", "pill-accent"],
-              ["ok", "Pensando / streaming", ""],
-              ["ok", "Mensagem de ferramenta", ""],
-              ["ok", "Erro do agente", ""],
-              ["ok", "Histórico vazio", ""],
-              ["ok", "Mensagem com anexo", ""],
-              ["ok", "Resposta interrompida", ""],
-            ].map(([rotulo, texto, cls]) => (
-              <div className="row-tight" key={texto}>
-                <span className={`pill pill-bare ${cls}`}>{rotulo}</span>
-                <span className="small">{texto}</span>
-              </div>
-            ))}
-            <button
-              className="btn btn-secondary btn-sm"
-              type="button"
-              style={{ marginTop: 6 }}
-              onClick={() =>
-                atualizar(conversa.id, (c) => ({
-                  ...c,
-                  mensagens: [
-                    ...c.mensagens,
-                    {
-                      id: `e${Date.now()}`,
-                      role: "error",
-                      code: "AGENT_UNAVAILABLE",
-                      ts: new Date().toISOString(),
-                      content:
-                        "Nenhum endpoint de chat configurado em RADAR_AGENT_URL. A fila, o acervo e a configuração continuam funcionando normalmente — o chat é o único recurso afetado.",
-                    },
-                  ],
-                }))
-              }
-            >
-              Ver o estado de erro
-            </button>
-          </div>
-        </div>
+        <PainelVarredura />
       </aside>
 
       <Modal
