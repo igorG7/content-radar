@@ -37,3 +37,60 @@ export async function gravarBlocoAcao(
   revalidatePath("/", "layout");
   return { gravadoEm: new Date().toISOString() };
 }
+
+export interface EstadoContato {
+  erro?: string;
+  gravadoEm?: string;
+}
+
+const E164 = /^\+\d{11,15}$/;
+
+/** `(31) 9 9077-4580` a partir de `+5531990774580`. */
+function exibicaoDe(e164: string): string {
+  const d = e164.replace(/\D/g, "");
+  if (d.length < 12) return e164;
+  const ddd = d.slice(2, 4);
+  const resto = d.slice(4);
+  return resto.length === 9
+    ? `(${ddd}) ${resto[0]} ${resto.slice(1, 5)}-${resto.slice(5)}`
+    : `(${ddd}) ${resto.slice(0, 4)}-${resto.slice(4)}`;
+}
+
+/**
+ * Grava os fatos da marca. A forma de exibição é derivada da canônica em vez de
+ * pedida à parte: dois campos para o mesmo número divergem, e é o de exibição
+ * que vai para a arte.
+ */
+export async function gravarContatoAcao(
+  _anterior: EstadoContato,
+  dados: FormData,
+): Promise<EstadoContato> {
+  const canal = String(dados.get("canalPrincipal") ?? "").trim();
+  const principal = String(dados.get("telefoneE164") ?? "").trim();
+  const secundario = String(dados.get("telefoneSecundarioE164") ?? "").trim();
+
+  if (!canal) return { erro: "escolha o canal principal" };
+  if (!E164.test(principal)) {
+    return {
+      erro: "o número principal precisa estar em formato internacional",
+    };
+  }
+  if (secundario && !E164.test(secundario)) {
+    return { erro: "o número secundário está em formato inválido" };
+  }
+
+  try {
+    const store = await radarStore();
+    await store.gravarContato({
+      canalPrincipal: canal,
+      telefoneE164: principal,
+      telefoneExibicao: exibicaoDe(principal),
+      telefoneSecundarioE164: secundario || null,
+    });
+  } catch (erro) {
+    return { erro: (erro as Error).message };
+  }
+
+  revalidatePath("/", "layout");
+  return { gravadoEm: new Date().toISOString() };
+}

@@ -29,7 +29,10 @@ export interface BlocoLido {
   ordem: number;
 }
 
-/** Os 11 blocos de vault. `fontes` e `ajustes` são configuração e não entram. */
+/**
+ * Os blocos de prosa do vault. `fontes` e `ajustes` são configuração; `contato`
+ * é campo, na tabela `marca`. Nenhum dos três entra aqui.
+ */
 const ESPERADOS = [
   "identidade",
   "voz",
@@ -39,7 +42,6 @@ const ESPERADOS = [
   "pilares",
   "guardrails",
   "cadencia",
-  "contato",
   "visual",
   "temas",
 ] as const;

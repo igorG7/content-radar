@@ -83,6 +83,13 @@ export interface Configuracao {
   volume: Record<string, number | string>;
 }
 
+export interface Contato {
+  canalPrincipal: string;
+  telefoneExibicao: string | null;
+  telefoneE164: string | null;
+  telefoneSecundarioE164: string | null;
+}
+
 export interface EscopoBusca {
   slug: string;
   label: string;
@@ -172,6 +179,10 @@ export interface RadarStore {
    */
   configuracao(): Promise<Configuracao>;
 
+  /** Fatos estáveis da marca — valores, não prosa (bloco `contato`). */
+  contato(): Promise<Contato | null>;
+  gravarContato(dados: Contato): Promise<void>;
+
   /** Os escopos de busca com suas fontes e os pilares que cada um alimenta. */
   escoposDeBusca(): Promise<EscopoBusca[]>;
 
@@ -187,7 +198,11 @@ export interface RadarStore {
    * conteúdo deles é configuração, e sem isto `fontes` — que é obrigatório —
    * travaria o pipeline de um ambiente já configurado.
    */
-  estadoDaConfig(): Promise<{ temFontes: boolean; temAjustes: boolean }>;
+  estadoDaConfig(): Promise<{
+    temFontes: boolean;
+    temAjustes: boolean;
+    temContato: boolean;
+  }>;
 
   /**
    * Grava uma versão nova do bloco. `motivo` é obrigatório: prosa não tem
@@ -380,6 +395,28 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       };
     },
 
+    async contato(): Promise<Contato | null> {
+      const m = await loadManifest();
+      const f = (
+        m as { target_company?: { brand_facts?: Record<string, string> } }
+      ).target_company?.brand_facts;
+      return f
+        ? {
+            canalPrincipal: f.main_channel ?? "WhatsApp",
+            telefoneExibicao: f.phone_display ?? null,
+            telefoneE164: f.phone_e164 ?? null,
+            telefoneSecundarioE164: f.phone_secondary_e164 ?? null,
+          }
+        : null;
+    },
+
+    async gravarContato() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não grava contato",
+      );
+    },
+
     async escoposDeBusca(): Promise<EscopoBusca[]> {
       const m = await loadManifest();
       return Object.entries(m.search_scopes).map(([slug, escopo]) => ({
@@ -408,6 +445,7 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       return {
         temFontes: Object.keys(manifest.search_scopes).length > 0,
         temAjustes: true,
+        temContato: Boolean(manifest.target_company?.slug),
       };
     },
 

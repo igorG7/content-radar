@@ -28,7 +28,16 @@ export interface Bloco {
   criticidade: Criticidade;
   dependeDe: string | null;
   temId: boolean;
-  tipo: "bloco" | "config";
+  /**
+   * Como o bloco se preenche, e de onde vem o estado dele:
+   *
+   * - `bloco` — prosa, guardada em `vault_bloco`, injetada no documento.
+   * - `campo` — valores estruturados em tabela própria. Continua sendo etapa e
+   *   exigência; o que muda é que o dado tem uma casa só, e a interface pede
+   *   formulário em vez de caixa de texto.
+   * - `config` — vive na configuração operacional e aponta para /config.
+   */
+  tipo: "bloco" | "campo" | "config";
   href?: string;
   resumo: string;
   porque?: string;
@@ -103,7 +112,11 @@ export const BLOCOS: Bloco[] = [
     criticidade: "obrigatorio",
     dependeDe: null,
     temId: false,
-    tipo: "bloco",
+    // Campo e não prosa: o número que vai no rodapé da arte é valor, e a skill
+    // o injeta no must_have do briefing visual. Escrevê-lo em prosa criaria
+    // duas casas para o mesmo dado — e elas discordam na primeira edição.
+    tipo: "campo",
+    href: "/config/vault/contato",
     resumo: "O canal de destino e o número que vai no rodapé da arte.",
     porque:
       "Sem ele o CTA fica sem destino e a arte sai sem o número do rodapé.",
@@ -214,9 +227,10 @@ export type Aceitos = Record<string, BlocoVault>;
 /** Indexa por slug o que o banco devolveu. */
 export function porSlug(
   blocos: BlocoVault[],
-  config: { temFontes: boolean; temAjustes: boolean } = {
+  config: { temFontes: boolean; temAjustes: boolean; temContato: boolean } = {
     temFontes: false,
     temAjustes: false,
+    temContato: false,
   },
 ): Aceitos {
   const aceitos: Aceitos = Object.fromEntries(
@@ -239,6 +253,9 @@ export function porSlug(
 
   if (config.temFontes) {
     aceitos.fontes = sintetico("fontes", "Fontes de pesquisa");
+  }
+  if (config.temContato) {
+    aceitos.contato = sintetico("contato", "Contato e CTA");
   }
   if (config.temAjustes) {
     aceitos.ajustes = sintetico("ajustes", "Pesos, limiares e volume");
@@ -318,13 +335,17 @@ export function conteudoDe(aceitos: Aceitos, key: string): string | null {
  * vazio vira lacuna explícita — ver o buraco é metade do valor.
  */
 export function documentoDe(aceitos: Aceitos) {
-  return mapaDe(aceitos)
-    .filter((b) => b.tipo === "bloco")
-    .map((b) => ({
-      key: b.key,
-      titulo: b.titulo,
-      conteudo: b.preenchido ? conteudoDe(aceitos, b.key) : null,
-    }));
+  return (
+    mapaDe(aceitos)
+      // Só prosa: campo e config chegam ao agente como valor estruturado, não
+      // como texto — e repetir o valor aqui criaria a segunda casa.
+      .filter((b) => b.tipo === "bloco")
+      .map((b) => ({
+        key: b.key,
+        titulo: b.titulo,
+        conteudo: b.preenchido ? conteudoDe(aceitos, b.key) : null,
+      }))
+  );
 }
 
 export const ROTULO: Record<EstadoBloco, string> = {

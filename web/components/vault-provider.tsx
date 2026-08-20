@@ -40,7 +40,11 @@ export function VaultProvider({
   children,
 }: {
   blocos: BlocoVault[];
-  configuracao: { temFontes: boolean; temAjustes: boolean };
+  configuracao: {
+    temFontes: boolean;
+    temAjustes: boolean;
+    temContato: boolean;
+  };
   children: ReactNode;
 }) {
   const value = useMemo<VaultContextValue>(() => {

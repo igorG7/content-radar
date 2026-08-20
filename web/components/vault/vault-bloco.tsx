@@ -137,7 +137,7 @@ export function VaultBloco({ chave }: { chave: string }) {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [conversa, pensando]);
 
-  if (!bloco || bloco.tipo === "config") {
+  if (!bloco || bloco.tipo !== "bloco") {
     return (
       <div className="panel">
         <div className="panel-body">
@@ -149,7 +149,9 @@ export function VaultBloco({ chave }: { chave: string }) {
             }
             body={
               bloco
-                ? "Fontes e ajustes numéricos são trabalho manual acumulado, sem origem na marca. Eles vivem no manifest."
+                ? bloco.tipo === "campo"
+                  ? "Esta etapa é preenchida por formulário: o conteúdo dela são valores, não prosa."
+                  : "Fontes e ajustes numéricos são trabalho manual acumulado, sem origem na marca. Eles vivem no manifest."
                 : "Nenhum bloco com esta chave. Ele pode ter sido renomeado."
             }
             action={

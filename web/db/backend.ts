@@ -448,6 +448,30 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
         };
       }),
 
+    contato: () =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.marca);
+        return linha
+          ? {
+              canalPrincipal: linha.canalPrincipal,
+              telefoneExibicao: linha.telefoneExibicao,
+              telefoneE164: linha.telefoneE164,
+              telefoneSecundarioE164: linha.telefoneSecundarioE164,
+            }
+          : null;
+      }),
+
+    gravarContato: (dados) =>
+      dentro(async (tx) => {
+        await tx
+          .insert(t.marca)
+          .values({ ambienteId: ambiente, ...dados })
+          .onConflictDoUpdate({
+            target: t.marca.ambienteId,
+            set: { ...dados, atualizadoEm: new Date() },
+          });
+      }),
+
     escoposDeBusca: () =>
       dentro(async (tx) => {
         const [escopos, fontes, pilares] = await Promise.all([
@@ -536,7 +560,14 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
         const [ajustes] = await tx
           .select({ n: sql<number>`count(*)::int` })
           .from(t.config);
-        return { temFontes: fontes.n > 0, temAjustes: ajustes.n > 0 };
+        const [contato] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.marca);
+        return {
+          temFontes: fontes.n > 0,
+          temAjustes: ajustes.n > 0,
+          temContato: contato.n > 0,
+        };
       }),
 
     lerLedger: () =>

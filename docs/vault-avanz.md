@@ -1,7 +1,7 @@
 ---
 vault: avanz-imoveis
 versao: 2
-forma: 11 blocos de vault (design-vault-onboarding §7)
+forma: 10 blocos de prosa (design-vault-onboarding §7)
 atualizado: 2026-08-18
 origem: /srv/my-mind/Empresas/avanz-imoveis — always_load + content-bank
 ---
@@ -12,8 +12,13 @@ Blocos na ordem de montagem, e **fonte da importação** — o parser lê os
 marcadores `bloco:` deste arquivo (`web/db/seed/vault.mts`).
 
 Os marcados `escopo: sempre` entram em toda execução; `por-pilar` entra só
-quando a pauta é daquele pilar. `fontes` e `ajustes`, que completam os 13 do
-esquema, não aparecem aqui: são configuração, não vault.
+quando a pauta é daquele pilar.
+
+Três entradas do catálogo não aparecem aqui, e por motivos diferentes:
+`fontes` e `ajustes` são configuração operacional; **`contato` é campo**, na
+tabela `marca`. O número que vai no rodapé da arte é valor que a skill injeta
+no briefing visual — escrevê-lo também em prosa criaria duas casas para o
+mesmo dado, e elas discordam na primeira edição.
 
 ---
 
@@ -312,17 +317,6 @@ quando o banco de temas e o fluxo de aprovação aguentarem é melhor que cair d
 sete para quatro depois — queda de frequência lê como abandono.
 
 O radar só gera pauta de **feed**. Stories são decisão humana ad-hoc.
-
----
-
-## Contato e CTA
-`bloco: contato` · escopo: sempre · contrato: obrigatorio
-
-Canal principal: **WhatsApp**. Todo CTA aponta para lá.
-
-- Exibição na arte e no texto: **(31) 9 9077-4580**
-- Canônico: `+5531990774580`
-- Secundário: `+5531971375793`
 
 ---
 
