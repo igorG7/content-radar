@@ -114,12 +114,103 @@ com dois acréscimos vindos desta conversa:
 - Havendo espera por vaga global, mostrar **posição na fila** — senão
   "iniciando" fica parado por minutos sem explicação.
 
-## 8. Em aberto
+## 8. A cauda, investigada (2026-08-19)
+
+O §5 pedia investigar os quatro scans acima de 35 minutos. Feito, sobre os 20
+scans com início e fim no ledger. Metade tem explicação; a outra metade não é
+diagnosticável com o dado que existe.
+
+### 8.1 O que custa tempo é fonte, não volume
+
+| Correlação com a duração | |
+|---|---|
+| Número de fontes permitidas | **+0,63** |
+| Alvo de pautas (`target_count`) | **+0,01** |
+
+Pedir 10 briefs em vez de 3 **não custa tempo**. Buscar em mais lugares custa.
+
+Dentro de um mesmo escopo o efeito fica limpo. Em `local`:
+
+| Fontes | Durações |
+|---|---|
+| 4 | 12,2 · 18,6 · 20,4 · 23,8 · 36,0 min |
+| 10 | **37,0 · 57,0 min** |
+
+Dobrar as fontes mais que dobrou o tempo, e as duas execuções de 10 fontes são
+as mais longas do escopo.
+
+**Consequência imediata, antes de qualquer executor:** não disparar scan com 10
+fontes sem necessidade. O custo é real e o ganho não apareceu nos dados.
+
+### 8.2 A outra metade não é explicável hoje
+
+Em `trends`, os cinco scans usaram **as mesmas 5 fontes** e duraram de 20,4 a
+63,1 minutos — variação de 3× com entrada idêntica.
+
+E o motivo de não dar para ir além: **o ledger grava tudo no fim**. No scan de
+63 minutos, os sete eventos carregam o mesmo carimbo do `scan-finished`. Não há
+um único marco intermediário, então não se sabe se o tempo foi pesquisa,
+filtragem ou redação — nem se houve retentativa ou fonte travando.
+
+Medido no banco: **20 `scan-started`, 20 `scan-finished`, e nada entre os dois.**
+
+## 9. Estágio persistido: o que o executor grava
+
+A instrumentação que falta é a mesma que a interface já exige (§7). Construindo
+o executor certo, a próxima cauda vira diagnosticável sem trabalho extra.
+
+**Estado atual — temporário.** `scan.estado` guarda o estágio corrente,
+sobrescrito a cada transição. É o que a tela lê para mostrar progresso e o que
+some quando a execução termina.
+
+**Histórico — permanente.** Cada transição vira evento no ledger, como qualquer
+outra mudança de estado do sistema. Não exige migração: `evento.tipo` é `text`
+por decisão registrada, e `extra` é `jsonb`.
+
+Custo: três a cinco linhas por scan. Os 20 do histórico teriam somado ~80,
+contra as 225 que o ledger já tem.
+
+### 9.1 O evento carrega contagem parcial
+
+Decidido em 2026-08-19. Cada `scan-stage` leva o que aquele estágio produziu —
+dado que só existe durante a execução e some se ninguém gravar:
+
+```json
+{ "tipo": "scan-stage",
+  "extra": { "estagio": "pesquisa", "achados": 9, "fontes_lidas": 5,
+             "fontes_sem_resposta": 1 } }
+```
+
+| Estágio | O que registra |
+|---|---|
+| `pesquisa` | achados, fontes lidas, fontes sem resposta |
+| `filtragem` | promovidos, descartados por score, por escopo, por redundância |
+| `redacao` | briefs escritos, candidatas de imagem baixadas |
+
+Com isso a análise da cauda vira **consulta**, não script: "mediana de minutos
+por estágio, por escopo, nos últimos 30 dias" separa sozinha o que hoje não deu
+para separar.
+
+### 9.2 O que isso muda na drenagem (§6)
+
+Os estágios são **fronteiras naturais**. Um restart durante a redação perde
+minutos; durante a pesquisa de 10 fontes, perde quase tudo o que foi feito.
+
+Com o estágio persistido, a política de deploy pode ser **condicional em vez de
+fixa** — drenar com prazo informado pelo estágio, em vez de esperar cego ou
+matar cego. E abre a opção retomável mais barata do que parecia: a pesquisa
+produz achados que dariam para persistir antes da filtragem.
+
+**Decisão adiada de propósito:** a política definitiva espera uma semana de
+medição. Sem estágio registrado, escolher agora é palpite.
+
+## 10. Em aberto
 
 - **Onde o executor roda** — mesma máquina do app (mais simples; workspace
   local) ou separado (exige vault e mídia trafegarem).
 - **Valor do limite global**, que depende da instrumentação de consumo.
-- **Política de deploy** (§6).
-- **A cauda de 63 minutos** — quatro scans acima de 35 min. Investigar a causa
-  pode valer mais que qualquer ajuste de fila: se for retry, timeout de fonte ou
-  loop do agente, o ganho é maior que paralelizar.
+- **Política de deploy** (§6) — adiada de propósito até haver medição por
+  estágio (§9.2).
+- **A metade não explicada da cauda** (§8.2) — 3× de variação em `trends` com
+  entrada idêntica. Só será respondível depois de uma semana com estágio
+  persistido.

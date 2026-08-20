@@ -15,29 +15,28 @@ Foundation: `/srv/apps/content-radar/docs/specs/001-foundation.md`.
 
 ## Antes de começar
 
+> **Tudo é relativo ao diretório de trabalho.** A execução acontece num
+> workspace do ambiente, montado a partir do banco. Caminho absoluto faria você
+> escrever com a marca de outro cliente — e a lista de arquivos por pilar
+> deixaria de valer no primeiro cliente novo.
+
 Carregue (via Read):
 
-1. `/srv/apps/content-radar/manifest.yaml` — em particular
-   `target_company.brand_facts` (telefone, main_channel) e
-   `anti_repetition.windows`.
-2. `/srv/my-mind/Empresas/avanz-imoveis/manifest.yaml`
-3. `/srv/my-mind/Empresas/avanz-imoveis/identity/brand.md` — tom, paleta, fontes.
-4. `/srv/my-mind/Empresas/avanz-imoveis/strategy/positioning.md`
-5. `/srv/my-mind/Empresas/avanz-imoveis/strategy/content-pillars.md` —
-   especialmente `## O que NÃO entra`.
-6. `/srv/my-mind/Empresas/avanz-imoveis/strategy/cadencia-editorial.md`
-7. `/srv/my-mind/Empresas/avanz-imoveis/prompts/icp-modifiers.json` —
-   `tone_overlay`, `copy_keywords`, `cta_pattern`, `visual_mood` por ICP.
-8. `/srv/my-mind/Empresas/avanz-imoveis/prompts/visual-base.json`
-9. **Por pilar** (de `manifest.target_company.per_pillar`):
-   - Pilar 1 → `prompts/post-imovel.json` + `strategy/content-bank/pilar-1-imovel-da-semana.md`
-   - Pilar 2 → `prompts/post-mes.json` + `strategy/content-bank/pilar-2-decisao-inteligente.md`
-   - Pilar 3 → `strategy/content-bank/pilar-3-inteligencia-imobiliaria.md`
-   - Pilar 5 → `strategy/content-bank/pilar-5-quem-comprou.md`
-   - Pilar 6 → `strategy/content-bank/pilar-6-mercado-rmbh.md`
-10. `/srv/my-mind/Empresas/avanz-imoveis/ops/guardrails.md`
-11. Frontmatters de `store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/*.md`
-    (campos: `topic_hash`, `source_urls`, `pillar`, `icp`, `created_at`, `published_at`).
+1. `./manifest.yaml` — em particular `target_company.brand_facts` (telefone,
+   canal principal) e `anti_repetition.windows`.
+2. **Todos** os arquivos listados em `target_company.always_load`. A lista é
+   dado, não conhecimento seu. Os blocos que ela nomeia trazem marca e voz,
+   foco editorial (inclusive **o que não entra**), área de atuação, públicos
+   com seus códigos e overlays de tom, pilares com o "não fazer" de cada um,
+   cadência, guardrails, identidade visual e o banco de temas.
+3. **Por pilar**, os arquivos de `target_company.per_pillar[<pilar>]` — o
+   template de geração daquele pilar e a base visual compartilhada. Nem todo
+   pilar tem template; quando não houver entrada, use só a base.
+4. Frontmatters de `./store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/*.md`
+   (campos: `topic_hash`, `source_urls`, `pillar`, `icp`, `created_at`, `published_at`).
+
+O telefone que vai no `visual_brief.must_have` vem de
+`brand_facts.phone_display` — é valor, não texto a extrair de prosa.
 
 ## Para o finding promovido
 

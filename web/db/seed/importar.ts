@@ -10,7 +10,7 @@
  * estrangeira composta recusaria de qualquer forma, só que no meio da carga.
  */
 
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { storeDeArquivo, type Brief } from "../../lib/store";
@@ -43,6 +43,8 @@ export interface RelatorioImportacao {
   porEstado: Record<string, number>;
   escopos: number;
   fontes: number;
+  templates: number;
+  temasImportados: number;
   /** Quantos saíram sem foto — normal, mas vale ver a proporção. */
   semFoto: number;
   /** Não travam a carga: ficam registrados para leitura. */
@@ -122,8 +124,12 @@ export async function importar(
       const publicos = new Set(
         (await tx.select().from(schema.publico)).map((p) => p.slug),
       );
+      // Chaveado por pilar: o código só é único dentro do banco de um pilar —
+      // `B10` existe em três. A citação do brief se resolve pelo pilar dele.
       const temas = new Set(
-        (await tx.select().from(schema.tema)).map((t) => t.codigo),
+        (await tx.select().from(schema.tema)).map(
+          (t) => `${t.pilarSlug}:${t.codigo}`,
+        ),
       );
 
       if (pilares.size === 0) {
@@ -171,10 +177,10 @@ export async function importar(
         }
 
         for (const codigo of citacoesDeTema(brief)) {
-          if (!temas.has(codigo)) {
+          if (novo && !temas.has(`${novo}:${codigo}`)) {
             orfas.push({
               onde: brief.briefId,
-              detalhe: `cita o tema §${codigo}, que não existe no banco de temas`,
+              detalhe: `cita o tema §${codigo}, que não existe no banco de ${novo}`,
             });
           }
         }
@@ -194,11 +200,165 @@ export async function importar(
               semFoto: 0,
               escopos: 0,
               fontes: 0,
+              templates: 0,
+              temasImportados: 0,
               avisos,
               orfas,
             },
           },
         );
+      }
+
+      // ── fatos da marca e templates por pilar ─────────────────────────────
+      // Vêm do manifest e do vault de arquivos. São valores estruturados que a
+      // skill injeta na arte e no package — prosa não serve aqui.
+      const manifestBruto = await store.lerManifestBruto();
+      const { parse } = await import("yaml");
+      const cru = parse(manifestBruto) as {
+        target_company?: {
+          vault_path?: string;
+          brand_facts?: Record<string, string>;
+          per_pillar?: Record<string, string[]>;
+        };
+      };
+      const fatos = cru.target_company?.brand_facts ?? {};
+
+      await tx
+        .insert(schema.marca)
+        .values({
+          ambienteId,
+          canalPrincipal: fatos.main_channel ?? "WhatsApp",
+          telefoneExibicao: fatos.phone_display ?? null,
+          telefoneE164: fatos.phone_e164 ?? null,
+          telefoneSecundarioE164: fatos.phone_secondary_e164 ?? null,
+        })
+        .onConflictDoUpdate({
+          target: schema.marca.ambienteId,
+          set: {
+            canalPrincipal: fatos.main_channel ?? "WhatsApp",
+            telefoneExibicao: fatos.phone_display ?? null,
+            telefoneE164: fatos.phone_e164 ?? null,
+            telefoneSecundarioE164: fatos.phone_secondary_e164 ?? null,
+            atualizadoEm: new Date(),
+          },
+        });
+
+      const vaultDir = cru.target_company?.vault_path;
+      let templates = 0;
+
+      if (vaultDir) {
+        const { readFile } = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        const base = await readFile(
+          path.join(vaultDir, "prompts", "visual-base.json"),
+          "utf8",
+        ).catch(() => null);
+        if (base) {
+          await tx
+            .update(schema.config)
+            .set({ visualBase: JSON.parse(base) })
+            .where(eq(schema.config.ambienteId, ambienteId));
+        } else {
+          avisos.push({
+            onde: "vault",
+            detalhe: "prompts/visual-base.json não encontrado",
+          });
+        }
+
+        for (const [antigo, arquivos] of Object.entries(
+          cru.target_company?.per_pillar ?? {},
+        )) {
+          const pilarSlug = PILAR_ANTIGO_PARA_NOVO[antigo];
+          if (!pilarSlug || !pilares.has(pilarSlug)) continue;
+
+          const prompt = arquivos.find((f) => f.startsWith("prompts/post-"));
+          if (!prompt) continue;
+
+          const texto = await readFile(
+            path.join(vaultDir, prompt),
+            "utf8",
+          ).catch(() => null);
+          if (!texto) {
+            avisos.push({
+              onde: pilarSlug,
+              detalhe: `template ausente: ${prompt}`,
+            });
+            continue;
+          }
+          await tx
+            .update(schema.pilar)
+            .set({ template: JSON.parse(texto) })
+            .where(
+              and(
+                eq(schema.pilar.ambienteId, ambienteId),
+                eq(schema.pilar.slug, pilarSlug),
+              ),
+            );
+          templates++;
+        }
+      }
+
+      // ── bancos de temas dos demais pilares ───────────────────────────────
+      // O documento do vault traz só o do pilar de decisão; os outros cinco
+      // vêm dos arquivos. O código é atribuído aqui e nunca recalculado — é o
+      // que impede as citações antigas de apontarem para o tema errado.
+      let temasImportados = 0;
+
+      if (vaultDir) {
+        const { readFile } = await import("node:fs/promises");
+        const path = await import("node:path");
+
+        for (const [antigo, arquivos] of Object.entries(
+          cru.target_company?.per_pillar ?? {},
+        )) {
+          const pilarSlug = PILAR_ANTIGO_PARA_NOVO[antigo];
+          if (!pilarSlug || !pilares.has(pilarSlug)) continue;
+
+          const banco = arquivos.find((f) => f.includes("content-bank/"));
+          if (!banco) continue;
+
+          const texto = await readFile(
+            path.join(vaultDir, banco),
+            "utf8",
+          ).catch(() => null);
+          if (!texto) {
+            avisos.push({
+              onde: pilarSlug,
+              detalhe: `banco de temas ausente: ${banco}`,
+            });
+            continue;
+          }
+
+          let categoria = "";
+          for (const linha of texto.split("\n")) {
+            const cab = /^### (Categoria [A-F]:.*)$/.exec(linha.trim());
+            if (cab) {
+              categoria = cab[1];
+              continue;
+            }
+            const item = /^(\d+)\.\s+\*\*(.+?)\*\*(?:\s+—\s+(.*))?$/.exec(
+              linha.trim(),
+            );
+            if (!item || !categoria) continue;
+
+            const letra = categoria.match(/Categoria ([A-F])/)?.[1] ?? "A";
+            const codigo = `${letra}${item[1]}`;
+
+            await tx
+              .insert(schema.tema)
+              .values({
+                ambienteId,
+                pilarSlug,
+                codigo,
+                categoria,
+                titulo: item[2].trim(),
+                angulo: item[3]?.trim() ?? null,
+              })
+              .onConflictDoNothing();
+            temasImportados++;
+          }
+        }
       }
 
       // ── escopos de busca e fontes ────────────────────────────────────────
@@ -414,6 +574,8 @@ export async function importar(
       return {
         escopos,
         fontes,
+        templates,
+        temasImportados,
         briefs: briefs.length,
         candidatas,
         scans: idDoScan.size,

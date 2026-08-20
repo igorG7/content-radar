@@ -141,6 +141,43 @@ A checagem das citações de tema é a mais valiosa das quatro: é ela que pegar
 uma renumeração silenciosa do content-bank — o modo de falha que motivou os
 identificadores estáveis.
 
+### 5.4 Injeção por ferramenta, e por que ainda não
+
+O destino é **a skill não ler arquivo nenhum**. Em vez de materializar
+`vault/*.md` e `manifest.yaml`, o executor expõe ferramentas em processo
+(servidor MCP do Agent SDK) já escopadas ao ambiente da execução:
+
+| Ferramenta | Responde |
+|---|---|
+| `vault()` | o documento montado dos blocos |
+| `configuracao()` | pesos, limiares, janelas, escopos de busca |
+| `antiRepeticao(hash, pilar, publico)` | a pergunta, em vez de entregar 34 frontmatters |
+| `registrarBrief(...)` | recebe o resultado estruturado |
+
+Isso muda a natureza do isolamento. Com workspace, o caminho certo é o fácil,
+mas o agente **tem** acesso ao sistema de arquivos e poderia ler fora. Com
+ferramenta, não existe caminho para pedir outro ambiente: quem responde só sabe
+de um.
+
+A anti-repetição ganha junto — em vez de o agente reduzir 34 frontmatters, ele
+pergunta e a resposta sai de consulta indexada, que é onde as quatro janelas e
+os três critérios deveriam morar.
+
+**Decisão de 2026-08-19: adiado, deliberadamente.** O que existe hoje —
+workspace materializado — é ponte, não destino. Foi construído assim para provar
+o contrato entre skill e dado antes de otimizar a forma, e essa escolha não foi
+sinalizada quando foi feita.
+
+Adiar é seguro **enquanto houver um cliente só**: um agente lendo fora do
+workspace encontraria o mesmo dado. O risco aparece no primeiro ambiente novo em
+produção, quando "ler fora" passa a significar ler de outro cliente.
+
+**Gatilho para deixar de adiar: o segundo cliente.** Não a passagem do tempo.
+
+O que sobrevive à troca: colheita, ingestão, executor, fila e o teste de
+contrato. O que sai: `vault/`, o `manifest.yaml` gerado e os quatro diretórios
+de brief materializados.
+
 ## 6. Riscos
 
 **A anti-repetição falha em silêncio.** É o único ponto sem volta. Se a projeção

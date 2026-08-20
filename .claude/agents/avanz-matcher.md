@@ -24,16 +24,18 @@ da empresa. Você conhece de cor:
 
 ## Antes de começar
 
+> **Tudo é relativo ao diretório de trabalho.** A execução acontece num
+> workspace do ambiente, montado a partir do banco. Caminho absoluto faria você
+> ler a configuração e o vault de outro cliente — e a lista de arquivos deixaria
+> de valer no primeiro cliente novo.
+
 Carregue (via Read):
-1. `/srv/apps/content-radar/manifest.yaml`
-2. `/srv/my-mind/Empresas/avanz-imoveis/manifest.yaml`
-3. `/srv/my-mind/Empresas/avanz-imoveis/identity/brand.md`
-4. `/srv/my-mind/Empresas/avanz-imoveis/strategy/positioning.md`
-5. `/srv/my-mind/Empresas/avanz-imoveis/strategy/content-pillars.md`
-6. `/srv/my-mind/Empresas/avanz-imoveis/strategy/cadencia-editorial.md`
-7. `/srv/my-mind/Empresas/avanz-imoveis/prompts/icp-modifiers.json`
-8. `/srv/my-mind/Empresas/avanz-imoveis/ops/guardrails.md`
-9. Frontmatters de `/srv/apps/content-radar/store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/*.md`
+1. `./manifest.yaml`
+2. **Todos** os arquivos listados em `target_company.always_load` desse manifest.
+   A lista é dado, não conhecimento seu: ela muda por cliente, e os blocos que
+   ela nomeia é que trazem marca, voz, foco editorial, área de atuação,
+   públicos, pilares, cadência e guardrails.
+3. Frontmatters de `./store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/*.md`
    (extraia `source_urls`, `topic_hash`, `pillar`, `icp`, `created_at`, `published_at`)
 
 ## Para cada finding recebido

@@ -32,10 +32,14 @@ argument-hint: |
 
 ## Antes de começar
 
+> **Tudo é relativo ao diretório de trabalho.** A execução acontece num
+> workspace do ambiente, montado a partir do banco — não no repositório. Caminho
+> absoluto aqui faria a skill ler a configuração e o vault de outro cliente.
+
 Carregue (via Read):
-1. `/srv/apps/content-radar/manifest.yaml` (para `target_company`, `search_scopes`, `anti_repetition`,
+1. `./manifest.yaml` (para `target_company`, `search_scopes`, `anti_repetition`,
    `storage`, `funnel`)
-2. Arquivos em `target_company.always_load` (lista de paths absolutos do vault Avanz) — extraia
+2. Arquivos em `target_company.always_load` (caminhos relativos ao workspace) — extraia
    trechos curtos pra injetar no researcher (stateless, spec 002 §3).
 3. Liste `store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/` (frontmatters)
    só pra contar `NNN` e pra opcionalmente exibir contexto pro humano. **Não precisa ler conteúdo**;
@@ -60,7 +64,7 @@ Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
   Detalhes: spec 009 §8 + spec 005 §5.1.1.
 - **Estágio 1**: `Task(subagent_type='market-researcher', prompt=<bloco com scope, pillar_filter, window_days,
   target_count, max_per_source, allowed_sources, vault_paths>)`. Validar JSON (§5.5).
-- **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], paths absolutos
+- **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], caminhos relativos
   do vault e dos 4 dirs de briefs>)`. Validar JSON (§5.7).
 - **Estágio 4**: pra cada `promote-to-brief` **e cada `promote-borderline`**,
   `Task(subagent_type='instagram-briefer', prompt=<bloco spec 004 §3>)`. Validar JSON (§5.8).

@@ -1,0 +1,265 @@
+import "server-only";
+
+/**
+ * Traz para o banco o que a execução produziu no workspace.
+ *
+ * Numa transação só: ou a saída inteira do scan entra, ou nada entra. Metade
+ * ingerida é pior que nada — a fila mostraria briefs sem os eventos que
+ * explicam de onde vieram, e o operador não teria como saber que faltou.
+ *
+ * As mesmas checagens do importador valem aqui, e pelo mesmo motivo: um brief
+ * citando tema que não existe ou classificado num pilar que saiu do vault é
+ * quebra, não ambiguidade. A diferença é que aqui o autor é um agente, e agente
+ * inventa código com mais facilidade que um arquivo antigo.
+ */
+
+import { mkdir, copyFile, readdir } from "node:fs/promises";
+import path from "node:path";
+import { eq } from "drizzle-orm";
+import { comAmbiente, type Tx } from "./cliente";
+import * as t from "./schema";
+import { parseFrontmatter } from "../lib/store/frontmatter";
+import { loadManifest, resolvePaths } from "../lib/manifest";
+import { colher, type Workspace } from "./workspace";
+
+export interface RelatorioIngestao {
+  eventos: number;
+  briefs: number;
+  candidatas: number;
+  midiaCopiada: number;
+  /** Recusas: nada foi gravado enquanto houver uma. */
+  recusas: { onde: string; detalhe: string }[];
+}
+
+function str(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+function num(v: unknown): number | undefined {
+  return typeof v === "number" ? v : undefined;
+}
+
+/**
+ * `§B10` na justificativa aponta para o banco de temas do pilar do brief.
+ *
+ * Qualquer letra, não só as categorias que existem hoje: se o agente inventar
+ * `§Z99`, a checagem precisa **ver** a citação para poder recusá-la. Restringir
+ * o padrão ao que existe torna o código inventado invisível — que é o oposto do
+ * que a verificação serve.
+ */
+function citacoes(texto: string): string[] {
+  return [...texto.matchAll(/§([A-Z]\d+)/g)].map((m) => m[1]);
+}
+
+export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
+  const colheita = await colher(ws);
+
+  return comAmbiente(ws.ambienteId, async (tx: Tx) => {
+    const [pilares, publicos, temas] = await Promise.all([
+      tx.select({ slug: t.pilar.slug }).from(t.pilar),
+      tx.select({ slug: t.publico.slug }).from(t.publico),
+      tx
+        .select({ pilarSlug: t.tema.pilarSlug, codigo: t.tema.codigo })
+        .from(t.tema),
+    ]);
+    const temPilar = new Set(pilares.map((p) => p.slug));
+    const temPublico = new Set(publicos.map((p) => p.slug));
+    const temTema = new Set(temas.map((x) => `${x.pilarSlug}:${x.codigo}`));
+
+    const recusas: RelatorioIngestao["recusas"] = [];
+    const analisados = colheita.briefsNovos.map((b) => {
+      const { data, body } = parseFrontmatter(b.conteudo);
+      return { slug: b.slug, data, body };
+    });
+
+    // ── reconciliação, antes de escrever ────────────────────────────────────
+    for (const { slug, data } of analisados) {
+      const pilar = str(data.pillar);
+      const publico = str(data.icp);
+
+      if (!pilar || !temPilar.has(pilar)) {
+        recusas.push({
+          onde: slug,
+          detalhe: `pilar inexistente no vault: ${pilar ?? "(ausente)"}`,
+        });
+      }
+      if (!publico || !temPublico.has(publico)) {
+        recusas.push({
+          onde: slug,
+          detalhe: `público inexistente no vault: ${publico ?? "(ausente)"}`,
+        });
+      }
+      if (!str(data.topic_hash)) {
+        recusas.push({
+          onde: slug,
+          detalhe: "sem topic_hash — a anti-repetição depende dele",
+        });
+      }
+      if (!str(data.headline)) {
+        recusas.push({ onde: slug, detalhe: "sem headline" });
+      }
+
+      const justificativa = [
+        str(data.why_match) ?? "",
+        JSON.stringify(data.source_relevance_hints ?? ""),
+      ].join(" ");
+      for (const codigo of citacoes(justificativa)) {
+        if (pilar && !temTema.has(`${pilar}:${codigo}`)) {
+          recusas.push({
+            onde: slug,
+            detalhe: `cita o tema §${codigo}, que não existe no banco de ${pilar}`,
+          });
+        }
+      }
+    }
+
+    if (recusas.length > 0) {
+      // O throw desfaz a transação: nem os eventos entram, porque um ledger que
+      // registra um scan cujos briefs não existem descreve algo que não houve.
+      throw Object.assign(new Error("ingestão recusada"), {
+        relatorio: {
+          eventos: 0,
+          briefs: 0,
+          candidatas: 0,
+          midiaCopiada: 0,
+          recusas,
+        },
+      });
+    }
+
+    // ── scan da execução ────────────────────────────────────────────────────
+    const refScan = colheita.eventos.map((e) => str(e.scan_id)).find(Boolean);
+    let scanId: string | null = null;
+    if (refScan) {
+      const [linha] = await tx
+        .select({ id: t.scan.id })
+        .from(t.scan)
+        .where(eq(t.scan.scanRef, refScan));
+      scanId = linha?.id ?? null;
+    }
+
+    // ── briefs ──────────────────────────────────────────────────────────────
+    const idPorRef = new Map<string, string>();
+    let candidatas = 0;
+    let midiaCopiada = 0;
+
+    const destinoMidia = resolvePaths(await loadManifest()).mediaDir[
+      "pendente-aprovacao"
+    ];
+    await mkdir(destinoMidia, { recursive: true });
+
+    for (const { slug, data } of analisados) {
+      const [linha] = await tx
+        .insert(t.brief)
+        .values({
+          ambienteId: ws.ambienteId,
+          briefId: str(data.brief_id) ?? slug,
+          slug,
+          estado: "pendente-aprovacao",
+          pilarSlug: str(data.pillar)!,
+          publicoSlug: str(data.icp)!,
+          matchScore: num(data.match_score)?.toFixed(2) ?? null,
+          borderline: data.borderline === true,
+          borderlineMotivo: str(data.borderline_reason) ?? null,
+          topicHash: str(data.topic_hash)!,
+          headline: str(data.headline)!,
+          hook: str(data.hook) ?? null,
+          captionDraft: str(data.caption_draft) ?? null,
+          cta: str(data.cta) ?? null,
+          hashtags: Array.isArray(data.hashtags)
+            ? (data.hashtags as string[])
+            : [],
+          scoreDetalhe: (data.match_score_breakdown ?? null) as never,
+          evidencias: (data.source_relevance_hints ?? []) as never,
+          origem: {
+            scope: str(data.scope) ?? null,
+            why_match: str(data.why_match) ?? null,
+            source_urls: data.source_urls ?? [],
+            source_excerpts: data.source_excerpts ?? [],
+          },
+          visualBrief: (data.visual_brief ?? null) as never,
+          destinoOd: {
+            od_skill_ref: str(data.od_skill_ref) ?? null,
+            alternativas: data.od_skill_alternatives ?? [],
+            format: str(data.format) ?? null,
+          },
+          // Sem carimbo: o briefer gravou o padrão, ninguém decidiu ainda. É
+          // exatamente a distinção que o arquivo não conseguia fazer.
+          heroIndice: null,
+          heroDecididoEm: null,
+          scanId,
+          reviewNotes: str(data.review_notes) ?? null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: t.brief.id });
+
+      if (!linha) continue; // brief já existia: reingestão do mesmo workspace
+      idPorRef.set(str(data.brief_id) ?? slug, linha.id);
+
+      const candidatasDeclaradas = Array.isArray(data.hero_image_candidates)
+        ? (data.hero_image_candidates as Record<string, unknown>[])
+        : [];
+
+      for (const c of candidatasDeclaradas) {
+        const local = str(c.local_path);
+        const arquivo = local ? path.basename(local) : null;
+
+        // A mídia é binário e continua em disco: sai do workspace para o cache
+        // real, que é o que a rota de imagem serve.
+        if (arquivo) {
+          const origem = path.join(
+            ws.dir,
+            "store",
+            "media",
+            "pendente-aprovacao",
+            arquivo,
+          );
+          await copyFile(origem, path.join(destinoMidia, arquivo))
+            .then(() => void midiaCopiada++)
+            .catch(() => undefined);
+        }
+
+        await tx.insert(t.briefCandidata).values({
+          ambienteId: ws.ambienteId,
+          briefId: linha.id,
+          indice: num(c.index) ?? 0,
+          sourceUrl: str(c.source_url) ?? null,
+          imageUrl: str(c.image_url) ?? null,
+          objetoPath: arquivo,
+          alt: str(c.alt) ?? null,
+          licenseHint: str(c.license_hint) ?? null,
+          licensable: typeof c.licensable === "boolean" ? c.licensable : null,
+          mimeType: str(c.mime_type) ?? null,
+        });
+        candidatas++;
+      }
+    }
+
+    // ── ledger ──────────────────────────────────────────────────────────────
+    for (const e of colheita.eventos) {
+      const refBrief = str(e.brief_id);
+      await tx.insert(t.evento).values({
+        ambienteId: ws.ambienteId,
+        ts: str(e.ts) ? new Date(str(e.ts)!) : new Date(),
+        tipo: str(e.event) ?? "desconhecido",
+        ator: str(e.actor) ?? "skill:radar-scan",
+        briefId: refBrief ? (idPorRef.get(refBrief) ?? null) : null,
+        scanId,
+        extra: (e.extra ?? {}) as never,
+      });
+    }
+
+    return {
+      eventos: colheita.eventos.length,
+      briefs: idPorRef.size,
+      candidatas,
+      midiaCopiada,
+      recusas: [],
+    };
+  });
+}
+
+/** Quantos arquivos de mídia o workspace produziu — para conferência. */
+export async function midiaDoWorkspace(ws: Workspace): Promise<number> {
+  const dir = path.join(ws.dir, "store", "media", "pendente-aprovacao");
+  return (await readdir(dir).catch(() => [] as string[])).length;
+}
