@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { radarStore } from "@/lib/store";
+import { rota } from "@/lib/rota";
 import { patchManifest } from "@/lib/config/manifest-edit";
 import { validateManifestText } from "@/lib/config/validate";
 
@@ -14,7 +15,7 @@ const Body = z.object({
     .min(1),
 });
 
-export async function PATCH(request: Request) {
+export const PATCH = rota(async (request: Request) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json(
@@ -51,4 +52,4 @@ export async function PATCH(request: Request) {
   }
 
   return Response.json({ ok: true, warnings });
-}
+});

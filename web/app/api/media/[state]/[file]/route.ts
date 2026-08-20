@@ -1,6 +1,7 @@
 import path from "node:path";
 import { BRIEF_STATES, type BriefState } from "@/lib/manifest";
 import { radarStore } from "@/lib/store";
+import { rota } from "@/lib/rota";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".webp": "image/webp",
@@ -20,36 +21,38 @@ function isBriefState(value: string): value is BriefState {
  * known set, and the filename must survive basename() unchanged, which rejects
  * traversal before it reaches the storage layer.
  */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ state: string; file: string }> },
-) {
-  const { state, file } = await params;
+export const GET = rota(
+  async (
+    _request: Request,
+    { params }: { params: Promise<{ state: string; file: string }> },
+  ) => {
+    const { state, file } = await params;
 
-  if (!isBriefState(state)) {
-    return new Response("unknown state", { status: 404 });
-  }
+    if (!isBriefState(state)) {
+      return new Response("unknown state", { status: 404 });
+    }
 
-  const fileName = decodeURIComponent(file);
-  if (fileName !== path.basename(fileName) || fileName.startsWith(".")) {
-    return new Response("invalid file name", { status: 400 });
-  }
+    const fileName = decodeURIComponent(file);
+    if (fileName !== path.basename(fileName) || fileName.startsWith(".")) {
+      return new Response("invalid file name", { status: 400 });
+    }
 
-  const contentType = CONTENT_TYPES[path.extname(fileName).toLowerCase()];
-  if (!contentType) {
-    return new Response("unsupported media type", { status: 415 });
-  }
+    const contentType = CONTENT_TYPES[path.extname(fileName).toLowerCase()];
+    if (!contentType) {
+      return new Response("unsupported media type", { status: 415 });
+    }
 
-  const store = await radarStore();
-  const bytes = await store.lerMidia(state, fileName);
-  if (!bytes) {
-    return new Response("not found", { status: 404 });
-  }
+    const store = await radarStore();
+    const bytes = await store.lerMidia(state, fileName);
+    if (!bytes) {
+      return new Response("not found", { status: 404 });
+    }
 
-  return new Response(bytes, {
-    headers: {
-      "content-type": contentType,
-      "cache-control": "private, max-age=60",
-    },
-  });
-}
+    return new Response(bytes, {
+      headers: {
+        "content-type": contentType,
+        "cache-control": "private, max-age=60",
+      },
+    });
+  },
+);
