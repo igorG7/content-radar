@@ -29,14 +29,27 @@ seguintes de [`design-migracao.md`](./design-migracao.md).
 
 ## Fase 4 — o que falta
 
-**Uma execução real.** Falta credencial de API. Sem ela seguem provadas só por
-construção: a detecção de estágio pela invocação do subagente, a ingestão de
-saída de verdade, e o carregamento das skills sob `settingSources: ["project"]`.
+**Uma execução real.** A credencial deixou de faltar: o SDK usa a autenticação
+local do Claude Code, e uma sonda de um turno respondeu em 8s. O que ainda não
+foi exercitado com saída de verdade: a detecção de estágio pela invocação do
+subagente, a ingestão, e o carregamento das skills sob
+`settingSources: ["project"]`. Falta só rodar — são 12 a 63 minutos e custo
+real, então é decisão de quando, não de se dá.
 
-**O processo trabalhador** — laço chamando `girar()`, sob pm2.
+**O processo trabalhador** existe (`web/scripts/trabalhador.mts`) e foi provado
+ponta a ponta: reivindicou um pedido real, carimbou início, falhou pelo motivo
+certo e liberou a vaga. Falta **subir sob pm2** e decidir o `kill_timeout` —
+que depende da medição por estágio (design-execucao-scan §9.2).
 
-**A rota que enfileira** e o **progresso na tela**, lendo `scan.estado` e os
-eventos de estágio.
+**Conversa não é persistida.** O chat vive na aba: recarregar perde o
+histórico. A memória do agente fica no servidor (a sessão do SDK), mas o
+ponteiro para ela mora no navegador. Precisa de tabela e de decisão sobre
+retenção.
+
+**Purga do que subiu para o Cloudinary.** A escolha da arte agora sobe a foto
+com `public_id` estável por brief, e guarda o `cloudinary_public_id`. Rejeitar
+um brief apaga a mídia local, mas **não** apaga o objeto remoto — é o que a
+purga precisa fazer, e é o primeiro trabalho concreto da housekeeping.
 
 **`radar-housekeeping`** é a última skill determinística sem código — a purga
 de mídia. É a de menor pressa: não move estado de brief nenhum.
@@ -47,9 +60,13 @@ As outras três saíram do repositório em 2026-08-20. `radar-mv` virou
 de escrever cinco arquivos em `store/packages/`. Eram código escrito em prosa:
 mudança de estado com regra fixa quer transação, não um modelo decidindo.
 
-**Injeção por ferramenta em vez de arquivo** — o destino do desenho, adiado com
-gatilho declarado no segundo cliente
-([`design-migracao.md`](./design-migracao.md) §5.4).
+**Injeção por ferramenta em vez de arquivo** — chegou pela metade, antes do
+gatilho previsto. O **chat** já funciona assim: seis ferramentas sobre a camada
+(`web/lib/chat/ferramentas.ts`), nenhuma delas tocando em arquivo, e o ambiente
+nunca como argumento. O **executor do scan** continua materializando workspace,
+porque as skills leem caminho relativo. O gatilho declarado para converter o
+resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
+§5.4).
 
 ## Soltas
 

@@ -20,6 +20,7 @@ import path from "node:path";
 import {
   loadManifest,
   MANIFEST_PATH,
+  RADAR_ROOT,
   resolvePaths,
   type BriefState,
   type Manifest,
@@ -641,7 +642,14 @@ export async function radarStore(): Promise<RadarStore> {
   if (!sessao) throw new SemSessao();
 
   const { backendPostgres } = await import("../../db/backend");
-  return backendPostgres(sessao.ambienteId);
+  const { credenciais, enviador } = await import("../midia/cloudinary");
+
+  // Sem credencial o app continua inteiro: a escolha da arte é gravada, e o
+  // que falta é só a cópia remota — que o pacote diz na cara que não tem.
+  const cred = await credenciais(RADAR_ROOT);
+  return backendPostgres(sessao.ambienteId, {
+    enviarParaNuvem: cred ? enviador(cred) : null,
+  });
 }
 
 /** Sem sessão não há ambiente, e sem ambiente o banco não devolve nada. */

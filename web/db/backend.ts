@@ -41,6 +41,7 @@ import type {
   TransicaoEntrada,
 } from "../lib/store";
 import { JaRodando, StoreError } from "../lib/store";
+import type { Enviador } from "../lib/midia/cloudinary";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -244,7 +245,15 @@ const PROXIMO_ESTADO = {
   reject: "rejeitado",
 } as const;
 
-export function backendPostgres(ambiente: AmbienteId): RadarStore {
+/**
+ * @param enviarParaNuvem substituível para que o teste não toque na rede. Em
+ * produção sai de `enviador(credenciais(...))`; sem credencial, é `null` e a
+ * escolha da arte segue funcionando sem URL remota.
+ */
+export function backendPostgres(
+  ambiente: AmbienteId,
+  opcoes: { enviarParaNuvem?: Enviador | null } = {},
+): RadarStore {
   const dentro = <T>(trabalho: (tx: Tx) => Promise<T>) =>
     comAmbiente(ambiente, trabalho);
 
@@ -456,6 +465,84 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
             atualizadoEm: new Date(),
           })
           .where(eq(t.brief.id, linha.id));
+
+        if (indice === null) return;
+
+        /**
+         * A foto escolhida sobe agora. É o instante em que ela deixa de ser
+         * cache local e vira artefato externo: depois disto o export só precisa
+         * citar a URL, e aprovar já apaga as candidatas que ficaram para trás.
+         *
+         * Falha de upload **não desfaz a escolha**. A decisão é da pessoa e já
+         * é válida; o que fica pendente é a cópia remota, e o export diz na
+         * cara quando ela falta. Derrubar a transação aqui faria uma
+         * indisponibilidade do Cloudinary bloquear a revisão da fila.
+         */
+        const enviar = opcoes.enviarParaNuvem;
+        if (!enviar) return;
+
+        const [candidata] = await tx
+          .select()
+          .from(t.briefCandidata)
+          .where(
+            and(
+              eq(t.briefCandidata.briefId, linha.id),
+              eq(t.briefCandidata.indice, indice),
+            ),
+          );
+        if (!candidata?.objetoPath) return;
+
+        const prefixo = await prefixoDoAmbiente(tx);
+        // A candidata já foi verificada como deste ambiente logo acima, então
+        // o legado pode ser lido sem nova checagem — é a foto de um brief
+        // importado, cujo arquivo nunca migrou do diretório antigo.
+        const bytes =
+          (await lerArquivo(
+            caminhoDaMidia(prefixo, linha.estado, candidata.objetoPath),
+          )) ??
+          (await lerArquivo(
+            await caminhoLegado(linha.estado, candidata.objetoPath),
+          ));
+        if (!bytes) return;
+
+        try {
+          // Prefixo do ambiente no caminho: é o que impede a mídia de dois
+          // clientes de colidir numa pasta só, como acontece no cache local.
+          const enviado = await enviar({
+            bytes,
+            publicId: `${prefixo}/${linha.slug}`,
+            nomeArquivo: candidata.objetoPath,
+          });
+
+          await tx
+            .update(t.briefCandidata)
+            .set({
+              cloudUrl: enviado.url,
+              cloudinaryPublicId: enviado.publicId,
+            })
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.indice, indice),
+              ),
+            );
+
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "cloudinary-uploaded",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: { indice, public_id: enviado.publicId },
+          });
+        } catch (erro) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "cloudinary-falhou",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: { indice, erro: (erro as Error).message },
+          });
+        }
       }),
 
     editarBrief: (estado, slug, campos: EdicaoBrief) =>
@@ -797,6 +884,11 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         return { nome: `${linha.slug}.md`, conteudo };
       }),
 
+    /**
+     * Pede uma varredura. O índice único cobre `rodando`; os demais estados em
+     * andamento precisam da checagem explícita, senão a pessoa acumula pedidos
+     * que só vai descobrir quando dois scans iguais gerarem pauta repetida.
+     */
     enfileirarScan: (pedido) =>
       dentro(async (tx) => {
         const emAndamento = await tx
