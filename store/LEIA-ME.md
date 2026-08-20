@@ -4,7 +4,12 @@
 fotografia do store de arquivos no momento em que ele foi importado — briefs,
 ledger, mídia e packages — e **não é mais atualizado por nada**.
 
-O app não lê nem escreve daqui. Quem quiser o estado atual de um brief consulta
+O app não escreve mais nada aqui, nem mesmo mídia: o cache de imagens era o
+último a gravar neste diretório e passou para `var/<prefixo-do-ambiente>/`,
+separado por cliente e fora do git. A leitura continua, e só para as fotos dos
+briefs importados, que nunca migraram de lugar.
+
+O app não lê nem escreve daqui para nada novo. Quem quiser o estado atual de um brief consulta
 o banco (ou a interface); quem quiser saber o que aconteceu consulta a tabela
 `evento`, não o `ledger.jsonl`.
 

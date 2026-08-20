@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
 import { parseFrontmatter } from "../lib/store/frontmatter";
-import { loadManifest, resolvePaths } from "../lib/manifest";
+import { RADAR_ROOT } from "../lib/manifest";
 import { colher, type Workspace } from "./workspace";
 
 export interface RelatorioIngestao {
@@ -142,9 +142,19 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
     let candidatas = 0;
     let midiaCopiada = 0;
 
-    const destinoMidia = resolvePaths(await loadManifest()).mediaDir[
-      "pendente-aprovacao"
-    ];
+    // Cache **deste** ambiente, fora do store congelado. Antes era um
+    // diretório só para todos: dois clientes com arquivo de mesmo nome se
+    // sobrescreviam, e o nome sai do brief_ref, que cada ambiente numera do 1.
+    const [amb] = await tx
+      .select({ prefixo: t.ambiente.prefixoMidia })
+      .from(t.ambiente)
+      .where(eq(t.ambiente.id, ws.ambienteId));
+    const destinoMidia = path.join(
+      RADAR_ROOT,
+      "var",
+      amb?.prefixo ?? `midia/${ws.ambienteId}`,
+      "pendente-aprovacao",
+    );
     await mkdir(destinoMidia, { recursive: true });
 
     for (const { slug, data } of analisados) {

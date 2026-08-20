@@ -33,3 +33,8 @@ w-view/
 content-radar-layout
 # Artefatos do Playwright MCP — snapshots e downloads de sessão de teste.
 .playwright-mcp/
+
+# Cache de mídia por ambiente. É derivado: a fonte da verdade é o Cloudinary
+# depois da escolha da arte, e o que está aqui pode ser rebaixado a qualquer
+# momento. Fica fora de store/, que é a fotografia congelada da importação.
+var/

@@ -21,7 +21,13 @@ import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
-import { loadManifest, MANIFEST_PATH, type BriefState } from "../lib/manifest";
+import {
+  loadManifest,
+  MANIFEST_PATH,
+  RADAR_ROOT,
+  resolvePaths,
+  type BriefState,
+} from "../lib/manifest";
 import type { Brief, HeroCandidate, StateListing } from "../lib/store/briefs";
 import type { LedgerEvent, LedgerReadResult } from "../lib/store/ledger";
 import type { TransitionPlan, TransitionResult } from "../lib/transitions/mv";
@@ -73,6 +79,39 @@ async function aprovacoes(
       mapa.set(l.briefId, l.em.toISOString());
   }
   return mapa;
+}
+
+/**
+ * Onde o cache local guarda a mídia deste ambiente.
+ *
+ * Fora do `store/`, que é a fotografia congelada da importação, e **debaixo do
+ * prefixo do ambiente**. Antes era um diretório só para todos: dois clientes
+ * com arquivo de mesmo nome se sobrescreviam, e o nome é adivinhável porque sai
+ * do `brief_ref`, que cada ambiente numera do 1.
+ */
+function caminhoDaMidia(prefixo: string, estado: string, arquivo: string) {
+  return path.join(RADAR_ROOT, "var", prefixo, estado, path.basename(arquivo));
+}
+
+/**
+ * O caminho antigo, compartilhado. Só para **leitura**: a mídia dos briefs
+ * importados está lá, e mover arquivo do diretório congelado seria mexer no que
+ * o relatório de reconciliação compara. Nada novo é escrito aqui.
+ */
+async function caminhoLegado(estado: string, arquivo: string) {
+  const p = resolvePaths(await loadManifest());
+  return path.join(p.mediaDir[estado as BriefState], path.basename(arquivo));
+}
+
+async function lerArquivo(
+  caminho: string,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  try {
+    return Uint8Array.from(await readFile(caminho));
+  } catch (erro) {
+    if ((erro as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw erro;
+  }
 }
 
 /** O app fala o vocabulário do tipo `Brief`; o banco, o das colunas. */
@@ -208,6 +247,15 @@ const PROXIMO_ESTADO = {
 export function backendPostgres(ambiente: AmbienteId): RadarStore {
   const dentro = <T>(trabalho: (tx: Tx) => Promise<T>) =>
     comAmbiente(ambiente, trabalho);
+
+  /** O prefixo de mídia deste ambiente, que separa o cache no disco. */
+  async function prefixoDoAmbiente(tx: Tx): Promise<string> {
+    const [linha] = await tx
+      .select({ prefixo: t.ambiente.prefixoMidia })
+      .from(t.ambiente)
+      .where(eq(t.ambiente.id, ambiente));
+    return linha?.prefixo ?? `midia/${ambiente}`;
+  }
 
   /** Plano e execução compartilham a leitura para não divergirem. */
   async function planejar(
@@ -941,21 +989,41 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
 
     // Mídia continua em disco: binário nunca foi para o banco. Some daqui
     // quando o armazenamento de objetos entrar.
-    async lerMidia(estado, arquivo) {
-      try {
-        return Uint8Array.from(
-          await readFile(await this.caminhoMidia(estado, arquivo)),
-        );
-      } catch (erro) {
-        if ((erro as NodeJS.ErrnoException).code === "ENOENT") return null;
-        throw erro;
-      }
-    },
+    /**
+     * Lê uma mídia **deste** ambiente.
+     *
+     * A dona é a consulta, não o caminho: só entrega bytes se existir uma
+     * candidata com este arquivo num brief que o RLS deixa enxergar. Sem isso o
+     * caminho seria a única defesa, e caminho se adivinha — era assim que um
+     * cliente lia a foto de outro sabendo o nome do arquivo.
+     */
+    lerMidia: (estado, arquivo) =>
+      dentro(async (tx) => {
+        const [dona] = await tx
+          .select({ id: t.briefCandidata.briefId })
+          .from(t.briefCandidata)
+          .innerJoin(
+            t.brief,
+            and(
+              eq(t.brief.id, t.briefCandidata.briefId),
+              eq(t.brief.estado, estado),
+            ),
+          )
+          .where(eq(t.briefCandidata.objetoPath, path.basename(arquivo)));
+        if (!dona) return null;
 
-    async caminhoMidia(estado, arquivo) {
-      const { resolvePaths } = await import("../lib/manifest");
-      const p = resolvePaths(await loadManifest());
-      return path.join(p.mediaDir[estado], path.basename(arquivo));
-    },
+        const prefixo = await prefixoDoAmbiente(tx);
+        return (
+          (await lerArquivo(caminhoDaMidia(prefixo, estado, arquivo))) ??
+          // Os briefs importados têm a foto no diretório antigo. A consulta
+          // acima já provou que este arquivo é deste ambiente.
+          (await lerArquivo(await caminhoLegado(estado, arquivo)))
+        );
+      }),
+
+    caminhoMidia: (estado, arquivo) =>
+      dentro(async (tx) =>
+        caminhoDaMidia(await prefixoDoAmbiente(tx), estado, arquivo),
+      ),
   };
 }
