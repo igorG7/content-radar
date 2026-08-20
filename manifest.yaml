@@ -216,6 +216,6 @@ storage:
     pendente_publicacao: pendente-publicacao
     publicado: publicado
     rejeitado: rejeitado # vazio por padrão
-  packages_root: ./store/packages # pacotes do radar-handoff (humano → Smart Design)
+  packages_root: ./store/packages # congelado: a exportação virou download de um .md
   calendar: ./store/calendar
   ledger: ./store/ledger.jsonl

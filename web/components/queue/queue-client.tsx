@@ -241,7 +241,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
           (apagadas.length
             ? `${apagadas.length} mídia(s) apagada(s) do cache. `
             : "") +
-          `Evento mv-approved gravado no ledger — reverter é operação de terminal (radar-mv).`,
+          `Evento mv-approved gravado no ledger — a volta para a fila ainda não é uma ação da interface.`,
       });
       router.refresh();
     },

@@ -15,8 +15,8 @@ export interface PublishData {
 }
 
 /**
- * Mesmo contrato da skill radar-mark-published: a URL do post é o que fecha o
- * ciclo, e a data é a que ordena o acervo e conta na anti-repetição. Vive num
+ * A URL do post é o que fecha o ciclo, e a data é a que ordena o acervo e conta
+ * na anti-repetição. Vive num
  * componente só porque acervo e detalhe abrem exatamente este diálogo —
  * divergir as duas validações seria a forma mais fácil de deixar passar um
  * registro inconsistente por uma das portas.
@@ -82,9 +82,9 @@ export function PublishDialog({
     >
       <p className="small">
         A publicação no Instagram é manual. Isto apenas registra que ela
-        aconteceu: move o arquivo para{" "}
-        <span className="num">store/briefs/publicado/</span> e grava o evento{" "}
-        <span className="num">published</span> no ledger com a URL e o horário.
+        aconteceu: move o brief para <span className="num">publicado</span> e
+        grava o evento <span className="num">published</span> com a URL e o
+        horário.
       </p>
       <div className="field" style={{ marginTop: 16 }}>
         <label htmlFor="ig-url">

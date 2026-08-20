@@ -31,3 +31,5 @@ w-view/
 .idea/
 .vscode/
 content-radar-layout
+# Artefatos do Playwright MCP — snapshots e downloads de sessão de teste.
+.playwright-mcp/

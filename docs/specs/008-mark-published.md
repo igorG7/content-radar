@@ -7,6 +7,15 @@
 
 # Spec 008 — `radar-mark-published`
 
+> **Superada em 2026-08-20.** A skill deixou de existir: a operação virou
+> `marcarPublicado()` em `web/db/backend.ts`, disparada pelo botão “Marcar
+> publicado”. O que continua valendo desta spec são as **regras** — de que
+> estado se pode publicar, e o que o evento precisa registrar. O que não vale
+> mais é a forma: nada disto passa por arquivo em `store/` nem por um modelo
+> lendo frontmatter.
+> Ver [`docs/pendencias.md`](../pendencias.md).
+
+
 > Define a skill que **fecha o ciclo** do `content-radar`. Consome briefs
 > em `store/briefs/pendente-publicacao/` que **já foram entregues**
 > (`handoff_at != null`, via [`radar-handoff`](./007-handoff.md)) e que o

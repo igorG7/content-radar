@@ -355,17 +355,33 @@ export function ArchiveClient({
         brief={publicando}
         open={publicando !== null}
         onClose={() => setPublicando(null)}
-        onConfirm={(dados) => {
+        onConfirm={async (dados) => {
           const brief = publicando;
           setPublicando(null);
           if (!brief) return;
-          // A transição para publicado/ é da skill radar-mark-published: ela
-          // move o arquivo, a mídia e escreve o evento. A web valida e informa.
+          const resposta = await fetch(`/api/briefs/${brief.slug}/publish`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              igPostUrl: dados.ig_post_url,
+              publicadoEm: new Date(dados.published_at).toISOString(),
+            }),
+          }).catch(() => null);
+          const corpo = await resposta?.json().catch(() => null);
+          if (!resposta?.ok) {
+            toast({
+              tone: "danger",
+              title: `HTTP ${resposta?.status ?? "—"} · ${(corpo?.code ?? "PUBLISH_FAILED").toUpperCase()}`,
+              detail: corpo?.error ?? "não foi possível registrar a publicação",
+            });
+            return;
+          }
           toast({
             tone: "ok",
-            title: `Registro validado · ${brief.briefId}`,
-            detail: `${fmtDate(dados.published_at)} · rode radar-mark-published com esta URL para gravar o evento e mover o arquivo.`,
+            title: `Publicado · ${brief.briefId}`,
+            detail: `${fmtDate(dados.published_at)} · evento published gravado com a URL do post.`,
           });
+          router.refresh();
         }}
       />
     </>

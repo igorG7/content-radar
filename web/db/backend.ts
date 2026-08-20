@@ -18,7 +18,7 @@ import "server-only";
  *   discordando.
  */
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
 import { loadManifest, MANIFEST_PATH, type BriefState } from "../lib/manifest";
@@ -39,8 +39,46 @@ import path from "node:path";
 type LinhaBrief = typeof t.brief.$inferSelect;
 type LinhaCandidata = typeof t.briefCandidata.$inferSelect;
 
+/**
+ * Quando cada brief foi aprovado. Não é coluna: a aprovação é um evento, e
+ * duplicá-la numa coluna criaria duas versões do mesmo fato.
+ *
+ * Precisa existir porque o diálogo de publicação recusa data anterior à
+ * aprovação — sem isto a validação não falha, ela simplesmente não acontece.
+ */
+async function aprovacoes(
+  tx: Tx,
+  briefIds: string[],
+): Promise<Map<string, string>> {
+  if (briefIds.length === 0) return new Map();
+  const linhas = await tx
+    .select({ briefId: t.evento.briefId, em: t.evento.ts })
+    .from(t.evento)
+    .where(
+      and(
+        eq(t.evento.paraEstado, "pendente-publicacao"),
+        inArray(t.evento.briefId, briefIds),
+      ),
+    )
+    .orderBy(desc(t.evento.ts));
+
+  const mapa = new Map<string, string>();
+  // Ordenado do mais recente para o mais antigo, e só a primeira ocorrência
+  // conta: um brief devolvido e reaprovado tem a aprovação que vale sendo a
+  // última.
+  for (const l of linhas) {
+    if (l.briefId && !mapa.has(l.briefId))
+      mapa.set(l.briefId, l.em.toISOString());
+  }
+  return mapa;
+}
+
 /** O app fala o vocabulário do tipo `Brief`; o banco, o das colunas. */
-function paraBrief(linha: LinhaBrief, candidatas: LinhaCandidata[]): Brief {
+function paraBrief(
+  linha: LinhaBrief,
+  candidatas: LinhaCandidata[],
+  aprovadoEm?: string,
+): Brief {
   const origem = (linha.origem ?? {}) as Record<string, unknown>;
   const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === "string" ? v : undefined);
@@ -98,6 +136,7 @@ function paraBrief(linha: LinhaBrief, candidatas: LinhaCandidata[]): Brief {
     visualBrief: (linha.visualBrief ?? undefined) as Brief["visualBrief"],
     relevanceHints: (linha.evidencias ?? []) as Brief["relevanceHints"],
     origin: str(origem.origin),
+    approvedAt: aprovadoEm,
     handoffAt: linha.handoffEm?.toISOString(),
     publishedAt: linha.publicadoEm?.toISOString(),
     igPostUrl: linha.igPostUrl ?? undefined,
@@ -119,9 +158,16 @@ async function listar(tx: Tx, estado: BriefState): Promise<StateListing> {
     porBrief.set(c.briefId, [...(porBrief.get(c.briefId) ?? []), c]);
   }
 
+  const aprovado = await aprovacoes(
+    tx,
+    linhas.map((l) => l.id),
+  );
+
   return {
     state: estado,
-    briefs: linhas.map((l) => paraBrief(l, porBrief.get(l.id) ?? [])),
+    briefs: linhas.map((l) =>
+      paraBrief(l, porBrief.get(l.id) ?? [], aprovado.get(l.id)),
+    ),
     // Falha de leitura era um conceito de arquivo malformado; no banco, ou a
     // linha existe e é válida, ou não existe.
     failures: [],
@@ -256,7 +302,8 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
           .select()
           .from(t.briefCandidata)
           .where(eq(t.briefCandidata.briefId, linha.id));
-        return paraBrief(linha, candidatas);
+        const aprovado = await aprovacoes(tx, [linha.id]);
+        return paraBrief(linha, candidatas, aprovado.get(linha.id));
       }),
 
     planejarTransicao: (entrada) => dentro((tx) => planejar(tx, entrada)),
@@ -568,6 +615,136 @@ export function backendPostgres(ambiente: AmbienteId): RadarStore {
           temAjustes: ajustes.n > 0,
           temContato: contato.n > 0,
         };
+      }),
+
+    /**
+     * Publicar acontece fora do produto: a pessoa posta no Instagram e volta
+     * com a URL. O app registra que aconteceu — a URL é a prova, e é ela que
+     * torna o evento auditável depois.
+     */
+    marcarPublicado: (slug, dados) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        if (linha.estado !== "pendente-publicacao") {
+          throw new StoreError(
+            "nao_encontrado",
+            `brief está em ${linha.estado}; só se publica o que foi aprovado`,
+          );
+        }
+
+        await tx
+          .update(t.brief)
+          .set({
+            estado: "publicado",
+            publicadoEm: dados.publicadoEm,
+            igPostUrl: dados.igPostUrl,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(t.brief.id, linha.id));
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: "published",
+          ator: "app:radar-web",
+          briefId: linha.id,
+          deEstado: "pendente-publicacao",
+          paraEstado: "publicado",
+          extra: {
+            ig_post_url: dados.igPostUrl,
+            published_at: dados.publicadoEm.toISOString(),
+          },
+        });
+      }),
+
+    /**
+     * O package num `.md` só. A hero entra como URL do Cloudinary quando
+     * existe: depois do upload ela não é mais arquivo, e copiar a foto para
+     * dentro do pacote seria redundância do desenho antigo.
+     */
+    exportar: (slug) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        const candidatas = await tx
+          .select()
+          .from(t.briefCandidata)
+          .where(eq(t.briefCandidata.briefId, linha.id));
+        const [marca] = await tx.select().from(t.marca);
+        const [pilar] = await tx
+          .select()
+          .from(t.pilar)
+          .where(eq(t.pilar.slug, linha.pilarSlug));
+
+        const hero = candidatas.find((c) => c.indice === linha.heroIndice);
+        const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
+        const visual = (linha.visualBrief ?? {}) as Record<string, unknown>;
+        const lista = (v: unknown) =>
+          Array.isArray(v) && v.length > 0
+            ? v.map((x) => `- ${x}`).join("\n")
+            : "_(nada declarado)_";
+
+        const conteudo = `# ${linha.headline}
+
+> Package do content-radar para o Smart Design.
+> Brief \`${linha.briefId}\` · pilar \`${linha.pilarSlug}\` · público \`${linha.publicoSlug}\`
+
+## A arte
+
+- **Skill sugerida:** \`${destino.od_skill_ref ?? "—"}\`
+- **Alternativas:** ${Array.isArray(destino.alternativas) && destino.alternativas.length ? (destino.alternativas as string[]).map((a) => `\`${a}\``).join(", ") : "—"}
+- **Hero:** ${
+          linha.heroDecididoEm === null
+            ? "**não decidida** — este brief não deveria ter chegado aqui"
+            : hero?.cloudUrl
+              ? hero.cloudUrl
+              : linha.heroIndice === null
+                ? "**sem foto** — o Smart Design gera a arte"
+                : "**escolhida, mas ainda sem URL do Cloudinary**"
+        }
+
+### Precisa ter
+
+${lista(visual.mustHave ?? visual.must_have)}
+
+### Evitar
+
+${lista(visual.avoidVisual ?? visual.avoid_visual)}
+
+${visual.compositionNotes || visual.composition_notes ? `### Composição\n\n${visual.compositionNotes ?? visual.composition_notes}\n` : ""}
+## A copy
+
+**Hook:** ${linha.hook ?? "—"}
+
+${linha.captionDraft ?? "_(sem rascunho de legenda)_"}
+
+**CTA:** ${linha.cta ?? "—"}
+${marca?.telefoneExibicao ? `**Telefone na arte:** ${marca.telefoneExibicao} · ${marca.canalPrincipal}\n` : ""}
+${linha.hashtags?.length ? `**Hashtags:** ${linha.hashtags.map((h) => `#${h}`).join(" ")}\n` : ""}
+## Por que esta pauta
+
+${pilar ? `**${pilar.nome}** — ${pilar.corpo.split("\n")[0]}\n\n` : ""}${((linha.origem ?? {}) as Record<string, unknown>).why_match ?? "_(sem justificativa registrada)_"}
+
+---
+
+_Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicação é manual._
+`;
+
+        await tx
+          .update(t.brief)
+          .set({ handoffEm: new Date() })
+          .where(eq(t.brief.id, linha.id));
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: "handoff-finished",
+          ator: "app:radar-web",
+          briefId: linha.id,
+          extra: {
+            hero_choice: linha.heroIndice,
+            cloudinary: hero?.cloudUrl ? "url" : "skipped",
+          },
+        });
+
+        return { nome: `${linha.slug}.md`, conteudo };
       }),
 
     lerLedger: () =>

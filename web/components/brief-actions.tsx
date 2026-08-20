@@ -112,13 +112,32 @@ export function BriefActions({ brief }: { brief: BriefView }) {
           brief={brief}
           open={publicando}
           onClose={() => setPublicando(false)}
-          onConfirm={(dados) => {
+          onConfirm={async (dados) => {
             setPublicando(false);
+            const resposta = await fetch(`/api/briefs/${brief.slug}/publish`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                igPostUrl: dados.ig_post_url,
+                publicadoEm: new Date(dados.published_at).toISOString(),
+              }),
+            }).catch(() => null);
+            const corpo = await resposta?.json().catch(() => null);
+            if (!resposta?.ok) {
+              toast({
+                tone: "danger",
+                title: `HTTP ${resposta?.status ?? "—"} · ${(corpo?.code ?? "PUBLISH_FAILED").toUpperCase()}`,
+                detail: corpo?.error ?? TRANSITION_ERRORS.ALREADY_MOVED,
+              });
+              return;
+            }
             toast({
               tone: "ok",
-              title: `Registro validado · ${brief.briefId}`,
-              detail: `${fmtDate(dados.published_at)} · a gravação do evento published e a movimentação do arquivo ainda são da skill radar-mark-published; a API web não expõe essa transição.`,
+              title: `Publicado · ${brief.briefId}`,
+              detail: `${fmtDate(dados.published_at)} · evento published gravado com a URL do post.`,
             });
+            router.push("/acervo?estado=publicado");
+            router.refresh();
           }}
         />
 
@@ -136,23 +155,27 @@ export function BriefActions({ brief }: { brief: BriefView }) {
               >
                 Fechar
               </button>
-              <button
+              {/* Âncora, não botão com router.push: o destino é um download,
+                  e navegação do lado do cliente descartaria o arquivo. */}
+              <a
                 className="btn btn-primary"
-                type="button"
+                href={`/api/briefs/${brief.slug}/export`}
+                download={`${brief.slug}.md`}
                 onClick={() => {
                   setExportando(false);
                   // O rótulo virou "exportar" para a pessoa, mas o nome do
-                  // artefato e o do evento no ledger são contrato do backend —
-                  // continuam handoff.
+                  // evento no ledger é contrato do backend — continua handoff.
                   toast({
-                    title: "Pacote ainda é gerado pela skill",
-                    detail: `radar-handoff escreve store/packages/${brief.slug}/ e o evento handoff-finished. A web não dispara o upload ao Cloudinary.`,
+                    tone: "ok",
+                    title: `Pacote gerado · ${brief.briefId}`,
+                    detail:
+                      "Um .md com copy, direção visual e a URL da hero. Evento handoff-finished gravado.",
                   });
                 }}
               >
                 <IconExport />
                 Exportar
-              </button>
+              </a>
             </>
           }
         >
@@ -161,26 +184,25 @@ export function BriefActions({ brief }: { brief: BriefView }) {
             para o Open Design gerar a arte.
           </p>
           <pre className="code" style={{ marginTop: 14 }}>
-            <span className="c-com"># handoff-{brief.briefId}/</span>
+            <span className="c-com"># {brief.slug}.md</span>
             {"\n"}
-            <span className="c-key">brief.md</span> frontmatter completo{"\n"}
-            <span className="c-key">caption.txt</span> legenda final + hashtags
+            <span className="c-key">A arte</span> skill{" "}
+            {brief.odSkillRef ?? "—"} · {brief.visualBrief.aspectRatio} ·
+            must_have · avoid_visual{"\n"}
+            <span className="c-key">A copy</span> hook, legenda, CTA, hashtags
             {"\n"}
-            <span className="c-key">visual-brief.yaml</span> aspect_ratio{" "}
-            {brief.visualBrief.aspectRatio} · must_have · avoid_visual{"\n"}
-            <span className="c-key">od_skill_ref</span>{" "}
-            {brief.odSkillRef ?? "—"}
-            {"\n"}
-            <span className="c-key">hero/</span>{" "}
+            <span className="c-key">Hero</span>{" "}
             {brief.heroChoice === null
-              ? "(vazio — card só-tipografia)"
+              ? "(sem foto — o Smart Design gera a arte)"
               : (brief.media.find((m) => m.index === brief.heroChoice)?.file ??
                 "(não resolvida)")}
+            {"\n"}
+            <span className="c-key">Por quê</span> pilar e justificativa do
+            match
           </pre>
           <p className="field-help" style={{ marginTop: 12 }}>
-            A publicação no Instagram continua manual. Depois de publicar, a
-            skill <span className="num">radar-mark-published</span> grava a URL
-            e move para publicado.
+            A publicação no Instagram continua manual. Depois de publicar, use{" "}
+            <span className="num">Marcar publicado</span> para registrar a URL.
           </p>
         </Modal>
       </>

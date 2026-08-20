@@ -27,6 +27,30 @@ cada lote.
 **Fase 2 — backend de Postgres** atrás da interface `RadarStore`, e as fases
 seguintes de [`design-migracao.md`](./design-migracao.md).
 
+## Fase 4 — o que falta
+
+**Uma execução real.** Falta credencial de API. Sem ela seguem provadas só por
+construção: a detecção de estágio pela invocação do subagente, a ingestão de
+saída de verdade, e o carregamento das skills sob `settingSources: ["project"]`.
+
+**O processo trabalhador** — laço chamando `girar()`, sob pm2.
+
+**A rota que enfileira** e o **progresso na tela**, lendo `scan.estado` e os
+eventos de estágio.
+
+**`radar-housekeeping`** é a última skill determinística sem código — a purga
+de mídia. É a de menor pressa: não move estado de brief nenhum.
+
+As outras três saíram do repositório em 2026-08-20. `radar-mv` virou
+`aplicarTransicao`, `radar-mark-published` virou `marcarPublicado`, e
+`radar-handoff` virou `exportar` — que devolve **um `.md`** para download em vez
+de escrever cinco arquivos em `store/packages/`. Eram código escrito em prosa:
+mudança de estado com regra fixa quer transação, não um modelo decidindo.
+
+**Injeção por ferramenta em vez de arquivo** — o destino do desenho, adiado com
+gatilho declarado no segundo cliente
+([`design-migracao.md`](./design-migracao.md) §5.4).
+
 ## Soltas
 
 - **`positioning.md` do vault da Avanz** cita `brand.json#/target_audience`

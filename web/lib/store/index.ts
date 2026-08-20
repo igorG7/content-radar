@@ -116,6 +116,11 @@ export interface BlocoVault {
   atualizadoEm: string;
 }
 
+export interface Publicacao {
+  igPostUrl: string;
+  publicadoEm: Date;
+}
+
 /** Campos do brief que a edição pela interface pode tocar. */
 export interface EdicaoBrief {
   headline?: string | null;
@@ -210,6 +215,21 @@ export interface RadarStore {
    * histórico sem o porquê responde metade da pergunta.
    */
   gravarBloco(slug: string, corpo: string, motivo: string): Promise<void>;
+
+  /**
+   * Fecha o ciclo: o post saiu no Instagram. Publicar é ato humano fora do
+   * produto — o que o app registra é que aconteceu, com a URL como prova.
+   */
+  marcarPublicado(slug: string, dados: Publicacao): Promise<void>;
+
+  /**
+   * O package do handoff, como **um `.md` para download**.
+   *
+   * Eram cinco arquivos numa pasta; quatro são texto e cabem num só, e a foto
+   * não precisa caber porque depois do upload ela é uma URL. Ver
+   * design-persistencia-multiusuario §4.1.
+   */
+  exportar(slug: string): Promise<{ nome: string; conteudo: string }>;
 
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
@@ -351,6 +371,20 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       await replaceFrontmatterFields(
         filePath,
         campos as Record<string, unknown>,
+      );
+    },
+
+    async marcarPublicado() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não marca publicação",
+      );
+    },
+
+    async exportar() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não exporta package",
       );
     },
 

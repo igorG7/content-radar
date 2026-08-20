@@ -93,7 +93,7 @@ async function locateBrief(
 }
 
 /**
- * Mirrors the hard rules of .claude/skills/radar-mv/SKILL.md:
+ * The transition rules, which used to live in the radar-mv skill:
  * hero_choice must be declared (null is a valid, explicit "no photo"),
  * approve only leaves pendente-aprovacao/, and rejeitado/ keeps no media.
  */
@@ -114,7 +114,7 @@ export async function planTransition(
   if (location !== SOURCE) {
     throw new TransitionError(
       "wrong_state",
-      `brief \`${slug}\` está em ${location}/; radar-mv só opera a partir de ${SOURCE}/`,
+      `brief \`${slug}\` está em ${location}/; a transição só parte de ${SOURCE}/`,
     );
   }
 

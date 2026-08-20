@@ -30,6 +30,16 @@ changelog:
 
 # Spec 007 — `radar-handoff`
 
+> **Superada em 2026-08-20.** A skill deixou de existir: a operação virou
+> `exportar()` em `web/db/backend.ts`, que devolve **um `.md`** para download
+> em vez de escrever cinco arquivos em `store/packages/`. O que continua
+> valendo desta spec são as **regras** — o que o pacote precisa carregar e o
+> que o evento `handoff-finished` registra. O que não vale mais é a forma:
+> nada disto passa por arquivo em `store/` nem por um modelo lendo
+> frontmatter.
+> Ver [`docs/pendencias.md`](../pendencias.md).
+
+
 > Define a **última skill** do 1º slice vertical do `content-radar`.
 > Consome briefs em `store/briefs/pendente-publicacao/` (já validados pelo
 > [`radar-mv approve`](./005-skill-scan.md#152-reject)) que ainda **não
