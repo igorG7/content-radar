@@ -77,6 +77,7 @@ export async function executar(
   jaEnfileirado?: string,
 ): Promise<ResultadoScan> {
   let ws: Workspace | undefined;
+  let preservarWorkspace = false;
   const inicio = Date.now();
   const estagios: { estagio: Estagio; minuto: number }[] = [];
   const minuto = () => Math.round(((Date.now() - inicio) / 60000) * 10) / 10;
@@ -191,6 +192,27 @@ export async function executar(
         // O scan escreve brief e mídia no próprio workspace. Sem isto, cada
         // escrita viraria uma pergunta que ninguém está lá para responder.
         permissionMode: "acceptEdits",
+        /**
+         * O que o pipeline pode usar, por lista e não por `bypassPermissions`.
+         *
+         * A lista é mais estreita e diz no código o que a varredura faz: o
+         * researcher busca na web, o briefer baixa imagem por `Bash`, e o
+         * orquestrador delega por `Task`. Sem declarar, a primeira busca é
+         * recusada por falta de permissão — e como não há ninguém para
+         * aprovar, o researcher devolve zero achados e a varredura termina
+         * limpa e vazia. Foi o que aconteceu na primeira execução real.
+         */
+        allowedTools: [
+          "Task",
+          "WebSearch",
+          "WebFetch",
+          "Read",
+          "Write",
+          "Edit",
+          "Glob",
+          "Grep",
+          "Bash",
+        ],
       },
     });
 
@@ -199,17 +221,36 @@ export async function executar(
       vistos++;
       // O estágio se lê da invocação do subagente: é o pipeline dizendo onde
       // está, em vez de o executor adivinhar por tempo decorrido.
-      if (msg.type === "assistant") {
-        for (const bloco of msg.message.content) {
-          if (bloco.type !== "tool_use" || bloco.name !== "Task") continue;
-          const alvo = String(
-            (bloco.input as { subagent_type?: string }).subagent_type ?? "",
-          );
-          const estagio = ESTAGIO_DO_AGENTE[alvo];
-          if (estagio && estagios.at(-1)?.estagio !== estagio) {
-            await marcarEstagio(estagio);
-          }
-        }
+      /**
+       * O estágio vem de três sinais, do mais direto ao mais indireto.
+       *
+       * A primeira execução real provou que o `tool_use` chamado `Task` não
+       * chega a este laço: o scan rodou o researcher e o estado foi de
+       * `rodando` direto para o fim, sem um único `scan-stage`. O SDK, porém,
+       * carimba `subagent_type` na própria mensagem e emite
+       * `system/task_progress` com o mesmo campo — sinal de primeira mão, em
+       * vez de inferência sobre uma chamada de ferramenta.
+       */
+      const deQuem =
+        (msg.type === "assistant" || msg.type === "user") &&
+        "subagent_type" in msg
+          ? String(msg.subagent_type ?? "")
+          : msg.type === "system" &&
+              "subtype" in msg &&
+              msg.subtype === "task_progress" &&
+              "subagent_type" in msg
+            ? String(msg.subagent_type ?? "")
+            : msg.type === "assistant"
+              ? ((
+                  msg.message.content.find(
+                    (b) => b.type === "tool_use" && b.name === "Task",
+                  ) as { input?: { subagent_type?: string } } | undefined
+                )?.input?.subagent_type ?? "")
+              : "";
+
+      const estagio = ESTAGIO_DO_AGENTE[deQuem];
+      if (estagio && estagios.at(-1)?.estagio !== estagio) {
+        await marcarEstagio(estagio);
       }
       if (msg.type === "result" && msg.subtype !== "success") {
         throw new Error(`execução terminou em ${msg.subtype}`);
@@ -218,24 +259,47 @@ export async function executar(
 
     const ingestao = await ingerir(ws);
 
+    /**
+     * Terminar sem exceção não é o mesmo que dar certo: a skill pode abortar
+     * sozinha — sem busca disponível, sem achado, sem pauta — e sair limpa. Se
+     * o executor ignorasse isso, o banco diria `concluido` enquanto o ledger
+     * dizia abortado, e as duas versões conviveriam.
+     */
+    const abortada = ingestao.abortadaPelaSkill;
+    const estadoFinal = abortada ? "falhou" : "concluido";
+
+    /**
+     * Sucesso com brief incompleto é o caso que nenhuma das duas regras
+     * anteriores cobria: a execução deu certo, então o workspace era
+     * descartado — e com ele a única forma de saber por que a legenda veio
+     * vazia. Aconteceu no primeiro scan que produziu pauta.
+     */
+    if (ingestao.avisos.length > 0) preservarWorkspace = true;
+
     await comAmbiente(ambienteId, async (tx) => {
       await tx
         .update(t.scan)
-        .set({ estado: "concluido", encerradoEm: new Date() })
+        .set({ estado: estadoFinal, encerradoEm: new Date() })
         .where(eq(t.scan.id, scanId));
       await tx.insert(t.evento).values({
         ambienteId,
-        tipo: "scan-finished",
+        tipo: abortada ? "scan-aborted" : "scan-finished",
         ator: "app:radar-executor",
         scanId,
-        extra: { minutos: minuto(), mensagens: vistos, ...ingestao },
+        extra: {
+          minutos: minuto(),
+          mensagens: vistos,
+          ...(abortada ? { erro: abortada.motivo } : {}),
+          ...ingestao,
+        },
       });
     });
 
     return {
       scanId,
       scanRef,
-      estado: "concluido",
+      estado: estadoFinal,
+      erro: abortada?.motivo,
       minutos: minuto(),
       estagios,
       ingestao,
@@ -243,6 +307,15 @@ export async function executar(
     };
   } catch (erro) {
     const mensagem = (erro as Error).message;
+    /**
+     * A ingestão anexa as recusas ao erro. Sem lê-las, o ledger guarda só
+     * "ingestão recusada" — que diz que algo deu errado e nada sobre o quê.
+     * Aconteceu na segunda execução real: a varredura passou 24 minutos,
+     * escreveu o brief, foi recusada, e o motivo morreu junto com o workspace.
+     */
+    const recusas = (erro as { relatorio?: { recusas?: unknown[] } }).relatorio
+      ?.recusas;
+    if (recusas?.length) preservarWorkspace = true;
 
     await comAmbiente(ambienteId, async (tx) => {
       await tx
@@ -258,8 +331,12 @@ export async function executar(
         // 10 fontes é problema diferente de falhar na redação.
         extra: {
           erro: mensagem,
+          ...(recusas?.length ? { recusas } : {}),
           estagio: estagios.at(-1)?.estagio ?? "nenhum",
           minutos: minuto(),
+          // Onde olhar quando o motivo não bastar. Só existe quando o workspace
+          // foi preservado — ver o `finally`.
+          ...(ws ? { workspace: ws.dir } : {}),
         },
       });
     });
@@ -274,8 +351,20 @@ export async function executar(
       workspace: ws?.dir,
     };
   } finally {
-    // O workspace some sempre: ele é derivado do banco e regenerá-lo custa
-    // segundos. Guardar o de uma falha só acumularia lixo em /tmp.
-    if (ws) await descartar(ws);
+    /**
+     * O workspace some — **menos** quando a ingestão recusou.
+     *
+     * Ele é derivado do banco e regenerá-lo custa segundos, então guardar o de
+     * uma falha qualquer só acumularia lixo. Mas recusa de ingestão é o caso em
+     * que ele é a única evidência: o brief foi escrito e não entrou, e sem os
+     * arquivos não há como saber o que o briefer produziu. Foi assim que se
+     * perdeu o diagnóstico da segunda execução real.
+     */
+    if (ws && !preservarWorkspace) await descartar(ws);
+    if (ws && preservarWorkspace) {
+      console.warn(
+        `[executor] workspace preservado para diagnóstico: ${ws.dir}`,
+      );
+    }
   }
 }

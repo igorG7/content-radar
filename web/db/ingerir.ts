@@ -29,7 +29,26 @@ export interface RelatorioIngestao {
   midiaCopiada: number;
   /** Recusas: nada foi gravado enquanto houver uma. */
   recusas: { onde: string; detalhe: string }[];
+  /**
+   * O que entrou, mas incompleto.
+   *
+   * Separado de `recusas` de propósito: jogar fora 25 minutos de execução
+   * porque falta um campo editável à mão seria pior que aceitar e avisar. Mas
+   * aceitar calado é como a primeira varredura bem-sucedida entregou um brief
+   * sem legenda sem ninguém notar até abrir a tela.
+   */
+  avisos: { onde: string; detalhe: string }[];
+  /**
+   * O veredito do próprio pipeline, lido do ledger que ele escreveu.
+   *
+   * Existe porque "o executor não lançou exceção" não é o mesmo que "a
+   * varredura deu certo": a skill pode abortar sozinha — sem busca disponível,
+   * sem achado, sem pauta — e terminar de forma limpa. Sem isto o banco diz
+   * `concluido` enquanto o ledger diz abortado, e as duas versões convivem.
+   */
+  abortadaPelaSkill: { motivo: string } | null;
 }
+
 
 function str(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
@@ -66,6 +85,7 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
     const temTema = new Set(temas.map((x) => `${x.pilarSlug}:${x.codigo}`));
 
     const recusas: RelatorioIngestao["recusas"] = [];
+    const avisos: RelatorioIngestao["avisos"] = [];
     const analisados = colheita.briefsNovos.map((b) => {
       const { data, body } = parseFrontmatter(b.conteudo);
       return { slug: b.slug, data, body };
@@ -97,6 +117,19 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
       if (!str(data.headline)) {
         recusas.push({ onde: slug, detalhe: "sem headline" });
       }
+      // A legenda é o texto do post. Sem ela o brief entra, porque dá para
+      // escrever à mão na tela de edição — mas quem aprova precisa saber que
+      // vai ter de escrever.
+      if (!str(data.caption_draft)) {
+        avisos.push({ onde: slug, detalhe: "sem rascunho de legenda" });
+      }
+      if (
+        !Array.isArray(data.hero_image_candidates) ||
+        data.hero_image_candidates.length === 0
+      ) {
+        avisos.push({ onde: slug, detalhe: "sem candidatas de imagem" });
+      }
+
 
       const justificativa = [
         str(data.why_match) ?? "",
@@ -118,6 +151,8 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
       throw Object.assign(new Error("ingestão recusada"), {
         relatorio: {
           eventos: 0,
+          avisos: [],
+          abortadaPelaSkill: null,
           briefs: 0,
           candidatas: 0,
           midiaCopiada: 0,
@@ -260,6 +295,18 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
 
     return {
       eventos: colheita.eventos.length,
+      avisos,
+      abortadaPelaSkill: (() => {
+        const aborto = colheita.eventos.find(
+          (e) => str(e.event) === "scan-aborted",
+        );
+        if (!aborto) return null;
+        const extra = (aborto.extra ?? {}) as Record<string, unknown>;
+        return {
+          motivo:
+            str(extra.detail) ?? str(extra.reason) ?? "abortada sem detalhe",
+        };
+      })(),
       briefs: idPorRef.size,
       candidatas,
       midiaCopiada,
