@@ -115,6 +115,30 @@ async function lerArquivo(
   }
 }
 
+/**
+ * A direção de arte, do jsonb para o vocabulário do app.
+ *
+ * O banco guarda as chaves como o pipeline as escreve — `must_have`,
+ * `avoid_visual` — e o app fala `mustHave`, `avoidVisual`. Aqui havia um cast
+ * cru: os tipos batiam para o compilador e a tela recebia chaves que não sabia
+ * ler, então mostrava direção de arte vazia com o dado inteiro no banco.
+ * Cast não converte nada; só cala o compilador.
+ */
+function paraVisualBrief(valor: unknown): Brief["visualBrief"] {
+  const v = (valor ?? {}) as Record<string, unknown>;
+  const texto = (x: unknown) => (typeof x === "string" ? x : undefined);
+  const lista = (x: unknown) =>
+    Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : [];
+
+  return {
+    baseTemplate: texto(v.base_template) ?? texto(v.baseTemplate),
+    compositionNotes: texto(v.composition_notes) ?? texto(v.compositionNotes),
+    mustHave: lista(v.must_have ?? v.mustHave),
+    avoidVisual: lista(v.avoid_visual ?? v.avoidVisual),
+    aspectRatio: texto(v.aspect_ratio) ?? texto(v.aspectRatio),
+  };
+}
+
 /** O app fala o vocabulário do tipo `Brief`; o banco, o das colunas. */
 function paraBrief(
   linha: LinhaBrief,
@@ -175,7 +199,7 @@ function paraBrief(
     odSkillAlternatives: arr(destino.alternativas),
     sourceExcerpts: arr(origem.source_excerpts),
     reviewNotes: linha.reviewNotes ?? undefined,
-    visualBrief: (linha.visualBrief ?? undefined) as Brief["visualBrief"],
+    visualBrief: paraVisualBrief(linha.visualBrief),
     relevanceHints: (linha.evidencias ?? []) as Brief["relevanceHints"],
     origin: str(origem.origin),
     approvedAt: aprovadoEm,

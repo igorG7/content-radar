@@ -85,7 +85,9 @@ async function semearBrief(slug: string, estado: string) {
          'Lote na RMBH com escritura', 'E se o barato saísse caro?',
          'Legenda de teste.', 'Chama no WhatsApp', '{rmbh,lote}', $4,
          0, now(),
-         '{"aspectRatio":"4:5","mustHave":["mapa"],"avoidVisual":["stock genérico"]}',
+         -- snake_case porque é o que o pipeline escreve de verdade; o fixture
+         -- em camelCase escondia o descasamento que a tela sofria.
+         '{"aspect_ratio":"4:5","must_have":["mapa"],"avoid_visual":["stock genérico"]}',
          '{"od_skill_ref":"carrossel-comparativo","alternativas":["card-dado"]}',
          '{"why_match":"escritura é o critério de decisão do ICP investidor"}'
        ) returning id`,
@@ -157,6 +159,22 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     expect(evento.tipo).toBe("published");
     expect(evento.de_estado).toBe("pendente-publicacao");
     expect(evento.extra.ig_post_url).toContain("instagram.com");
+  });
+
+  it("a direção de arte chega à tela com as chaves que ela lê", async () => {
+    // O banco guarda `must_have`, o app fala `mustHave`. Havia um cast cru no
+    // meio: os tipos batiam, a tela recebia chaves desconhecidas e mostrava
+    // direção de arte vazia com o dado inteiro gravado. Cast não converte.
+    const slug = `${SLUG}-visual`;
+    await semearBrief(slug, "pendente-aprovacao");
+
+    const brief = await backendPostgres(ambienteId).buscarBrief(
+      slug,
+      "pendente-aprovacao",
+    );
+    expect(brief.visualBrief?.mustHave).toEqual(["mapa"]);
+    expect(brief.visualBrief?.avoidVisual).toEqual(["stock genérico"]);
+    expect(brief.visualBrief?.aspectRatio).toBe("4:5");
   });
 
   it("recusa publicar o que não foi aprovado", async () => {
