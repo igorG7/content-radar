@@ -1,0 +1,1 @@
+ALTER TABLE "fila_pedido" ADD COLUMN "reivindicado_em" timestamp with time zone;

@@ -18,9 +18,10 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 /**
- * Os 13 blocos do esquema (design-vault-onboarding §7). `fontes` e `ajustes`
- * são de tipo config: existem na sequência do onboarding mas apontam para a
- * tela de configuração e não entram no documento montado.
+ * Os blocos de prosa. Três entradas do catálogo não aparecem aqui porque não
+ * são prosa: `fontes` e `ajustes` vivem na configuração, e `contato` na tabela
+ * `marca` — o número que vai no rodapé da arte é valor, e escrevê-lo também em
+ * prosa criaria duas casas para o mesmo dado.
  */
 const BLOCOS_VAZIOS = [
   { slug: "identidade", titulo: "Identidade e origem", contrato: "degrada" },
@@ -28,7 +29,6 @@ const BLOCOS_VAZIOS = [
   { slug: "guardrails", titulo: "Guardrails", contrato: "obrigatorio" },
   { slug: "foco", titulo: "Foco editorial", contrato: "obrigatorio" },
   { slug: "geografia", titulo: "Área de atuação", contrato: "obrigatorio" },
-  { slug: "contato", titulo: "Contato e CTA", contrato: "obrigatorio" },
   { slug: "publicos", titulo: "Públicos", contrato: "obrigatorio" },
   { slug: "pilares", titulo: "Pilares editoriais", contrato: "obrigatorio" },
   { slug: "cadencia", titulo: "Cadência", contrato: "degrada" },

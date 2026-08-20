@@ -196,6 +196,44 @@ describe.skipIf(!disponivel)("isolamento entre ambientes", () => {
     expect(aoApagar).toMatch(/permission denied/i);
   });
 
+  it("apagar um brief preserva o evento que registra que ele existiu", async () => {
+    const dono = new Pool({
+      connectionString: process.env.DATABASE_URL_MIGRATIONS,
+    });
+    try {
+      await dono.query("begin");
+      await dono.query("select set_config('app.ambiente', $1, true)", [A]);
+      // Um brief próprio, para não consumir o do cenário: teste que depende da
+      // ordem de outro quebra quando alguém reordena.
+      const { rows } = await dono.query(
+        `insert into brief (ambiente_id, brief_id, slug, estado, pilar_slug,
+                            publico_slug, topic_hash, headline)
+         values ($1,'2026-W97-001','descartavel','pendente-aprovacao','decisao',
+                 'comprador','hash-descartavel','Descartável')
+         returning id`,
+        [A],
+      );
+      await dono.query(
+        "insert into evento (ambiente_id, tipo, ator, brief_id) values ($1,'teste','teste',$2)",
+        [A, rows[0].id],
+      );
+
+      // Numa chave estrangeira composta, SET NULL sem lista anularia também o
+      // ambiente_id — que é NOT NULL — e a exclusão falharia (migração 0003).
+      await dono.query("delete from brief where id = $1", [rows[0].id]);
+
+      const depois = await dono.query(
+        "select ambiente_id, brief_id from evento where tipo = 'teste'",
+      );
+      await dono.query("commit");
+
+      expect(depois.rows[0].brief_id).toBe(null);
+      expect(depois.rows[0].ambiente_id).toBe(A);
+    } finally {
+      await dono.end();
+    }
+  });
+
   it("apagar o ambiente leva o conteúdo junto", async () => {
     const dono = new Pool({
       connectionString: process.env.DATABASE_URL_MIGRATIONS,

@@ -155,6 +155,12 @@ export const pilar = pgTable(
     corpo: text("corpo").notNull(),
     ordem: smallint("ordem").notNull(),
     noRadar: boolean("no_radar").notNull().default(true),
+    /**
+     * Template de geração deste pilar — o que era `prompts/post-*.json` no
+     * vault de arquivos. Carrega identidade visual, tratamento de foto e
+     * elementos fixos, então é do cliente, não do produto.
+     */
+    template: jsonb("template"),
   },
   (t) => [
     primaryKey({ columns: [t.ambienteId, t.slug] }),
@@ -219,6 +225,61 @@ export const guardrail = pgTable(
   ],
 );
 
+/**
+ * A fila de execução — **sem RLS, de propósito**.
+ *
+ * Escolher o próximo scan é a única operação do sistema que atravessa
+ * ambientes: a vaga global é do servidor. Com RLS, quem reivindica precisaria
+ * de exceção para enxergar todos — e exceção no isolamento é o que a gente
+ * passou o projeto inteiro evitando.
+ *
+ * A saída é a fila não guardar conteúdo. Só id, ambiente e momento: quem lê
+ * não vê brief, vault nem configuração de ninguém. Mesmo princípio de
+ * `ambiente` e `usuario`, que também não têm RLS porque são consultados antes
+ * de haver ambiente.
+ */
+export const filaPedido = pgTable("fila_pedido", {
+  scanId: uuid("scan_id").primaryKey(),
+  ambienteId: uuid("ambiente_id")
+    .notNull()
+    .references(() => ambiente.id, { onDelete: "cascade" }),
+  criadoEm: timestamp("criado_em", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  /**
+   * Nulo enquanto espera; carimbado quando um trabalhador pega. A linha só sai
+   * da tabela quando a execução termina — é o que permite contar os em voo sem
+   * perguntar à tabela `scan`, que exigiria enxergar conteúdo de todo ambiente.
+   */
+  reivindicadoEm: timestamp("reivindicado_em", { withTimezone: true }),
+});
+
+/**
+ * Fatos estáveis da marca, em campo e não em prosa.
+ *
+ * O bloco `contato` do vault descreve o canal e o tom do CTA — isso é prosa e o
+ * modelo lê. Mas o número que vai no rodapé da arte é **valor**: a skill o
+ * injeta no `must_have` do briefing visual e no package. Extrair de prosa por
+ * expressão regular seria a fragilidade que a forma de bloco existe para
+ * evitar.
+ */
+export const marca = pgTable(
+  "marca",
+  {
+    ambienteId: uuid("ambiente_id")
+      .primaryKey()
+      .references(() => ambiente.id, { onDelete: "cascade" }),
+    canalPrincipal: text("canal_principal").notNull(),
+    telefoneExibicao: text("telefone_exibicao"),
+    telefoneE164: text("telefone_e164"),
+    telefoneSecundarioE164: text("telefone_secundario_e164"),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [politicaAmbiente(t.ambienteId)],
+);
+
 /* ── configuração ──────────────────────────────────────────────────────── */
 
 /** Pesos, caps e janelas ficam em jsonb porque são lidos inteiros na execução e
@@ -234,6 +295,8 @@ export const config = pgTable(
     caps: jsonb("caps").notNull(),
     janelas: jsonb("janelas").notNull(),
     volume: jsonb("volume").notNull(),
+    /** Base visual compartilhada entre os pilares (`prompts/visual-base.json`). */
+    visualBase: jsonb("visual_base"),
     atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -314,7 +377,13 @@ export const scan = pgTable(
     escopo: text("escopo").notNull(),
     pilarFiltro: text("pilar_filtro"),
     alvoQtd: smallint("alvo_qtd"),
-    estado: text("estado").notNull(), // enfileirado|rodando|concluido|falhou
+    /**
+     * enfileirado → rodando → pesquisa → filtragem → redacao → concluido,
+     * ou falhou. Os estágios ficam aqui porque este é o estado **corrente**,
+     * que a tela lê; o histórico deles vive no ledger, como evento
+     * (design-execucao-scan §9).
+     */
+    estado: text("estado").notNull(),
     /** Contra qual estado do vault o scan rodou — é o que torna respondível
      *  "esta pauta ruim saiu de qual versão dos pilares?". */
     vaultVersao: bigint("vault_versao", { mode: "number" }),
