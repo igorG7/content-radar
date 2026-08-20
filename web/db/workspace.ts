@@ -378,7 +378,17 @@ export async function descartar(ws: Workspace): Promise<void> {
 /** O que a execução produziu, lido de volta do workspace. */
 export interface Colheita {
   eventos: Record<string, unknown>[];
-  briefsNovos: { slug: string; conteudo: string }[];
+  briefsNovos: {
+    slug: string;
+    dados: Record<string, unknown>;
+    /**
+     * De onde os campos vieram. `frontmatter` significa que a skill não gravou
+     * o `.json` do contrato e o brief foi lido do markdown — que é onde o
+     * conteúdo se perde, porque o modelo distribui os campos entre frontmatter
+     * e corpo de um jeito diferente a cada execução.
+     */
+    origem: "json" | "frontmatter";
+  }[];
 }
 
 export async function colher(ws: Workspace): Promise<Colheita> {
@@ -395,8 +405,35 @@ export async function colher(ws: Workspace): Promise<Colheita> {
   const dirFila = path.join(ws.dir, "store", "briefs", "pendente-aprovacao");
   const nomes = await readdir(dirFila).catch(() => [] as string[]);
 
-  const briefsNovos: { slug: string; conteudo: string }[] = [];
+  const briefsNovos: Colheita["briefsNovos"] = [];
+
+  /**
+   * O `.json` é o contrato: é o objeto que o briefer devolveu, gravado como
+   * veio. Duas execuções reais provaram por que o markdown não serve — numa,
+   * hook, CTA, hashtags e direção de arte foram para o frontmatter; na outra,
+   * para o corpo. A ingestão lê frontmatter, então metade do brief sumiu sem
+   * ninguém notar.
+   */
+  for (const nome of nomes.filter((n) => n.endsWith(".json"))) {
+    const bruto = await readFile(path.join(dirFila, nome), "utf8");
+    try {
+      briefsNovos.push({
+        slug: nome.slice(0, -5),
+        dados: JSON.parse(bruto) as Record<string, unknown>,
+        origem: "json",
+      });
+    } catch {
+      // JSON quebrado não é brief: deixar passar viraria recusa confusa lá na
+      // frente, em vez de "a skill escreveu algo que não é JSON".
+    }
+  }
+
+  const comJson = new Set(briefsNovos.map((b) => b.slug));
+
   for (const nome of nomes.filter((n) => n.endsWith(".md"))) {
+    const slug = nome.slice(0, -3);
+    if (comJson.has(slug)) continue;
+
     const conteudo = await readFile(path.join(dirFila, nome), "utf8");
     // Os materializados só têm frontmatter de anti-repetição; brief de verdade
     // tem corpo. É o que separa o que veio do banco do que a skill escreveu.
@@ -404,7 +441,12 @@ export async function colher(ws: Workspace): Promise<Colheita> {
       conteudo.split("---").length > 2 &&
       conteudo.split("---")[2].trim() !== ""
     ) {
-      briefsNovos.push({ slug: nome.slice(0, -3), conteudo });
+      const { parseFrontmatter } = await import("../lib/store/frontmatter");
+      briefsNovos.push({
+        slug,
+        dados: parseFrontmatter(conteudo).data,
+        origem: "frontmatter",
+      });
     }
   }
 

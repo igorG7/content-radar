@@ -18,7 +18,6 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
-import { parseFrontmatter } from "../lib/store/frontmatter";
 import { RADAR_ROOT } from "../lib/manifest";
 import { colher, type Workspace } from "./workspace";
 
@@ -48,7 +47,6 @@ export interface RelatorioIngestao {
    */
   abortadaPelaSkill: { motivo: string } | null;
 }
-
 
 function str(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
@@ -86,13 +84,21 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
 
     const recusas: RelatorioIngestao["recusas"] = [];
     const avisos: RelatorioIngestao["avisos"] = [];
-    const analisados = colheita.briefsNovos.map((b) => {
-      const { data, body } = parseFrontmatter(b.conteudo);
-      return { slug: b.slug, data, body };
-    });
+    const analisados = colheita.briefsNovos.map((b) => ({
+      slug: b.slug,
+      data: b.dados,
+      origem: b.origem,
+    }));
 
     // ── reconciliação, antes de escrever ────────────────────────────────────
-    for (const { slug, data } of analisados) {
+    for (const { slug, data, origem } of analisados) {
+      if (origem === "frontmatter") {
+        avisos.push({
+          onde: slug,
+          detalhe:
+            "lido do markdown, não do .json — campos podem ter ficado no corpo",
+        });
+      }
       const pilar = str(data.pillar);
       const publico = str(data.icp);
 
@@ -129,7 +135,6 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
       ) {
         avisos.push({ onde: slug, detalhe: "sem candidatas de imagem" });
       }
-
 
       const justificativa = [
         str(data.why_match) ?? "",
@@ -192,7 +197,14 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
     );
     await mkdir(destinoMidia, { recursive: true });
 
-    for (const { slug, data } of analisados) {
+    for (const { slug, data, origem } of analisados) {
+      if (origem === "frontmatter") {
+        avisos.push({
+          onde: slug,
+          detalhe:
+            "lido do markdown, não do .json — campos podem ter ficado no corpo",
+        });
+      }
       const [linha] = await tx
         .insert(t.brief)
         .values({

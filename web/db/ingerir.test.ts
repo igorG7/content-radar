@@ -55,6 +55,19 @@ async function simularSaida(
   }
 }
 
+/** Lê linhas com o ambiente declarado — sob FORCE RLS o dono não vê nada sem. */
+async function noAmbiente(sql: string): Promise<Record<string, unknown>[]> {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_MIGRATIONS,
+  });
+  await pool.query("begin");
+  await pool.query("select set_config('app.ambiente', $1, true)", [ambienteId]);
+  const { rows } = await pool.query(sql);
+  await pool.query("commit");
+  await pool.end();
+  return rows;
+}
+
 async function contar(sql: string): Promise<number> {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL_MIGRATIONS,
@@ -214,6 +227,159 @@ describe.skipIf(!disponivel)("ingestão", () => {
     expect(await contar("select count(*)::int n from evento")).toBe(
       antesEventos,
     );
+  });
+
+  it("lê o brief do .json, com os campos que o markdown perdia", async () => {
+    // Duas execuções reais gravaram formatos diferentes de .md: numa, hook,
+    // CTA, hashtags e direção de arte foram para o frontmatter; na outra, para
+    // o corpo. O .json é o objeto do briefer gravado como veio — não depende
+    // de o modelo decidir onde põe cada campo.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await writeFile(
+      path.join(
+        ws.dir,
+        "store/briefs/pendente-aprovacao",
+        "2026-W98-006_do-json.json",
+      ),
+      JSON.stringify({
+        brief_id: "2026-W98-006",
+        slug: "2026-W98-006_do-json",
+        headline: "Veio do JSON",
+        hook: "Um hook",
+        caption_draft: "Parágrafo um.\n\nParágrafo dois.",
+        cta: "Chama no WhatsApp",
+        hashtags: ["avanzimoveis", "rmbh"],
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-do-json",
+        why_match: "casa com o pilar",
+        od_skill_ref: "ad-creative",
+        visual_brief: { must_have: ["logo"], avoid_visual: ["stock"] },
+      }),
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(1);
+    // Os campos de prosa livre — que o markdown perdia — chegaram todos. O
+    // aviso de imagem é outro assunto: este fixture não tem candidata.
+    expect(r.avisos.map((a) => a.detalhe)).toEqual([
+      "sem candidatas de imagem",
+    ]);
+
+    const [linha] = await noAmbiente(
+      `select hook, caption_draft, cta, hashtags, visual_brief, destino_od
+       from brief where brief_id = '2026-W98-006'`,
+    );
+    expect(String(linha.caption_draft)).toContain("Parágrafo dois");
+    expect(linha.cta).toBe("Chama no WhatsApp");
+    expect(linha.hashtags).toEqual(["avanzimoveis", "rmbh"]);
+    expect((linha.visual_brief as { must_have: string[] }).must_have).toEqual([
+      "logo",
+    ]);
+    expect((linha.destino_od as { od_skill_ref: string }).od_skill_ref).toBe(
+      "ad-creative",
+    );
+  });
+
+  it("avisa quando teve de cair para o markdown", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-007",
+        slug: "2026-W98-007_do-md",
+        headline: "Veio do markdown",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-do-md",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.avisos.map((a) => a.detalhe)).toContain(
+      "lido do markdown, não do .json — campos podem ter ficado no corpo",
+    );
+  });
+
+  it("aceita brief sem legenda, mas avisa", async () => {
+    // O primeiro scan bem-sucedido entregou exatamente isto: tudo preenchido
+    // menos a legenda. Recusar jogaria fora 25 minutos por um campo que dá
+    // para escrever à mão; aceitar calado foi como ninguém notou até abrir a
+    // tela.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-005",
+        slug: "2026-W98-005_sem-legenda",
+        headline: "Sem legenda",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-sem-legenda",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(1);
+    expect(r.recusas).toEqual([]);
+    expect(r.avisos.map((a) => a.detalhe)).toContain("sem rascunho de legenda");
+  });
+
+  it("relata o aborto que a própria skill declarou", async () => {
+    // A primeira execução real terminou assim: o researcher não teve busca
+    // disponível, devolveu zero achados e a skill abortou — sem exceção
+    // nenhuma. O executor gravou "concluído" 58 segundos depois do
+    // `scan-aborted` da skill, e o banco passou a contradizer o ledger.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        event: "scan-aborted",
+        actor: "teste:ingestao",
+        scan_id: "2026-W98-scan-042",
+        extra: { detail: "WebSearch indisponível", briefs_created: 0 },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(0);
+    expect(r.abortadaPelaSkill?.motivo).toBe("WebSearch indisponível");
+  });
+
+  it("uma varredura que produziu brief não é dada como abortada", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-004",
+        slug: "2026-W98-004_saida-boa",
+        headline: "Saída boa",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-saida-boa",
+      },
+      [
+        {
+          ts: new Date().toISOString(),
+          event: "scan-finished",
+          actor: "teste:ingestao",
+          scan_id: "2026-W98-scan-043",
+        },
+      ],
+    );
+
+    expect((await ingerir(ws)).abortadaPelaSkill).toBeNull();
   });
 
   it("recusa pilar que saiu do vault", async () => {

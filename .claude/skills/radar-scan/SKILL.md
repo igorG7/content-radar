@@ -68,10 +68,22 @@ Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
   do vault e dos 4 dirs de briefs>)`. Validar JSON (§5.7).
 - **Estágio 4**: pra cada `promote-to-brief` **e cada `promote-borderline`**,
   `Task(subagent_type='instagram-briefer', prompt=<bloco spec 004 §3>)`. Validar JSON (§5.8).
-  Materializar `.md` + ledger.
+
+  **Materializar como `.json`, não como `.md`.** Grave o objeto `brief` que o briefer
+  devolveu, **exatamente como veio**, em
+  `store/briefs/pendente-aprovacao/<slug>.json`. Sem reformatar, sem redistribuir campos,
+  sem transformar em prosa. Um `.md` para leitura humana é opcional e ignorado pela
+  ingestão.
+
+  > Por quê: duas execuções reais gravaram formatos diferentes de `.md`. Numa, `hook`,
+  > `cta`, `hashtags` e `visual_brief` foram para o frontmatter; na outra, para o corpo
+  > do markdown. A ingestão lê os campos declarados, então metade do brief se perdeu sem
+  > erro nenhum — o texto existia no arquivo e não chegou ao banco. Renderizar prosa é
+  > decisão de formatação, e formatação instável não serve como contrato.
+
   - **Tier borderline (calibração §11.V / manifest `anti_repetition.borderline_min`)**: quando o
     matcher devolveu `decision: promote-borderline`, após o briefer retornar `create-brief`,
-    acrescente ao frontmatter do `.md`: `borderline: true` e
+    acrescente ao objeto gravado: `borderline: true` e
     `borderline_reason: <decision_reason do matcher>`. Para `promote-to-brief` pleno, escreva
     `borderline: false`. O flag sinaliza ao editor humano que foi um match marginal (0.48–0.55) —
     ele é o portão de qualidade (§11.H). Nenhum outro campo muda; borderline **vira brief normal**
