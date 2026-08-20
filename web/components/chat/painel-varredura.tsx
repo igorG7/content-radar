@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fmtRelative } from "@/lib/format";
+import { linhasDeEstagio } from "@/lib/view/estagios";
 
 /**
  * A varredura em voo, ao lado da conversa.
@@ -12,24 +13,26 @@ import { fmtRelative } from "@/lib/format";
  * etapa já produziu.
  */
 
-const ESTAGIOS = [
-  ["pesquisa", "Pesquisa"],
-  ["filtragem", "Filtragem"],
-  ["redacao", "Redação"],
-] as const;
-
-interface Andamento {
+interface Varredura {
   scanRef: string;
   estado: string;
+  emAndamento: boolean;
   pedido: { escopo: string; pilar?: string; alvo?: number };
   pedidoEm: string;
   iniciadoEm: string | null;
+  encerradoEm: string | null;
   posicao: number | null;
   estagios: {
     estagio: string;
     minuto: number;
     extra: Record<string, unknown>;
   }[];
+  resultado: {
+    briefs: number;
+    minutos: number | null;
+    avisos: { onde: string; detalhe: string }[];
+    erro: string | null;
+  } | null;
 }
 
 /** Rótulos para a contagem parcial — chave crua na tela é vazamento do banco. */
@@ -46,7 +49,7 @@ const ROTULO: Record<string, string> = {
 };
 
 export function PainelVarredura() {
-  const [scan, setScan] = useState<Andamento | null | undefined>(undefined);
+  const [scan, setScan] = useState<Varredura | null | undefined>(undefined);
 
   useEffect(() => {
     let vivo = true;
@@ -67,8 +70,6 @@ export function PainelVarredura() {
       clearInterval(timer);
     };
   }, []);
-
-  const vencidos = new Map(scan?.estagios.map((e) => [e.estagio, e]) ?? []);
 
   return (
     <div className="panel">
@@ -94,7 +95,45 @@ export function PainelVarredura() {
               {scan.pedido.alvo ? ` · alvo ${scan.pedido.alvo}` : ""}
             </p>
 
-            {scan.estado === "enfileirado" ? (
+            {!scan.emAndamento ? (
+              /* Terminada: o desfecho é o que interessa, e era justamente ele
+                 que sumia da tela quando a varredura acabava. */
+              <div className="stack-sm">
+                <p className="small">
+                  {scan.resultado?.erro ? (
+                    <>
+                      <span className="pill pill-bare pill-danger">falhou</span>{" "}
+                      {scan.resultado.erro}
+                    </>
+                  ) : (
+                    <>
+                      <span className="pill pill-bare">✓</span>{" "}
+                      {scan.resultado?.briefs ?? 0}{" "}
+                      {scan.resultado?.briefs === 1 ? "pauta" : "pautas"}
+                      {scan.resultado?.minutos
+                        ? ` em ${scan.resultado.minutos.toFixed(1).replace(".", ",")} min`
+                        : ""}
+                    </>
+                  )}
+                </p>
+                {scan.resultado?.briefs ? (
+                  <a className="btn btn-secondary btn-sm" href="/fila">
+                    Ver na fila
+                  </a>
+                ) : null}
+                {scan.resultado?.avisos.length ? (
+                  <div className="stack-sm">
+                    {/* Aviso é o que entrou incompleto. Fica aqui porque quem
+                        aprova precisa saber antes de abrir o brief. */}
+                    {scan.resultado.avisos.map((a) => (
+                      <p className="small muted" key={`${a.onde}-${a.detalhe}`}>
+                        ⚠ {a.detalhe}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : scan.estado === "enfileirado" ? (
               <p className="small">
                 {/* Sem a posição, "iniciando" fica parado por minutos sem
                     explicação nenhuma. */}
@@ -109,27 +148,41 @@ export function PainelVarredura() {
             )}
 
             <div className="stack-sm" style={{ marginTop: 4 }}>
-              {ESTAGIOS.map(([id, rotulo]) => {
-                const vencido = vencidos.get(id);
-                const corrente = scan.estado === id;
-                const parciais = Object.entries(vencido?.extra ?? {})
+              {linhasDeEstagio(scan.estagios, scan.estado).map((l) => {
+                const parciais = Object.entries(l.extra)
                   .map(([k, v]) => `${v} ${ROTULO[k] ?? k}`)
                   .join(" · ");
+                const min = (n: number) =>
+                  `${n.toFixed(1).replace(".", ",")} min`;
+
                 return (
-                  <div className="row-tight" key={id}>
+                  <div className="row-tight" key={l.id}>
                     <span
                       className={`pill pill-bare ${
-                        vencido ? "" : corrente ? "pill-accent" : "muted"
+                        l.situacao === "concluido"
+                          ? ""
+                          : l.situacao === "corrente"
+                            ? "pill-accent"
+                            : "muted"
                       }`}
                     >
-                      {vencido ? "✓" : corrente ? "agora" : "—"}
+                      {l.situacao === "concluido"
+                        ? "✓"
+                        : l.situacao === "corrente"
+                          ? "agora"
+                          : "—"}
                     </span>
                     <span className="small">
-                      {rotulo}
-                      {vencido ? (
+                      {l.rotulo}
+                      {l.entrouEm !== null ? (
                         <span className="muted">
                           {" "}
-                          · {vencido.minuto.toFixed(1).replace(".", ",")} min
+                          ·{" "}
+                          {l.duracao !== null
+                            ? min(l.duracao)
+                            : l.situacao === "corrente"
+                              ? `desde ${min(l.entrouEm)}`
+                              : `entrou aos ${min(l.entrouEm)}`}
                           {parciais ? ` · ${parciais}` : ""}
                         </span>
                       ) : null}

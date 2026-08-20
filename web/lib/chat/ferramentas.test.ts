@@ -153,8 +153,8 @@ describe.skipIf(!disponivel)("ferramentas contra o banco", () => {
     expect(r.escopos_ativos).toEqual(["local"]);
 
     // Recusar de verdade é não deixar rastro: se tivesse enfileirado, a
-    // varredura atual existiria.
-    expect(await chamar(A, "varredura_atual")).toEqual({ em_andamento: false });
+    // varredura existiria.
+    expect(await chamar(A, "varredura_atual")).toEqual({ nenhuma: true });
   });
 
   it("recusa pilar que não entra no radar, explicando", async () => {
@@ -200,6 +200,6 @@ describe.skipIf(!disponivel)("ferramentas contra o banco", () => {
       pilares: { slug: string }[];
     };
     expect(vB.pilares.map((p) => p.slug)).toEqual(["bastidor"]);
-    expect(await chamar(B, "varredura_atual")).toEqual({ em_andamento: false });
+    expect(await chamar(B, "varredura_atual")).toEqual({ nenhuma: true });
   });
 });

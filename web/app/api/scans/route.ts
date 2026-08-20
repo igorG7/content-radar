@@ -63,8 +63,13 @@ export const POST = rota(async (request: Request) => {
   }
 });
 
-/** O que está em voo agora. É o que a tela consulta enquanto acompanha. */
+/**
+ * A varredura mais recente — em voo ou terminada, com o desfecho.
+ *
+ * Terminada também: antes isto só devolvia a em voo, e o painel voltava a
+ * "nenhuma em andamento" no exato instante em que a varredura produzia algo.
+ */
 export const GET = rota(async () => {
   const store = await radarStore();
-  return Response.json({ scan: await store.scanEmAndamento() });
+  return Response.json({ scan: await store.varreduraRecente() });
 });

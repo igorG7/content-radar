@@ -37,7 +37,7 @@ import type {
   EdicaoBrief,
   Estagio,
   RadarStore,
-  ScanEmAndamento,
+  Varredura,
   TransicaoEntrada,
 } from "../lib/store";
 import { JaRodando, StoreError } from "../lib/store";
@@ -991,31 +991,40 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         };
       }),
 
-    scanEmAndamento: () =>
-      dentro(async (tx): Promise<ScanEmAndamento | null> => {
+    varreduraRecente: () =>
+      dentro(async (tx): Promise<Varredura | null> => {
+        // A mais recente, seja qual for o estado. Filtrar por "em voo" fazia o
+        // resultado sumir da tela no instante em que a varredura terminava.
         const [linha] = await tx
           .select()
           .from(t.scan)
-          .where(
-            sql`${t.scan.estado} in ('enfileirado','rodando','pesquisa','filtragem','redacao')`,
-          )
           .orderBy(desc(t.scan.pedidoEm))
           .limit(1);
         if (!linha) return null;
 
+        const emAndamento = !["concluido", "falhou"].includes(linha.estado);
+
         const eventos = await tx
-          .select({ extra: t.evento.extra })
+          .select({ tipo: t.evento.tipo, extra: t.evento.extra })
           .from(t.evento)
           .where(
-            and(eq(t.evento.scanId, linha.id), eq(t.evento.tipo, "scan-stage")),
+            and(
+              eq(t.evento.scanId, linha.id),
+              inArray(t.evento.tipo, [
+                "scan-stage",
+                "scan-finished",
+                "scan-aborted",
+              ]),
+              eq(t.evento.ator, "app:radar-executor"),
+            ),
           )
           .orderBy(t.evento.ts);
 
         /**
          * A posição só vale enquanto o pedido espera vaga: depois de
-         * reivindicado, "3º da fila" seria mentira. Conta como dono? Não —
-         * `fila_pedido` não tem RLS, então a contagem enxerga a fila inteira,
-         * que é justamente o que dá sentido à posição.
+         * reivindicado, "3º da fila" seria mentira. `fila_pedido` não tem RLS,
+         * então a contagem enxerga a fila inteira — que é o que dá sentido à
+         * posição, já que a vaga disputada é global.
          */
         let posicao: number | null = null;
         if (linha.estado === "enfileirado") {
@@ -1031,10 +1040,19 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
           posicao = n;
         }
 
+        const desfecho = eventos.find(
+          (e) => e.tipo === "scan-finished" || e.tipo === "scan-aborted",
+        );
+        const extraDesfecho = (desfecho?.extra ?? {}) as Record<
+          string,
+          unknown
+        >;
+
         return {
           scanId: linha.id,
           scanRef: linha.scanRef,
-          estado: linha.estado as ScanEmAndamento["estado"],
+          estado: linha.estado as Varredura["estado"],
+          emAndamento,
           pedido: {
             escopo: linha.escopo,
             pilar: linha.pilarFiltro ?? undefined,
@@ -1042,16 +1060,41 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
           },
           pedidoEm: linha.pedidoEm.toISOString(),
           iniciadoEm: linha.iniciadoEm?.toISOString() ?? null,
+          encerradoEm: linha.encerradoEm?.toISOString() ?? null,
           posicao,
-          estagios: eventos.map((e) => {
-            const extra = (e.extra ?? {}) as Record<string, unknown>;
-            const { estagio, minuto, ...resto } = extra;
-            return {
-              estagio: estagio as Estagio,
-              minuto: typeof minuto === "number" ? minuto : 0,
-              extra: resto,
-            };
-          }),
+          estagios: eventos
+            .filter((e) => e.tipo === "scan-stage")
+            .map((e) => {
+              const extra = (e.extra ?? {}) as Record<string, unknown>;
+              const { estagio, minuto, ...resto } = extra;
+              return {
+                estagio: estagio as Estagio,
+                minuto: typeof minuto === "number" ? minuto : 0,
+                extra: resto,
+              };
+            }),
+          resultado: desfecho
+            ? {
+                briefs:
+                  typeof extraDesfecho.briefs === "number"
+                    ? extraDesfecho.briefs
+                    : 0,
+                minutos:
+                  typeof extraDesfecho.minutos === "number"
+                    ? extraDesfecho.minutos
+                    : null,
+                avisos: Array.isArray(extraDesfecho.avisos)
+                  ? (extraDesfecho.avisos as {
+                      onde: string;
+                      detalhe: string;
+                    }[])
+                  : [],
+                erro:
+                  typeof extraDesfecho.erro === "string"
+                    ? extraDesfecho.erro
+                    : null,
+              }
+            : null,
         };
       }),
 

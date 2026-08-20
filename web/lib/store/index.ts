@@ -147,18 +147,24 @@ export interface PedidoDeScan {
 export type Estagio = "pesquisa" | "filtragem" | "redacao";
 
 /**
- * Uma varredura em voo, como a tela precisa vê-la.
+ * A varredura mais recente do ambiente — **em voo ou já terminada**.
+ *
+ * Terminada também, e não só a em voo: quando o scan acabava, a tela voltava a
+ * "nenhuma em andamento" e o resultado sumia junto. Vinte e cinco minutos de
+ * execução desapareciam da vista no instante em que produziam algo.
  *
  * `posicao` só existe enquanto o pedido espera vaga global: sem ela,
  * "iniciando" fica parado por minutos sem explicação (design-execucao-scan §7).
  */
-export interface ScanEmAndamento {
+export interface Varredura {
   scanId: string;
   scanRef: string;
-  estado: "enfileirado" | "rodando" | Estagio;
+  estado: "enfileirado" | "rodando" | Estagio | "concluido" | "falhou";
+  emAndamento: boolean;
   pedido: PedidoDeScan;
   pedidoEm: string;
   iniciadoEm: string | null;
+  encerradoEm: string | null;
   posicao: number | null;
   /** Cada estágio já atingido, com o minuto e a contagem parcial que produziu. */
   estagios: {
@@ -166,6 +172,13 @@ export interface ScanEmAndamento {
     minuto: number;
     extra: Record<string, unknown>;
   }[];
+  /** O desfecho, quando já houve um. Vem do evento final do executor. */
+  resultado: {
+    briefs: number;
+    minutos: number | null;
+    avisos: { onde: string; detalhe: string }[];
+    erro: string | null;
+  } | null;
 }
 
 /**
@@ -311,8 +324,11 @@ export interface RadarStore {
     pedido: PedidoDeScan,
   ): Promise<{ scanId: string; scanRef: string; posicao: number }>;
 
-  /** A varredura em voo deste ambiente, ou `null`. É o que a tela acompanha. */
-  scanEmAndamento(): Promise<ScanEmAndamento | null>;
+  /**
+   * A varredura mais recente deste ambiente, em voo ou terminada. É o que a
+   * tela acompanha — e o que ela mostra depois que termina.
+   */
+  varreduraRecente(): Promise<Varredura | null>;
 
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
@@ -478,7 +494,7 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       );
     },
 
-    async scanEmAndamento() {
+    async varreduraRecente() {
       return null;
     },
 

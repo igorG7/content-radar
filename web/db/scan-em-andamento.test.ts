@@ -91,7 +91,43 @@ afterAll(async () => {
 describe.skipIf(!disponivel)("varredura em andamento", () => {
   it("não há nada em voo quando nada foi pedido", async () => {
     await limpar();
-    expect(await backendPostgres(ids[A]).scanEmAndamento()).toBeNull();
+    expect(await backendPostgres(ids[A]).varreduraRecente()).toBeNull();
+  });
+
+  it("a varredura terminada continua visível, com o desfecho", async () => {
+    // Antes isto devolvia só a em voo, e o painel voltava a "nenhuma em
+    // andamento" no instante em que a varredura produzia algo: 25 minutos de
+    // execução sumiam da tela junto com o resultado.
+    await limpar();
+    const { scanId } = await backendPostgres(ids[A]).enfileirarScan({
+      escopo: "local",
+    });
+    await noAmbiente(
+      A,
+      "update scan set estado = 'concluido', iniciado_em = now(), encerrado_em = now() where id = $1",
+      [scanId],
+    );
+    await noAmbiente(
+      A,
+      `insert into evento (ambiente_id, tipo, ator, scan_id, extra)
+       values ($1,'scan-finished','app:radar-executor',$2,$3)`,
+      [
+        ids[A],
+        scanId,
+        JSON.stringify({
+          briefs: 1,
+          minutos: 25.5,
+          avisos: [{ onde: "x", detalhe: "sem rascunho de legenda" }],
+        }),
+      ],
+    );
+
+    const v = await backendPostgres(ids[A]).varreduraRecente();
+    expect(v?.emAndamento).toBe(false);
+    expect(v?.encerradoEm).not.toBeNull();
+    expect(v?.resultado?.briefs).toBe(1);
+    expect(v?.resultado?.minutos).toBe(25.5);
+    expect(v?.resultado?.avisos[0].detalhe).toBe("sem rascunho de legenda");
   });
 
   it("mostra a posição enquanto o pedido espera vaga", async () => {
@@ -107,8 +143,8 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     await backendPostgres(ids[B]).enfileirarScan({ escopo: "trends" });
     await backendPostgres(ids[A]).enfileirarScan({ escopo: "local", alvo: 3 });
 
-    const deB = await backendPostgres(ids[B]).scanEmAndamento();
-    const deA = await backendPostgres(ids[A]).scanEmAndamento();
+    const deB = await backendPostgres(ids[B]).varreduraRecente();
+    const deA = await backendPostgres(ids[A]).varreduraRecente();
     expect(deA?.estado).toBe("enfileirado");
     expect(deA?.posicao).toBeGreaterThan(1);
     expect(deA?.posicao ?? 0).toBeGreaterThan(deB?.posicao ?? 0);
@@ -132,7 +168,7 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     );
 
     // "3º da fila" depois de reivindicado seria mentira: já não há espera.
-    const scan = await backendPostgres(ids[A]).scanEmAndamento();
+    const scan = await backendPostgres(ids[A]).varreduraRecente();
     expect(scan?.posicao).toBeNull();
     expect(scan?.estado).toBe("pesquisa");
     expect(scan?.iniciadoEm).not.toBeNull();
@@ -155,7 +191,7 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
       );
     }
 
-    const scan = await backendPostgres(ids[A]).scanEmAndamento();
+    const scan = await backendPostgres(ids[A]).varreduraRecente();
     expect(scan?.estagios.map((e) => e.estagio)).toEqual([
       "pesquisa",
       "filtragem",
@@ -181,6 +217,6 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     await limpar();
     await backendPostgres(ids[B]).enfileirarScan({ escopo: "trends" });
 
-    expect(await backendPostgres(ids[A]).scanEmAndamento()).toBeNull();
+    expect(await backendPostgres(ids[A]).varreduraRecente()).toBeNull();
   });
 });

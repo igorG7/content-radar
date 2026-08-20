@@ -129,13 +129,15 @@ const resumoDaFila: Ferramenta = {
 const varreduraAtual: Ferramenta = {
   nome: "varredura_atual",
   descricao:
-    "A varredura em andamento, se houver: em que estágio está, há quanto tempo, o que cada estágio já produziu, e a posição na fila enquanto espera vaga.",
+    "A varredura mais recente: se ainda roda, em que estágio está e a posição na fila; se já terminou, quantas pautas gerou, quanto levou e o que ficou incompleto.",
   parametros: {},
   async executar(store) {
-    const scan = await store.scanEmAndamento();
-    if (!scan) return { em_andamento: false };
+    const scan = await store.varreduraRecente();
+    if (!scan) return { nenhuma: true };
     return {
-      em_andamento: true,
+      em_andamento: scan.emAndamento,
+      encerrada_em: scan.encerradoEm,
+      resultado: scan.resultado,
       referencia: scan.scanRef,
       estado: scan.estado,
       pedido: scan.pedido,
