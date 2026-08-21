@@ -1,6 +1,7 @@
 import { describe, expect, it, afterAll, beforeAll } from "vitest";
 import { Pool } from "pg";
 import { reivindicar } from "./fila";
+import { executar } from "./executor";
 import { backendPostgres } from "./backend";
 import { JaRodando } from "../lib/store";
 import { encerrarPool } from "./cliente";
@@ -161,6 +162,33 @@ describe.skipIf(!disponivel)("fila", () => {
     );
 
     expect(await reivindicar()).toBeNull();
+  });
+
+  it("o ambiente sumir durante a execução não derruba o trabalhador", async () => {
+    // Aconteceu de verdade: a suíte de testes enfileira na mesma fila que o
+    // trabalhador consome e apaga o ambiente logo depois. O executor tentava
+    // gravar o desfecho, a chave estrangeira recusava, e o erro subia até o
+    // laço — que dormia 30 segundos por trabalho que deixou de existir.
+    //
+    // Apagar **antes** não reproduz: a linha da fila sai em cascata junto com o
+    // ambiente e `girar` não chega a executar nada. O caso real é o ambiente
+    // sumir com o pedido já reivindicado.
+    await limpar();
+    const efemero = "teste-fila-efemero";
+    await dono("delete from ambiente where slug = $1", [efemero]);
+    const [amb] = await dono(
+      "insert into ambiente (slug, nome, prefixo_midia) values ($1,$1,$1) returning id",
+      [efemero],
+    );
+    await enfileirar(amb.id, { escopo: "local" });
+
+    const pedido = await reivindicar();
+    expect(pedido?.ambienteId).toBe(amb.id);
+
+    await dono("delete from ambiente where id = $1", [amb.id]);
+
+    const r = await executar(amb.id, pedido!.pedido, pedido!.scanId);
+    expect(r.estado).toBe("falhou");
   });
 
   it("a fila não guarda conteúdo de cliente", async () => {

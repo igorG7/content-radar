@@ -91,15 +91,19 @@ export async function executar(
    * de checar, e um teste de concorrência passaria por acaso quando as chamadas
    * serializassem sozinhas. Quem recusa de verdade é a violação do índice.
    */
-  const { scanId, scanRef } = await comAmbiente(ambienteId, async (tx) => {
+  const pedidoAtual = await comAmbiente(ambienteId, async (tx) => {
     if (jaEnfileirado) {
       const [linha] = await tx
         .update(t.scan)
         .set({ estado: "rodando", iniciadoEm: new Date() })
         .where(eq(t.scan.id, jaEnfileirado))
         .returning({ id: t.scan.id, ref: t.scan.scanRef });
-      if (!linha)
-        throw new Error(`scan enfileirado não existe: ${jaEnfileirado}`);
+      /**
+       * O pedido pode ter sumido entre a reivindicação e aqui — o ambiente foi
+       * removido e levou o scan em cascata. Não é falha: é trabalho que deixou
+       * de existir, e lançar faria o trabalhador recuar 30 segundos por nada.
+       */
+      if (!linha) return { scanId: null, scanRef: jaEnfileirado };
       return { scanId: linha.id, scanRef: linha.ref };
     }
 
@@ -163,6 +167,23 @@ export async function executar(
       });
     });
   }
+
+  if (pedidoAtual.scanId === null) {
+    console.warn(
+      `[executor] pedido ${pedidoAtual.scanRef} não existe mais; ignorado`,
+    );
+    return {
+      scanId: jaEnfileirado ?? "",
+      scanRef: pedidoAtual.scanRef,
+      estado: "falhou",
+      minutos: 0,
+      estagios: [],
+      erro: "o pedido não existe mais — ambiente removido antes da execução",
+    };
+  }
+
+  const scanId: string = pedidoAtual.scanId;
+  const scanRef = pedidoAtual.scanRef;
 
   try {
     ws = await materializar(ambienteId);
@@ -308,6 +329,21 @@ export async function executar(
   } catch (erro) {
     const mensagem = (erro as Error).message;
     /**
+     * O ambiente pode ter sumido durante a execução — um cliente removido com
+     * scan em curso. Registrar o desfecho passa a ser impossível: a chave
+     * estrangeira do evento aponta para uma linha que não existe mais. Isso não
+     * é motivo para derrubar o trabalhador, que ainda tem fila para atender.
+     */
+    const registrar = async (trabalho: () => Promise<void>) => {
+      try {
+        await trabalho();
+      } catch (falha) {
+        console.warn(
+          `[executor] não consegui registrar o desfecho de ${scanRef}: ${(falha as Error).message}`,
+        );
+      }
+    };
+    /**
      * A ingestão anexa as recusas ao erro. Sem lê-las, o ledger guarda só
      * "ingestão recusada" — que diz que algo deu errado e nada sobre o quê.
      * Aconteceu na segunda execução real: a varredura passou 24 minutos,
@@ -317,27 +353,29 @@ export async function executar(
       ?.recusas;
     if (recusas?.length) preservarWorkspace = true;
 
-    await comAmbiente(ambienteId, async (tx) => {
-      await tx
-        .update(t.scan)
-        .set({ estado: "falhou", encerradoEm: new Date() })
-        .where(eq(t.scan.id, scanId));
-      await tx.insert(t.evento).values({
-        ambienteId,
-        tipo: "scan-aborted",
-        ator: "app:radar-executor",
-        scanId,
-        // O estágio em que parou é metade do diagnóstico: falhar na pesquisa de
-        // 10 fontes é problema diferente de falhar na redação.
-        extra: {
-          erro: mensagem,
-          ...(recusas?.length ? { recusas } : {}),
-          estagio: estagios.at(-1)?.estagio ?? "nenhum",
-          minutos: minuto(),
-          // Onde olhar quando o motivo não bastar. Só existe quando o workspace
-          // foi preservado — ver o `finally`.
-          ...(ws ? { workspace: ws.dir } : {}),
-        },
+    await registrar(async () => {
+      await comAmbiente(ambienteId, async (tx) => {
+        await tx
+          .update(t.scan)
+          .set({ estado: "falhou", encerradoEm: new Date() })
+          .where(eq(t.scan.id, scanId));
+        await tx.insert(t.evento).values({
+          ambienteId,
+          tipo: "scan-aborted",
+          ator: "app:radar-executor",
+          scanId,
+          // O estágio em que parou é metade do diagnóstico: falhar na pesquisa de
+          // 10 fontes é problema diferente de falhar na redação.
+          extra: {
+            erro: mensagem,
+            ...(recusas?.length ? { recusas } : {}),
+            estagio: estagios.at(-1)?.estagio ?? "nenhum",
+            minutos: minuto(),
+            // Onde olhar quando o motivo não bastar. Só existe quando o workspace
+            // foi preservado — ver o `finally`.
+            ...(ws ? { workspace: ws.dir } : {}),
+          },
+        });
       });
     });
 
