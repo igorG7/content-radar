@@ -89,7 +89,8 @@ async function semearBrief(slug: string, estado: string) {
          -- em camelCase escondia o descasamento que a tela sofria.
          '{"aspect_ratio":"4:5","must_have":["mapa"],"avoid_visual":["stock genérico"]}',
          '{"od_skill_ref":"carrossel-comparativo","alternativas":["card-dado"]}',
-         '{"why_match":"escritura é o critério de decisão do ICP investidor"}'
+         '{"why_match":"escritura é o critério de decisão do ICP investidor",
+           "source_urls":["https://exemplo.test/fonte"]}'
        ) returning id`,
       [ambienteId, slug, estado, `hash-${slug}`, ref],
     );
@@ -208,6 +209,12 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     expect(conteudo).toContain(
       "escritura é o critério de decisão do ICP investidor",
     );
+    // Proporção quando existe: 4:5 e 1:1 mudam o enquadramento inteiro. Vale
+    // dizer que o pipeline hoje **não** produz este campo — o teste garante o
+    // caminho, não que ele seja percorrido na prática.
+    expect(conteudo).toContain("4:5");
+    // E de onde a copy saiu, para conferir se um número é real.
+    expect(conteudo).toContain("https://exemplo.test/fonte");
 
     const [linha] = await noAmbiente(
       `select handoff_em from brief where id = $1`,
@@ -220,6 +227,19 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
       [id],
     );
     expect(evento.extra.hero_choice).toBe(0);
+  });
+
+  it("não anuncia formato quando o dado não existe", async () => {
+    // `aspect_ratio` vem null desde os briefs importados e a spec não o define.
+    // "Formato: —" faria o pacote prometer um dado que ninguém produziu.
+    const slug = `${SLUG}-sem-formato`;
+    const id = await semearBrief(slug, "pendente-publicacao");
+    await noAmbiente("update brief set visual_brief = '{}' where id = $1", [
+      id,
+    ]);
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).not.toContain("**Formato:**");
   });
 
   it("diz no pacote quando não há foto, em vez de omitir a linha", async () => {

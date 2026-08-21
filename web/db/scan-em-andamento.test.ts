@@ -58,6 +58,25 @@ async function noAmbiente(slug: string, q: string, p: unknown[] = []) {
 
 /** Zera fila e scans dos ambientes de teste, com o ambiente declarado — sob
  *  FORCE RLS o dono também não enxerga linha nenhuma. */
+/**
+ * Tira o pedido da fila, mantendo a linha do `scan`.
+ *
+ * Os testes que afirmam sobre estado do scan não precisam de pedido vivo na
+ * fila — e um trabalhador rodando contra este banco reivindica o que estiver
+ * lá, mudando o estado no meio da asserção. Enquanto a suíte não tiver banco
+ * próprio, isto é o que separa "testar o scan" de "disputar a fila".
+ */
+async function sairDaFila(scanId: string) {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_MIGRATIONS,
+  });
+  try {
+    await pool.query("delete from fila_pedido where scan_id = $1", [scanId]);
+  } finally {
+    await pool.end();
+  }
+}
+
 async function limpar() {
   for (const slug of [A, B]) {
     if (!ids[slug]) continue;
@@ -102,6 +121,7 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     const { scanId } = await backendPostgres(ids[A]).enfileirarScan({
       escopo: "local",
     });
+    await sairDaFila(scanId);
     await noAmbiente(
       A,
       "update scan set estado = 'concluido', iniciado_em = now(), encerrado_em = now() where id = $1",
@@ -179,6 +199,7 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     const { scanId } = await backendPostgres(ids[A]).enfileirarScan({
       escopo: "local",
     });
+    await sairDaFila(scanId);
     for (const [estagio, minuto, extra] of [
       ["pesquisa", 4.2, { achados: 9, fontes_lidas: 5 }],
       ["filtragem", 7.1, { promovidos: 3, descartados_score: 6 }],

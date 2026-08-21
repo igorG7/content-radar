@@ -838,6 +838,7 @@ export function backendPostgres(
         const hero = candidatas.find((c) => c.indice === linha.heroIndice);
         const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
         const visual = (linha.visualBrief ?? {}) as Record<string, unknown>;
+        const origemDados = (linha.origem ?? {}) as Record<string, unknown>;
         const lista = (v: unknown) =>
           Array.isArray(v) && v.length > 0
             ? v.map((x) => `- ${x}`).join("\n")
@@ -850,6 +851,27 @@ export function backendPostgres(
 
 ## A arte
 
+${
+  /**
+   * Proporção e template só aparecem quando existem. `aspect_ratio` vem
+   * `null` desde os briefs importados e a spec 004 não o define — o
+   * "4:5" que a maquete mostrava era decoração. Imprimir "Formato: —"
+   * faria o pacote anunciar um dado que o pipeline nunca produziu.
+   */
+  [
+    visual.aspect_ratio ?? visual.aspectRatio,
+    visual.base_template ?? visual.baseTemplate,
+  ].some(Boolean)
+    ? `- **Formato:** ${[
+        visual.aspect_ratio ?? visual.aspectRatio,
+        (visual.base_template ?? visual.baseTemplate)
+          ? `template \`${visual.base_template ?? visual.baseTemplate}\``
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")}\n`
+    : ""
+}
 - **Skill sugerida:** \`${destino.od_skill_ref ?? "—"}\`
 - **Alternativas:** ${Array.isArray(destino.alternativas) && destino.alternativas.length ? (destino.alternativas as string[]).map((a) => `\`${a}\``).join(", ") : "—"}
 - **Hero:** ${
@@ -882,7 +904,15 @@ ${marca?.telefoneExibicao ? `**Telefone na arte:** ${marca.telefoneExibicao} · 
 ${linha.hashtags?.length ? `**Hashtags:** ${linha.hashtags.map((h) => `#${h}`).join(" ")}\n` : ""}
 ## Por que esta pauta
 
-${pilar ? `**${pilar.nome}** — ${pilar.corpo.split("\n")[0]}\n\n` : ""}${((linha.origem ?? {}) as Record<string, unknown>).why_match ?? "_(sem justificativa registrada)_"}
+${pilar ? `**${pilar.nome}** — ${pilar.corpo.split("\n")[0]}\n\n` : ""}${origemDados.why_match ?? "_(sem justificativa registrada)_"}
+
+## De onde veio
+
+${
+  Array.isArray(origemDados.source_urls) && origemDados.source_urls.length > 0
+    ? (origemDados.source_urls as string[]).map((u) => `- ${u}`).join("\n")
+    : "_(sem fonte registrada)_"
+}
 
 ---
 
