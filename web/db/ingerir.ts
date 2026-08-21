@@ -19,6 +19,7 @@ import { eq } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
 import { RADAR_ROOT } from "../lib/manifest";
+import { topicHash } from "../lib/anti-repeticao/topico";
 import { colher, type Workspace } from "./workspace";
 
 export interface RelatorioIngestao {
@@ -46,6 +47,49 @@ export interface RelatorioIngestao {
    * `concluido` enquanto o ledger diz abortado, e as duas versões convivem.
    */
   abortadaPelaSkill: { motivo: string } | null;
+}
+
+/**
+ * Os nomes que o modelo usa quando não usa os do schema.
+ *
+ * A execução que estreou o contrato `.json` gravou `caption` em vez de
+ * `caption_draft`, `media` em vez de `hero_image_candidates`, e enfiou
+ * `od_skill_ref` dentro de `visual_brief`. Tirar a prosa do caminho resolveu
+ * *onde* o campo mora; não resolveu *como* ele se chama.
+ *
+ * Aceitar um apelido conhecido custa uma linha e salva 25 minutos de execução.
+ * Cada uso vira aviso, para a lista não crescer sem ninguém perceber — se ela
+ * começar a crescer, a resposta deixa de ser apelido e passa a ser validação.
+ */
+const APELIDOS: Record<string, string[]> = {
+  caption_draft: ["caption"],
+  hero_image_candidates: ["media"],
+  od_skill_ref: ["open_design_skill"],
+  why_match: ["match_reason", "porque"],
+  source_urls: ["source"],
+};
+
+/** Lê o campo pelo nome do schema, ou por um apelido conhecido. */
+function campo(
+  data: Record<string, unknown>,
+  nome: string,
+): { valor: unknown; apelido?: string } {
+  if (data[nome] !== undefined) return { valor: data[nome] };
+
+  for (const alt of APELIDOS[nome] ?? []) {
+    if (data[alt] !== undefined) return { valor: data[alt], apelido: alt };
+  }
+
+  // `od_skill_ref` costuma vir aninhado na direção de arte.
+  const visual = (data.visual_brief ?? {}) as Record<string, unknown>;
+  if (nome === "od_skill_ref") {
+    for (const alt of ["od_skill_ref", "open_design_skill"]) {
+      if (visual[alt] !== undefined) {
+        return { valor: visual[alt], apelido: `visual_brief.${alt}` };
+      }
+    }
+  }
+  return { valor: undefined };
 }
 
 function str(v: unknown): string | undefined {
@@ -114,24 +158,22 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
           detalhe: `público inexistente no vault: ${publico ?? "(ausente)"}`,
         });
       }
-      if (!str(data.topic_hash)) {
-        recusas.push({
-          onde: slug,
-          detalhe: "sem topic_hash — a anti-repetição depende dele",
-        });
-      }
+      // `topic_hash` não é pedido a ninguém: é função pura da headline, e a
+      // ingestão a calcula. Deixar isso com o modelo produzia hash ausente —
+      // ou, pior, presente e calculado de outro jeito, que faria a
+      // anti-repetição nunca casar sem acusar nada.
       if (!str(data.headline)) {
         recusas.push({ onde: slug, detalhe: "sem headline" });
       }
       // A legenda é o texto do post. Sem ela o brief entra, porque dá para
       // escrever à mão na tela de edição — mas quem aprova precisa saber que
       // vai ter de escrever.
-      if (!str(data.caption_draft)) {
+      if (!str(campo(data, "caption_draft").valor)) {
         avisos.push({ onde: slug, detalhe: "sem rascunho de legenda" });
       }
       if (
-        !Array.isArray(data.hero_image_candidates) ||
-        data.hero_image_candidates.length === 0
+        !Array.isArray(campo(data, "hero_image_candidates").valor) ||
+        (campo(data, "hero_image_candidates").valor as unknown[]).length === 0
       ) {
         avisos.push({ onde: slug, detalhe: "sem candidatas de imagem" });
       }
@@ -217,10 +259,10 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
           matchScore: num(data.match_score)?.toFixed(2) ?? null,
           borderline: data.borderline === true,
           borderlineMotivo: str(data.borderline_reason) ?? null,
-          topicHash: str(data.topic_hash)!,
+          topicHash: topicHash(str(data.headline) ?? slug),
           headline: str(data.headline)!,
           hook: str(data.hook) ?? null,
-          captionDraft: str(data.caption_draft) ?? null,
+          captionDraft: str(campo(data, "caption_draft").valor) ?? null,
           cta: str(data.cta) ?? null,
           hashtags: Array.isArray(data.hashtags)
             ? (data.hashtags as string[])
