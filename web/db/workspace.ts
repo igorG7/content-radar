@@ -352,6 +352,25 @@ export async function materializar(ambienteId: string): Promise<Workspace> {
       recursive: true,
     });
 
+    /**
+     * As specs vêm junto, e não são detalhe: as skills e os subagentes citam
+     * "§4 da spec 002", "§5 da spec 003", "§4.2 da spec 004" o tempo todo, e
+     * antes do workspace resolviam isso lendo o repositório.
+     *
+     * Sem elas, o pipeline segue rodando e erra calado — foi assim que o
+     * briefer passou a inventar os nomes dos campos do brief, porque o schema
+     * que ele deveria seguir deixou de estar ao alcance. O caso do matcher é
+     * pior: regra de pontuação meio lembrada não dá erro, dá número plausível.
+     *
+     * Não fere o isolamento: spec é documentação do produto, igual para todo
+     * cliente, sem um byte de dado de ninguém.
+     */
+    await cp(
+      path.join(RADAR_ROOT, "docs", "specs"),
+      path.join(dir, "docs", "specs"),
+      { recursive: true },
+    );
+
     // O ledger nasce vazio: o que a skill escrever aqui é o que a ingestão
     // leva de volta para o banco. Misturar com o histórico faria a ingestão
     // ter de adivinhar o que é novo.

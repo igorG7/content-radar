@@ -116,6 +116,38 @@ describe.skipIf(!disponivel)("contrato entre skill e workspace", () => {
     expect(ausentes).toEqual([]);
   });
 
+  it("as specs que as skills citam chegam junto", async () => {
+    /**
+     * As skills e subagentes citam "§4 da spec 002", "§4.2 da spec 004" o
+     * tempo todo. Antes do workspace isso resolvia lendo o repositório; quando
+     * o isolamento entrou, o documento saiu do alcance e o pipeline passou a
+     * errar calado — o briefer inventou os nomes dos campos do brief porque o
+     * schema deixou de existir para ele.
+     */
+    const citadas = new Set<string>();
+    const raiz = path.join(ws.dir, ".claude");
+    for (const e of await readdir(raiz, {
+      recursive: true,
+      withFileTypes: true,
+    })) {
+      if (!e.isFile() || !e.name.endsWith(".md")) continue;
+      const texto = await readFile(
+        path.join(e.parentPath ?? raiz, e.name),
+        "utf8",
+      );
+      for (const m of texto.matchAll(/spec (\d{3})/g)) citadas.add(m[1]);
+    }
+    expect(citadas.size).toBeGreaterThan(0);
+
+    const specs = await readdir(path.join(ws.dir, "docs", "specs")).catch(
+      () => [] as string[],
+    );
+    const ausentes = [...citadas].filter(
+      (n) => !specs.some((f) => f.startsWith(n)),
+    );
+    expect(ausentes).toEqual([]);
+  });
+
   it("as skills e os subagentes chegam junto", async () => {
     // O Agent SDK carrega a partir do diretório de trabalho; sem isto o
     // executor rodaria sem saber invocar estágio nenhum.

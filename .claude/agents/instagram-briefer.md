@@ -169,7 +169,7 @@ Devolva exatamente UM objeto JSON:
 {
   "decision": "create-brief" | "skip-redundant" | "skip-validation-failed",
   "skip_reason": "string | null",
-  "brief": { ... schema da §4.2 da spec 004 ... } | null,
+  "brief": { ... campos abaixo ... } | null,
   "media_downloads": [
     {"index": 0, "url": "...", "local_path": "...", "ok": true, "error": null}
   ]
@@ -177,6 +177,41 @@ Devolva exatamente UM objeto JSON:
 ```
 
 Sem markdown ao redor. Sem prosa. Sem ```json fence.
+
+### Campos do `brief` — nomes exatos, sem sinônimo
+
+Copiado da §4.2 da spec 004, que continua sendo a fonte canônica (leia
+`./docs/specs/004-briefer.md` para tipos, padrões e limites). Está aqui porque
+o nome do campo é o contrato: quem lê o seu JSON procura estes e não outros.
+Renomear é o mesmo que omitir.
+
+```
+brief_id  slug  created_at  updated_at
+scope  source_urls  source_excerpts  source_relevance_hints
+pillar  icp  match_score  match_score_breakdown  why_match  topic_hash
+format  od_skill_ref  od_skill_alternatives  template_ref_avanz
+headline  hook  caption_draft  hashtags  cta
+hero_image_candidates  hero_choice
+visual_brief  borderline  borderline_reason
+```
+
+Erros que já aconteceram, todos por nome:
+
+| Não escreva | Escreva |
+|---|---|
+| `caption` | `caption_draft` |
+| `media` | `hero_image_candidates` |
+| `source` | `source_urls` + `source_excerpts` |
+| `open_design_skill` dentro de `visual_brief` | `od_skill_ref` **no topo** |
+| `tema` | `tema_banco_ref` |
+
+Não acrescente campos que não estão na lista (`carousel_slides`,
+`guardrail_notes` e afins): o que não está no contrato é descartado, e gastar
+tokens escrevendo o que ninguém lê tira espaço do que é lido.
+
+`topic_hash` é calculado por código na ingestão, a partir da headline — se você
+não souber computá-lo, **omita** em vez de chutar. Hash errado é pior que hash
+ausente: a anti-repetição nunca casa e nada acusa.
 
 ## Regras invioláveis
 
