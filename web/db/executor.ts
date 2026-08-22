@@ -185,6 +185,30 @@ export async function executar(
   const scanId: string = pedidoAtual.scanId;
   const scanRef = pedidoAtual.scanRef;
 
+  /**
+   * Passo 0: purgar o cache local expirado, como a spec 005 §60 previa —
+   * "piggyback" na varredura, que é o momento em que alguém já espera trabalho
+   * acontecendo. Sem agendador próprio: scans são poucos por semana e a purga
+   * não tem pressa.
+   *
+   * Best-effort: falhar aqui não aborta a varredura. Disco cheio é problema;
+   * disco cheio **e** nenhuma pauta gerada é dois.
+   */
+  try {
+    const { backendPostgres } = await import("./backend");
+    const r = await backendPostgres(ambienteId).purgarMidia();
+    if (r.apagados > 0 || r.preservados > 0) {
+      console.log(
+        `[executor] purga: ${r.apagados} arquivo(s), ${Math.round(r.bytes / 1024)} KB` +
+          (r.preservados
+            ? ` · ${r.preservados} preservado(s) sem cópia remota`
+            : ""),
+      );
+    }
+  } catch (erro) {
+    console.warn(`[executor] purga falhou: ${(erro as Error).message}`);
+  }
+
   try {
     ws = await materializar(ambienteId);
 

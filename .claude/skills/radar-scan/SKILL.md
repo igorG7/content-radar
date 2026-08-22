@@ -57,10 +57,13 @@ Carregue (via Read):
 
 Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
 
-- **Passo 0 (housekeeping, piggyback)**: após validar args e antes de preparar contexto, invocar a skill
-  `radar-housekeeping` (best-effort) pra purgar cache local expirado de `media/publicado/`. Falha **não
-  aborta** o scan (loga warning e segue). Em `--dry-run`, invocar `radar-housekeeping --dry-run` (nada
-  apagado). O sweep grava seu próprio `housekeeping-finished` no ledger (`trigger: "piggyback-radar-scan"`).
+- **Passo 0 (housekeeping)**: não é mais sua responsabilidade. A purga do cache
+  local virou código no executor, que a roda antes de montar o workspace e grava
+  `media-purged` no ledger.
+
+  > A skill fazia isso dentro do workspace — que é uma cópia descartável sem
+  > arquivo de mídia nenhum. Ela rodava, gravava `housekeeping-finished` e não
+  > purgava nada, porque não havia o que purgar ali.
   Detalhes: spec 009 §8 + spec 005 §5.1.1.
 - **Estágio 1**: `Task(subagent_type='market-researcher', prompt=<bloco com scope, pillar_filter, window_days,
   target_count, max_per_source, allowed_sources, vault_paths>)`. Validar JSON (§5.5).

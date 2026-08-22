@@ -377,6 +377,18 @@ export interface RadarStore {
     },
   ): Promise<{ id: number; ts: string }>;
 
+  /**
+   * Apaga o cache local de mídia que já não precisa existir.
+   *
+   * Só de brief publicado, e só depois da janela — o disco é barato perto de
+   * perder a única cópia de uma foto. E **nunca** de candidata sem `cloud_url`:
+   * aí o arquivo local é a única cópia que existe, e apagá-lo é perda
+   * definitiva, não limpeza.
+   */
+  purgarMidia(opcoes?: {
+    ensaio?: boolean;
+  }): Promise<{ apagados: number; bytes: number; preservados: number }>;
+
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
     evento: Omit<LedgerEvent, "ts"> & { ts?: string },
@@ -543,6 +555,10 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async varreduraRecente() {
       return null;
+    },
+
+    async purgarMidia() {
+      return { apagados: 0, bytes: 0, preservados: 0 };
     },
 
     async listarConversas() {

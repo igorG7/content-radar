@@ -42,7 +42,7 @@ import type {
 } from "../lib/store";
 import { JaRodando, StoreError } from "../lib/store";
 import type { Destruidor, Enviador } from "../lib/midia/cloudinary";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 type LinhaBrief = typeof t.brief.$inferSelect;
@@ -1348,6 +1348,101 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
               }
             : null,
         };
+      }),
+
+    purgarMidia: (opcoes = {}) =>
+      dentro(async (tx) => {
+        const [ajustes] = await tx.select().from(t.config);
+        const janelas = (ajustes?.janelas ?? {}) as Record<string, unknown>;
+        /**
+         * Trinta dias é o que o manifest sempre declarou
+         * (`cloudinary.purge_local_after_days`). Fica configurável por ambiente
+         * porque a janela certa depende de com que frequência alguém volta a
+         * uma pauta publicada — e isso é do cliente, não do produto.
+         */
+        const dias =
+          typeof janelas.purga_local_dias === "number"
+            ? janelas.purga_local_dias
+            : 30;
+
+        const candidatas = await tx
+          .select({
+            id: t.brief.id,
+            estado: t.brief.estado,
+            slug: t.brief.slug,
+            indice: t.briefCandidata.indice,
+            objetoPath: t.briefCandidata.objetoPath,
+            cloudUrl: t.briefCandidata.cloudUrl,
+          })
+          .from(t.briefCandidata)
+          .innerJoin(t.brief, eq(t.brief.id, t.briefCandidata.briefId))
+          /**
+           * Os dois filtros dizem quase a mesma coisa: `publicado_em` só é
+           * preenchido ao publicar, então a comparação de data já exclui o que
+           * não saiu — tirar o estado não muda o resultado, e nenhum teste
+           * distingue os dois. Fica pela intenção declarada e pelo caso em que
+           * um brief publicado voltasse atrás sem que a data fosse limpa.
+           */
+          .where(
+            and(
+              eq(t.brief.estado, "publicado"),
+              sql`${t.brief.publicadoEm} < now() - make_interval(days => ${dias})`,
+              sql`${t.briefCandidata.objetoPath} is not null`,
+            ),
+          );
+
+        let apagados = 0;
+        let bytes = 0;
+        let preservados = 0;
+        const prefixo = await prefixoDoAmbiente(tx);
+
+        for (const c of candidatas) {
+          /**
+           * Sem cópia remota, o arquivo local é a única que existe. Apagá-lo
+           * não é liberar disco: é perder a foto. A skill original dizia o
+           * mesmo — "NUNCA apaga mídia de brief em modo placeholder".
+           */
+          if (!c.cloudUrl) {
+            preservados++;
+            continue;
+          }
+
+          const caminho = caminhoDaMidia(prefixo, c.estado, c.objetoPath!);
+          try {
+            const info = await stat(caminho);
+            if (!opcoes.ensaio) await rm(caminho, { force: true });
+            apagados++;
+            bytes += info.size;
+          } catch {
+            // Arquivo já ausente é o estado desejado, não erro.
+            continue;
+          }
+
+          if (!opcoes.ensaio) {
+            // O registro perde o caminho local: mantê-lo faria a tela pedir um
+            // arquivo que não existe mais, em vez de usar a URL remota.
+            await tx
+              .update(t.briefCandidata)
+              .set({ objetoPath: null })
+              .where(
+                and(
+                  eq(t.briefCandidata.briefId, c.id),
+                  eq(t.briefCandidata.indice, c.indice),
+                ),
+              );
+          }
+        }
+
+        if (!opcoes.ensaio && (apagados > 0 || preservados > 0)) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "media-purged",
+            ator: "app:radar-web",
+            extra: { apagados, bytes, preservados, janela_dias: dias },
+          });
+        }
+
+        return { apagados, bytes, preservados };
       }),
 
     listarConversas: () =>
