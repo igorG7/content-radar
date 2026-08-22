@@ -50,15 +50,21 @@ apontou no `trends`, agora atribuível a um estágio em vez de diluída no total
 O que falta para explicá-la é a contagem parcial (`fontes_lidas`,
 `fontes_sem_resposta`) que a skill ainda não preenche.
 
-**O processo trabalhador** existe (`web/scripts/trabalhador.mts`) e foi provado
-ponta a ponta: reivindicou um pedido real, carimbou início, falhou pelo motivo
-certo e liberou a vaga. Falta **subir sob pm2** e decidir o `kill_timeout` —
-que depende da medição por estágio (design-execucao-scan §9.2).
+**O trabalhador está sob pm2**, no padrão deste servidor — `pm2-igorg7.service`
+ao lado dos de `ivandias` e `root`. Verificado como um reboot faria: daemon
+derrubado, serviço iniciado pelo systemd, processo restaurado do dump.
 
-**Conversa não é persistida.** O chat vive na aba: recarregar perde o
-histórico. A memória do agente fica no servidor (a sessão do SDK), mas o
-ponteiro para ela mora no navegador. Precisa de tabela e de decisão sobre
-retenção.
+O `kill_timeout` ficou em 30 minutos, e é a primeira decisão de drenagem apoiada
+em medição em vez de palpite — as seis varreduras levaram de 21 a 26 (§9.2 do
+desenho de execução pedia exatamente isso).
+
+**A conversa do chat persiste.** Tabelas `conversa` e `mensagem`, isoladas como
+o resto, com a sessão do SDK gravada junto da mensagem que a produziu. Provado
+no navegador: perguntar, recarregar, e perguntar "e qual deles tem o maior
+score?" — frase que só se resolve se a memória sobreviveu.
+
+O que ficou em aberto aqui é **retenção**: nada apaga conversa antiga, e ninguém
+decidiu por quanto tempo elas ficam.
 
 **Revisor de brief sob demanda.** Um agente que, acionado por botão na página
 do brief, abre as `source_urls` e confere o que a copy afirma — "a legenda diz
@@ -120,9 +126,10 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   `contato` têm dado real. Bom para maquete, perigoso se virar semente de
   importação.
 - **`painel.png`** na raiz do repositório, sem destino definido.
-- **`handoff_at` com download sob demanda** — hoje o carimbo torna a skill
-  idempotente; com download repetível, falta decidir se registra o primeiro
-  download ou deixa de existir.
+- **Reexportação de pacote** — resolvido: o carimbo marca a primeira entrega e
+  as seguintes viram `handoff-reexportado`, sem mover a data. Baixar continua
+  disponível depois de publicado, porque o pacote é a referência de como a arte
+  foi feita.
 - **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
   dimensionamento de fila.
 - **Produção** — não decidida. Pode ser este mesmo servidor, já que a app vive
