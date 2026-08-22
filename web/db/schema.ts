@@ -454,6 +454,15 @@ export const brief = pgTable(
 
     scanId: uuid("scan_id"),
     reviewNotes: text("review_notes"),
+    /**
+     * O que este brief tem de pendente ou duvidoso — sem legenda, sem imagem,
+     * campo que veio por apelido.
+     *
+     * No brief e não no evento do scan: quem decide publicar abre o brief, não
+     * a varredura que o produziu. Preso ao evento, o aviso some da vista assim
+     * que outra varredura roda, e some do pacote sempre.
+     */
+    avisos: jsonb("avisos"),
 
     criadoEm: timestamp("criado_em", { withTimezone: true })
       .notNull()

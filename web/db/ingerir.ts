@@ -260,6 +260,9 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
           borderline: data.borderline === true,
           borderlineMotivo: str(data.borderline_reason) ?? null,
           topicHash: topicHash(str(data.headline) ?? slug),
+          // O aviso acompanha o brief, não a varredura: quem decide publicar
+          // abre o brief, e o evento do scan some da vista na semana seguinte.
+          avisos: avisos.filter((a) => a.onde === slug).map((a) => a.detalhe),
           headline: str(data.headline)!,
           hook: str(data.hook) ?? null,
           captionDraft: str(campo(data, "caption_draft").valor) ?? null,

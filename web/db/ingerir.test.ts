@@ -329,6 +329,13 @@ describe.skipIf(!disponivel)("ingestão", () => {
     expect(r.briefs).toBe(1);
     expect(r.recusas).toEqual([]);
     expect(r.avisos.map((a) => a.detalhe)).toContain("sem rascunho de legenda");
+
+    // E fica no brief, não só no relatório: o aviso precisa sobreviver à
+    // varredura que o produziu.
+    const [linha] = await noAmbiente(
+      `select avisos from brief where brief_id = '2026-W98-005'`,
+    );
+    expect(linha.avisos).toContain("sem rascunho de legenda");
   });
 
   it("relata o aborto que a própria skill declarou", async () => {
