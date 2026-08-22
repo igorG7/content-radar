@@ -11,7 +11,6 @@ import {
   IconClip,
   IconFile,
   IconPencil,
-  IconPlug,
   IconPlus,
   IconSliders,
   IconStop,
@@ -31,7 +30,7 @@ import {
   type EsforcoId,
   type ModeloId,
 } from "@/lib/session";
-import { conversaVazia, type Conversa, type Mensagem } from "./exemplos";
+import { type Conversa, type Mensagem } from "./exemplos";
 import { PainelVarredura } from "./painel-varredura";
 
 export interface Anexo {
@@ -139,12 +138,17 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
     msgId: string;
   } | null>(null);
 
-  // Uma função de inicialização, não um valor: `conversaVazia()` carimba a
-  // hora, e chamá-la a cada render criaria conversa nova a cada tecla.
-  const [conversas, setConversas] = useState<Conversa[]>(() => [
-    conversaVazia(),
-  ]);
-  const [ativa, setAtiva] = useState(() => conversas[0].id);
+  /**
+   * As conversas vêm do banco. Antes viviam aqui e só aqui: recarregar a página
+   * perdia o histórico e o ponteiro para a memória do agente junto.
+   *
+   * A lista chega sem mensagens — carregar o histórico de todas para desenhar a
+   * barra lateral traria o ambiente inteiro a cada abertura. O corpo de cada uma
+   * é buscado quando ela é aberta.
+   */
+  const [conversas, setConversas] = useState<Conversa[]>([]);
+  const [ativa, setAtiva] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(true);
   const [entrada, setEntrada] = useState("");
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [erroAnexo, setErroAnexo] = useState<string | null>(null);
@@ -162,6 +166,44 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
   const pendente = pendencia?.conversaId === conversa?.id;
 
   useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const r = await fetch("/api/conversas").catch(() => null);
+      const corpo = await r?.json().catch(() => null);
+      if (!vivo) return;
+
+      const lista: Conversa[] = (corpo?.conversas ?? []).map(
+        (c: { id: string; titulo: string; atualizadoEm: string }) => ({
+          id: c.id,
+          titulo: c.titulo,
+          atualizado_em: c.atualizadoEm,
+          mensagens: [],
+        }),
+      );
+
+      // Sem nenhuma, abre uma nova — a tela nunca fica sem conversa ativa.
+      if (lista.length === 0) {
+        const nova = await criarNoServidor("Nova conversa");
+        if (nova && vivo) {
+          setConversas([nova]);
+          setAtiva(nova.id);
+        }
+      } else {
+        setConversas(lista);
+        // Abrir, não só marcar como ativa: a lista chega sem mensagens, e
+        // apenas selecionar deixaria a conversa mais recente parecendo vazia.
+        await abrir(lista[0].id);
+      }
+      if (vivo) setCarregando(false);
+    })();
+    return () => {
+      vivo = false;
+    };
+    // Uma vez ao montar: recarregar a lista a cada mudança apagaria o que a
+    // conversa aberta acabou de receber.
+  }, []);
+
+  useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [conversa?.mensagens]);
 
@@ -171,6 +213,66 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
       for (const anexo of anexos) if (anexo.url) URL.revokeObjectURL(anexo.url);
     };
   }, [anexos]);
+
+  async function criarNoServidor(titulo: string): Promise<Conversa | null> {
+    const r = await fetch("/api/conversas", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ titulo }),
+    }).catch(() => null);
+    const c = await r?.json().catch(() => null);
+    if (!r?.ok || !c?.id) return null;
+    return {
+      id: c.id,
+      titulo: c.titulo,
+      atualizado_em: c.atualizadoEm,
+      mensagens: [],
+    };
+  }
+
+  /** Abre a conversa, buscando o histórico dela — a lista vem sem mensagens. */
+  async function abrir(id: string) {
+    setAtiva(id);
+    const r = await fetch(`/api/conversas/${id}`).catch(() => null);
+    const c = await r?.json().catch(() => null);
+    if (!r?.ok || !c?.id) return;
+    setConversas((atual) =>
+      atual.map((x) =>
+        x.id !== id
+          ? x
+          : {
+              ...x,
+              mensagens: (c.mensagens ?? []).map(
+                (m: {
+                  id: number;
+                  papel: string;
+                  corpo: string;
+                  ferramentas: string[];
+                  modelo: string | null;
+                  esforco: string | null;
+                  ts: string;
+                }) => ({
+                  id: String(m.id),
+                  role:
+                    m.papel === "usuario"
+                      ? "user"
+                      : m.papel === "erro"
+                        ? "error"
+                        : "agent",
+                  content: m.corpo,
+                  ferramentas: m.ferramentas?.length
+                    ? m.ferramentas
+                    : undefined,
+                  modelo: m.modelo ?? undefined,
+                  esforco: m.esforco ?? undefined,
+                  status: "done",
+                  ts: m.ts,
+                }),
+              ),
+            },
+      ),
+    );
+  }
 
   const atualizar = useCallback(
     (id: string, muda: (c: Conversa) => Conversa) =>
@@ -263,14 +365,15 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
       );
 
     try {
-      const conversaAtual = conversas.find((c) => c.id === conversaId);
       const resposta = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         signal: controle.signal,
         body: JSON.stringify({
           mensagem: pergunta,
-          sessaoAgente: conversaAtual?.sessaoAgente,
+          conversaId,
+          modelo,
+          esforco,
         }),
       });
 
@@ -405,7 +508,16 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
         c.mensagens.length === 0
           ? (() => {
               const base = texto || anexos[0].nome;
-              return base.length > 46 ? `${base.slice(0, 46).trim()}…` : base;
+              const t =
+                base.length > 46 ? `${base.slice(0, 46).trim()}…` : base;
+              // Persiste também: o título sai da primeira pergunta, e sem isto
+              // a lista voltaria a "Nova conversa" no próximo carregamento.
+              void fetch(`/api/conversas/${c.id}`, {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ titulo: t }),
+              });
+              return t;
             })()
           : c.titulo,
       atualizado_em: agora,
@@ -454,17 +566,17 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
     b.atualizado_em.localeCompare(a.atualizado_em),
   );
 
-  function removerConversa(alvo: Conversa) {
+  async function removerConversa(alvo: Conversa) {
     const indice = conversas.indexOf(alvo);
+    await fetch(`/api/conversas/${alvo.id}`, { method: "DELETE" }).catch(
+      () => null,
+    );
+    const reposicao =
+      conversas.length === 1 ? await criarNoServidor("Nova conversa") : null;
     setConversas((atual) => {
       const proximo = atual.filter((c) => c.id !== alvo.id);
-      if (proximo.length === 0) {
-        proximo.push({
-          id: `n${Date.now()}`,
-          titulo: "Nova conversa",
-          atualizado_em: new Date().toISOString(),
-          mensagens: [],
-        });
+      if (proximo.length === 0 && reposicao) {
+        proximo.push(reposicao);
       }
       if (ativa === alvo.id)
         setAtiva(proximo[Math.min(indice, proximo.length - 1)].id);
@@ -518,19 +630,6 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
         }}
       >
         <p className="drop-hint">Solte para anexar à mensagem</p>
-        {/* A conversa em si ainda não é gravada em lugar nenhum. Dizer isso é
-            o mínimo: sem o aviso, a pessoa perde uma conversa longa ao
-            recarregar e descobre depois. */}
-        <div className="disconnected-banner">
-          <span>
-            <IconPlug />
-          </span>
-          <span>
-            A conversa vive nesta aba — recarregar a página perde o histórico. O
-            que o agente faz, esse sim, fica registrado.
-          </span>
-        </div>
-
         <div
           className="chat-log"
           ref={logRef}
@@ -538,10 +637,15 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
           aria-live="polite"
           aria-label="Conversa com o agente"
         >
-          {conversa.mensagens.length === 0 ? (
+          {carregando ? (
+            <EmptyState
+              title="Carregando as conversas"
+              body="Buscando o histórico deste ambiente."
+            />
+          ) : conversa.mensagens.length === 0 ? (
             <EmptyState
               title="Conversa nova"
-              body="Faça a primeira pergunta e o título desta conversa passa a sair dela. O histórico vive na sessão do navegador — o ledger continua sendo a única memória durável."
+              body="Faça a primeira pergunta e o título desta conversa passa a sair dela. O histórico fica gravado — recarregar a página não perde mais nada."
             />
           ) : (
             conversa.mensagens.map((m) => {
@@ -883,14 +987,10 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
             <button
               className="btn btn-secondary btn-sm"
               type="button"
-              onClick={() => {
-                const nova: Conversa = {
-                  id: `n${Date.now()}`,
-                  titulo: "Nova conversa",
-                  atualizado_em: new Date().toISOString(),
-                  mensagens: [],
-                };
-                setConversas((atual) => [...atual, nova]);
+              onClick={async () => {
+                const nova = await criarNoServidor("Nova conversa");
+                if (!nova) return;
+                setConversas((atual) => [nova, ...atual]);
                 setAtiva(nova.id);
                 entradaRef.current?.focus();
               }}
@@ -914,7 +1014,7 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
                     <button
                       className="conv-open"
                       type="button"
-                      onClick={() => setAtiva(c.id)}
+                      onClick={() => void abrir(c.id)}
                     >
                       <span className="conv-titulo">{c.titulo}</span>
                       <span className="conv-meta">{resumoDe(c)}</span>
@@ -984,8 +1084,14 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
                   setTituloErro(true);
                   return;
                 }
-                if (renomeando)
+                if (renomeando) {
                   atualizar(renomeando.id, (c) => ({ ...c, titulo: valor }));
+                  void fetch(`/api/conversas/${renomeando.id}`, {
+                    method: "PATCH",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ titulo: valor }),
+                  });
+                }
                 setRenomeando(null);
               }}
             >

@@ -540,6 +540,68 @@ export const briefCandidata = pgTable(
  * `tipo` é text e não enum porque o conjunto cresce a cada skill nova, e
  * migração de enum por isso é atrito sem ganho.
  */
+/**
+ * Uma conversa do chat.
+ *
+ * Vivia na aba do navegador: recarregar perdia o histórico, e o que o agente
+ * consultou para responder ia junto. A memória dele já ficava no servidor — a
+ * sessão do SDK —, mas o ponteiro para ela morava no cliente, então nem retomar
+ * a conversa era possível depois de um F5.
+ */
+export const conversa = pgTable(
+  "conversa",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ambienteId: uuid("ambiente_id")
+      .notNull()
+      .references(() => ambiente.id, { onDelete: "cascade" }),
+    /** Sai da primeira pergunta: ninguém batiza conversa antes de saber o assunto. */
+    titulo: text("titulo").notNull(),
+    /**
+     * A sessão do agente no SDK. É o que dá memória à conversa sem reenviar o
+     * histórico a cada turno — e o que se perdia ao fechar a aba.
+     */
+    sessaoAgente: text("sessao_agente"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [politicaAmbiente(t.ambienteId), unique("conversa_ambiente_id_uk").on(t.ambienteId, t.id)],
+);
+
+export const mensagem = pgTable(
+  "mensagem",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ambienteId: uuid("ambiente_id")
+      .notNull()
+      .references(() => ambiente.id, { onDelete: "cascade" }),
+    conversaId: uuid("conversa_id").notNull(),
+    /** `usuario`, `agente` ou `erro` — o mesmo vocabulário da tela. */
+    papel: text("papel").notNull(),
+    corpo: text("corpo").notNull(),
+    /** O que o agente consultou para responder. Resposta sem isso vira adivinhação. */
+    ferramentas: text("ferramentas").array(),
+    modelo: text("modelo"),
+    esforco: text("esforco"),
+    ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    politicaAmbiente(t.ambienteId),
+    // Composta com o ambiente: sem isso uma mensagem poderia apontar para
+    // conversa de outro cliente e o banco aceitaria.
+    foreignKey({
+      columns: [t.ambienteId, t.conversaId],
+      foreignColumns: [conversa.ambienteId, conversa.id],
+      name: "mensagem_conversa_fk",
+    }).onDelete("cascade"),
+    index("mensagem_conversa_idx").on(t.ambienteId, t.conversaId, t.ts),
+  ],
+);
+
 export const evento = pgTable(
   "evento",
   {

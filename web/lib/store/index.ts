@@ -199,6 +199,24 @@ export interface Vocabulario {
   publicos: { slug: string; nome: string; corpo: string; padrao: boolean }[];
 }
 
+/** Uma conversa do chat, com as mensagens que ela já tem. */
+export interface Conversa {
+  id: string;
+  titulo: string;
+  atualizadoEm: string;
+  /** Sessão do agente no SDK — é o que dá memória à conversa entre turnos. */
+  sessaoAgente: string | null;
+  mensagens: {
+    id: number;
+    papel: "usuario" | "agente" | "erro";
+    corpo: string;
+    ferramentas: string[];
+    modelo: string | null;
+    esforco: string | null;
+    ts: string;
+  }[];
+}
+
 /** Campos do brief que a edição pela interface pode tocar. */
 export interface EdicaoBrief {
   headline?: string | null;
@@ -329,6 +347,35 @@ export interface RadarStore {
    * tela acompanha — e o que ela mostra depois que termina.
    */
   varreduraRecente(): Promise<Varredura | null>;
+
+  /**
+   * As conversas do chat, da mais recente para a mais antiga.
+   *
+   * Só os cabeçalhos: carregar as mensagens de todas para desenhar uma lista
+   * lateral traria o histórico inteiro do ambiente a cada abertura da tela.
+   */
+  listarConversas(): Promise<Omit<Conversa, "mensagens">[]>;
+  buscarConversa(id: string): Promise<Conversa>;
+  criarConversa(titulo: string): Promise<Conversa>;
+  renomearConversa(id: string, titulo: string): Promise<void>;
+  excluirConversa(id: string): Promise<void>;
+
+  /**
+   * Grava uma mensagem e devolve o que a tela precisa saber. `sessaoAgente`
+   * chega junto no turno do agente: é o servidor dizendo qual sessão continuar,
+   * e guardá-la no navegador era o que fazia um F5 apagar a memória.
+   */
+  gravarMensagem(
+    conversaId: string,
+    mensagem: {
+      papel: "usuario" | "agente" | "erro";
+      corpo: string;
+      ferramentas?: string[];
+      modelo?: string;
+      esforco?: string;
+      sessaoAgente?: string;
+    },
+  ): Promise<{ id: number; ts: string }>;
 
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
@@ -496,6 +543,30 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async varreduraRecente() {
       return null;
+    },
+
+    async listarConversas() {
+      return [];
+    },
+    async buscarConversa() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda conversa",
+      );
+    },
+    async criarConversa() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda conversa",
+      );
+    },
+    async renomearConversa() {},
+    async excluirConversa() {},
+    async gravarMensagem() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda conversa",
+      );
     },
 
     async vocabulario(): Promise<Vocabulario> {

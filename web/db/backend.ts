@@ -1273,6 +1273,114 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         };
       }),
 
+    listarConversas: () =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select()
+          .from(t.conversa)
+          .orderBy(desc(t.conversa.atualizadoEm));
+        return linhas.map((c) => ({
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: c.sessaoAgente,
+        }));
+      }),
+
+    buscarConversa: (id) =>
+      dentro(async (tx) => {
+        const [c] = await tx
+          .select()
+          .from(t.conversa)
+          .where(eq(t.conversa.id, id));
+        if (!c) throw new StoreError("nao_encontrado", `conversa ${id}`);
+
+        const msgs = await tx
+          .select()
+          .from(t.mensagem)
+          .where(eq(t.mensagem.conversaId, id))
+          .orderBy(t.mensagem.ts, t.mensagem.id);
+
+        return {
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: c.sessaoAgente,
+          mensagens: msgs.map((m) => ({
+            id: m.id,
+            papel: m.papel as "usuario" | "agente" | "erro",
+            corpo: m.corpo,
+            ferramentas: m.ferramentas ?? [],
+            modelo: m.modelo,
+            esforco: m.esforco,
+            ts: m.ts.toISOString(),
+          })),
+        };
+      }),
+
+    criarConversa: (titulo) =>
+      dentro(async (tx) => {
+        const [c] = await tx
+          .insert(t.conversa)
+          .values({ ambienteId: ambiente, titulo })
+          .returning();
+        return {
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: null,
+          mensagens: [],
+        };
+      }),
+
+    renomearConversa: (id, titulo) =>
+      dentro(async (tx) => {
+        await tx
+          .update(t.conversa)
+          .set({ titulo, atualizadoEm: new Date() })
+          .where(eq(t.conversa.id, id));
+      }),
+
+    excluirConversa: (id) =>
+      dentro(async (tx) => {
+        // As mensagens vão junto por cascata da chave composta.
+        await tx.delete(t.conversa).where(eq(t.conversa.id, id));
+      }),
+
+    gravarMensagem: (conversaId, mensagem) =>
+      dentro(async (tx) => {
+        const [m] = await tx
+          .insert(t.mensagem)
+          .values({
+            ambienteId: ambiente,
+            conversaId,
+            papel: mensagem.papel,
+            corpo: mensagem.corpo,
+            ferramentas: mensagem.ferramentas ?? [],
+            modelo: mensagem.modelo ?? null,
+            esforco: mensagem.esforco ?? null,
+          })
+          .returning({ id: t.mensagem.id, ts: t.mensagem.ts });
+
+        /**
+         * A sessão do agente é gravada com a mensagem que a produziu, não numa
+         * chamada à parte: se a conversa terminasse aqui, o ponteiro para a
+         * memória do SDK precisaria já estar no banco — era o navegador que o
+         * guardava, e um F5 apagava a memória junto.
+         */
+        await tx
+          .update(t.conversa)
+          .set({
+            atualizadoEm: new Date(),
+            ...(mensagem.sessaoAgente
+              ? { sessaoAgente: mensagem.sessaoAgente }
+              : {}),
+          })
+          .where(eq(t.conversa.id, conversaId));
+
+        return { id: m.id, ts: m.ts.toISOString() };
+      }),
+
     lerLedger: () =>
       dentro(async (tx): Promise<LedgerReadResult> => {
         const linhas = await tx

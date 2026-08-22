@@ -6,8 +6,10 @@ import { sessaoAtual } from "@/lib/sessao";
 
 const Body = z.object({
   mensagem: z.string().min(1).max(8000),
-  /** Devolvido pelo turno anterior. É o que dá memória à conversa. */
-  sessaoAgente: z.string().max(200).optional(),
+  /** A conversa a que este turno pertence. */
+  conversaId: z.string().uuid(),
+  modelo: z.string().max(60).optional(),
+  esforco: z.string().max(30).optional(),
 });
 
 /**
@@ -22,7 +24,7 @@ export const POST = rota(async (request: Request) => {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json(
-      { error: "corpo inválido: esperado { mensagem, sessaoAgente? }" },
+      { error: "corpo inválido: esperado { mensagem, conversaId }" },
       { status: 400 },
     );
   }
@@ -30,19 +32,56 @@ export const POST = rota(async (request: Request) => {
   const store = await radarStore();
   const sessao = await sessaoAtual();
 
+  /**
+   * A sessão do agente vem do banco, não do navegador.
+   *
+   * Enquanto o cliente a carregava, um F5 apagava a memória da conversa junto
+   * com o ponteiro. Lê-la aqui também impede que alguém continue a sessão de
+   * outra conversa passando um id qualquer.
+   */
+  const { sessaoAgente } = await store.buscarConversa(parsed.data.conversaId);
+
+  await store.gravarMensagem(parsed.data.conversaId, {
+    papel: "usuario",
+    corpo: parsed.data.mensagem,
+  });
+
   const fluxo = new ReadableStream({
     async start(controlador) {
       const enc = new TextEncoder();
       const enviar = (dado: unknown) =>
         controlador.enqueue(enc.encode(`data: ${JSON.stringify(dado)}\n\n`));
 
+      /**
+       * O que o agente escreveu, acumulado para gravar ao fim do turno. Gravar
+       * a cada delta faria uma linha por fragmento; gravar só no fim significa
+       * que uma queda no meio perde a resposta parcial — e resposta pela metade
+       * no histórico é pior que ausência, porque parece completa.
+       */
+      let texto = "";
+      const ferramentas: string[] = [];
+
       try {
         for await (const evento of conversar(
           store,
           sessao?.ambienteNome ?? "empresa",
           parsed.data.mensagem,
-          parsed.data.sessaoAgente,
+          sessaoAgente ?? undefined,
         )) {
+          if (evento.tipo === "texto") texto += evento.delta;
+          if (evento.tipo === "ferramenta") ferramentas.push(evento.nome);
+          if (evento.tipo === "fim" || evento.tipo === "erro") {
+            await store.gravarMensagem(parsed.data.conversaId, {
+              papel: evento.tipo === "erro" ? "erro" : "agente",
+              corpo: evento.tipo === "erro" ? evento.mensagem : texto,
+              ferramentas,
+              modelo: parsed.data.modelo,
+              esforco: parsed.data.esforco,
+              ...(evento.tipo === "fim" && evento.sessaoId
+                ? { sessaoAgente: evento.sessaoId }
+                : {}),
+            });
+          }
           enviar(evento);
         }
       } catch (erro) {

@@ -64,6 +64,13 @@
       "when": 1787420963091,
       "tag": "0008_avisos_do_brief",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787424508475,
+      "tag": "0009_conversa_do_chat",
+      "breakpoints": true
     }
   ]
 }
