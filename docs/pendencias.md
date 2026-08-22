@@ -130,7 +130,31 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   as seguintes viram `handoff-reexportado`, sem mover a data. Baixar continua
   disponível depois de publicado, porque o pacote é a referência de como a arte
   foi feita.
+- **Banco só para a suíte** — `web/scripts/preparar-banco-de-teste.mts` está
+  pronto; falta o `CREATE DATABASE radar_teste OWNER radar_owner`, que exige
+  superusuário. Resolve o que já aconteceu: o trabalhador reivindicando pedidos
+  criados por teste, e a suíte apagando ambientes no mesmo banco onde o
+  conteúdo da Avanz vive.
+
+  Junto disso, corrigir o **pulo silencioso**: sem banco, 96 dos 164 testes são
+  ignorados e a suíte fica verde. O `skipIf` existe para quem clona o repositório
+  sem Postgres, mas hoje mascara configuração errada — apontar para um banco
+  inexistente "passou" numa tentativa desta sessão. Com banco dedicado, ausência
+  de banco deixa de ser normal e vira falha.
+
 - **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
   dimensionamento de fila.
+- **Onde o dado da Avanz vive** — hoje no `radar_dev`, junto com tudo, tocado
+  por script e por suíte. Incomoda com razão, mas criar um `radar_prod` antes de
+  existir produção só troca o nome: o app continuaria apontando para ele em
+  `next dev`, com a credencial no `.env.local` de alguém, e o dev ficaria vazio
+  — dependemos do conteúdo real para validar ingestão e varredura.
+
+  A separação entra **junto com o deploy**, quando vier acompanhada do que a
+  torna real: app de produção apontando para lá, backup, credencial fora da
+  máquina de desenvolvimento, e migração rodada numa liberação em vez de por
+  quem chamar o drizzle-kit. Aí o dado migra e o `radar_dev` vira cópia de
+  trabalho recriável.
+
 - **Produção** — não decidida. Pode ser este mesmo servidor, já que a app vive
   aqui. Vale decidir quando houver um segundo cliente.
