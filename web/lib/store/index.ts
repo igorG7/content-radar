@@ -729,13 +729,15 @@ export async function radarStore(): Promise<RadarStore> {
   if (!sessao) throw new SemSessao();
 
   const { backendPostgres } = await import("../../db/backend");
-  const { credenciais, enviador } = await import("../midia/cloudinary");
+  const { credenciais, destruidor, enviador } =
+    await import("../midia/cloudinary");
 
   // Sem credencial o app continua inteiro: a escolha da arte é gravada, e o
   // que falta é só a cópia remota — que o pacote diz na cara que não tem.
   const cred = await credenciais(RADAR_ROOT);
   return backendPostgres(sessao.ambienteId, {
     enviarParaNuvem: cred ? enviador(cred) : null,
+    apagarDaNuvem: cred ? destruidor(cred) : null,
   });
 }
 

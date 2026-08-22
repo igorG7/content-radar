@@ -90,6 +90,9 @@ export async function credenciais(raiz: string): Promise<Credenciais | null> {
   };
 }
 
+/** O que a camada precisa de quem apaga — a forma que o teste substitui. */
+export type Destruidor = (publicId: string) => Promise<void>;
+
 /** O que a camada precisa de um enviador — a forma que o teste substitui. */
 export type Enviador = (entrada: {
   bytes: Uint8Array;
@@ -110,6 +113,43 @@ export type Enviador = (entrada: {
  * candidata troca os bytes, então quem chama precisa regravar o que recebeu em
  * vez de supor que a URL antiga continua apontando para a foto certa.
  */
+/**
+ * Apaga o objeto remoto.
+ *
+ * Rejeitar um brief apaga a mídia local; sem isto o objeto continua no
+ * Cloudinary, cobrado, sem nada apontando para ele. Não é urgente por brief —
+ * é urgente por acumular.
+ */
+export function destruidor(cred: Credenciais): Destruidor {
+  return async (publicId) => {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const parametros = { public_id: publicId, timestamp };
+
+    const form = new FormData();
+    for (const [k, v] of Object.entries(parametros)) form.append(k, v);
+    form.append("api_key", cred.apiKey);
+    form.append("signature", assinar(parametros, cred.apiSecret));
+
+    const resposta = await fetch(
+      `https://api.cloudinary.com/v1_1/${cred.cloudName}/image/destroy`,
+      { method: "POST", body: form },
+    );
+    const corpo = (await resposta.json().catch(() => null)) as {
+      result?: string;
+    } | null;
+
+    /**
+     * `not found` é sucesso: o objetivo é que ele não exista. Tratar como erro
+     * faria a purga falhar ao rodar duas vezes.
+     */
+    if (!resposta.ok || !["ok", "not found"].includes(corpo?.result ?? "")) {
+      throw new Error(
+        `Cloudinary recusou apagar ${publicId}: ${corpo?.result ?? `HTTP ${resposta.status}`}`,
+      );
+    }
+  };
+}
+
 export function enviador(cred: Credenciais): Enviador {
   return async ({ bytes, publicId, nomeArquivo }) => {
     const timestamp = String(Math.floor(Date.now() / 1000));

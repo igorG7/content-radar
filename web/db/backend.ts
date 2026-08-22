@@ -41,8 +41,8 @@ import type {
   TransicaoEntrada,
 } from "../lib/store";
 import { JaRodando, StoreError } from "../lib/store";
-import type { Enviador } from "../lib/midia/cloudinary";
-import { readFile, writeFile } from "node:fs/promises";
+import type { Destruidor, Enviador } from "../lib/midia/cloudinary";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 type LinhaBrief = typeof t.brief.$inferSelect;
@@ -302,7 +302,10 @@ const PROXIMO_ESTADO = {
  */
 export function backendPostgres(
   ambiente: AmbienteId,
-  opcoes: { enviarParaNuvem?: Enviador | null } = {},
+  opcoes: {
+    enviarParaNuvem?: Enviador | null;
+    apagarDaNuvem?: Destruidor | null;
+  } = {},
 ): RadarStore {
   const dentro = <T>(trabalho: (tx: Tx) => Promise<T>) =>
     comAmbiente(ambiente, trabalho);
@@ -422,8 +425,14 @@ export function backendPostgres(
      * backend de arquivo essa sequência não era atômica: falhar no meio deixava
      * o brief movido e o ledger sem o evento.
      */
-    aplicarTransicao: (entrada) =>
-      dentro(async (tx): Promise<TransitionResult> => {
+    aplicarTransicao: async (entrada) => {
+      /**
+       * O que apagar depois que a transição estiver gravada. Fora da transação
+       * porque arquivo e objeto remoto não voltam se ela falhar.
+       */
+      const descartadas: { objetoPath: string; publicId: string | null }[] = [];
+
+      const resultado = await dentro(async (tx): Promise<TransitionResult> => {
         const linha = await buscarLinha(tx, entrada.slug);
         const plano = await planejar(tx, entrada);
 
@@ -436,8 +445,36 @@ export function backendPostgres(
           })
           .where(eq(t.brief.id, linha.id));
 
-        // As candidatas descartadas somem do registro junto com os arquivos.
+        /**
+         * As candidatas descartadas somem do registro — e os arquivos vão
+         * junto, **depois** do commit.
+         *
+         * O comentário anterior dizia que os arquivos sumiam e isso nunca foi
+         * verdade: a linha saía do banco e o `.jpg` ficava no disco para sempre.
+         * Apagar dentro da transação seria pior — arquivo não volta se ela
+         * falhar, e aí perderíamos mídia de um brief que continuou existindo.
+         */
         for (const descartada of plano.mediaDeleted) {
+          const [linhaCand] = await tx
+            .select({
+              objetoPath: t.briefCandidata.objetoPath,
+              publicId: t.briefCandidata.cloudinaryPublicId,
+            })
+            .from(t.briefCandidata)
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.objetoPath, descartada),
+              ),
+            );
+          // Candidata sem arquivo não tem o que apagar no disco, mas pode ter
+          // subido para a nuvem antes de o caminho local sumir.
+          if (linhaCand?.objetoPath)
+            descartadas.push({
+              objetoPath: linhaCand.objetoPath,
+              publicId: linhaCand.publicId,
+            });
+
           await tx
             .delete(t.briefCandidata)
             .where(
@@ -477,7 +514,47 @@ export function backendPostgres(
             extra: evento.extra as Record<string, unknown>,
           },
         };
-      }),
+      });
+
+      /**
+       * A limpeza acontece depois do commit e **não derruba a transição**: o
+       * brief já mudou de estado, e falhar aqui só significa mídia sobrando —
+       * problema de custo e disco, que a housekeeping varre. Lançar faria a
+       * pessoa ver "erro ao aprovar" num brief que foi aprovado.
+       */
+      /**
+       * O `public_id` é estável por brief, então várias candidatas descartadas
+       * apontam para o mesmo objeto. Sem deduplicar, a purga pediria a mesma
+       * remoção várias vezes — inofensivo, porque "not found" conta como
+       * sucesso, mas é requisição paga à toa.
+       */
+      const jaApagados = new Set<string>();
+
+      for (const d of descartadas) {
+        try {
+          const prefixo = await dentro(prefixoDoAmbiente);
+          await rm(caminhoDaMidia(prefixo, resultado.from, d.objetoPath), {
+            force: true,
+          });
+        } catch (erro) {
+          console.warn(
+            `[store] não consegui apagar ${d.objetoPath}: ${(erro as Error).message}`,
+          );
+        }
+        if (d.publicId && opcoes.apagarDaNuvem && !jaApagados.has(d.publicId)) {
+          jaApagados.add(d.publicId);
+          try {
+            await opcoes.apagarDaNuvem(d.publicId);
+          } catch (erro) {
+            console.warn(
+              `[store] não consegui apagar ${d.publicId} do Cloudinary: ${(erro as Error).message}`,
+            );
+          }
+        }
+      }
+
+      return resultado;
+    },
 
     gravarEscolhaHero: (slug, indice) =>
       dentro(async (tx) => {

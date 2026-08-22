@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
 import { backendPostgres } from "./backend";
@@ -213,6 +214,49 @@ describe.skipIf(!disponivel)("escolha da arte sobe para a nuvem", () => {
       [briefId],
     );
     expect(String(e.extra.erro)).toContain("502");
+  });
+
+  it("descartar a candidata apaga o arquivo e o objeto remoto", async () => {
+    // O comentário do código dizia que os arquivos sumiam com o registro. Não
+    // sumiam: a linha saía do banco e o `.jpg` ficava no disco para sempre — e
+    // o objeto no Cloudinary, cobrado, sem nada apontando para ele.
+    //
+    // Brief próprio: aprovar muda estado, e os outros testes contam com o
+    // compartilhado ainda em pendente-aprovacao.
+    const apagados: string[] = [];
+    const store = backendPostgres(ambienteId, {
+      enviarParaNuvem: enviadorFalso(),
+      apagarDaNuvem: async (id) => void apagados.push(id),
+    });
+
+    const [b] = await noAmbiente(
+      `insert into brief (ambiente_id, slug, brief_id, estado, pilar_slug, publico_slug, headline, topic_hash)
+       values ($1,'brief-descarte','W34-951','pendente-aprovacao','decisao','investidor','H','hash-descarte')
+       returning id`,
+      [ambienteId],
+    );
+    const caminho = await store.caminhoMidia(
+      "pendente-aprovacao",
+      "descarte-0.jpg",
+    );
+    await mkdir(path.dirname(caminho), { recursive: true });
+    await writeFile(caminho, Buffer.from([0xff, 0xd8, 0x00]));
+    await noAmbiente(
+      `insert into brief_candidata (ambiente_id, brief_id, indice, objeto_path)
+       values ($1,$2,0,'descarte-0.jpg')`,
+      [ambienteId, b.id],
+    );
+
+    await store.gravarEscolhaHero("brief-descarte", 0);
+    // Aprovar sem foto descarta todas as candidatas.
+    await store.gravarEscolhaHero("brief-descarte", null);
+    await store.aplicarTransicao({
+      slug: "brief-descarte",
+      direcao: "approve",
+    });
+
+    expect(existsSync(caminho)).toBe(false);
+    expect(apagados).toEqual([`midia/${SLUG}/brief-descarte`]);
   });
 
   it("sem credencial configurada, escolher continua funcionando", async () => {
