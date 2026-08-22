@@ -136,14 +136,25 @@ export function extrairSubBlocos(corpo: string): ItemComId[] {
   });
 }
 
-/** `- \`slug\` — texto` — formato dos guardrails. */
+/**
+ * `- \`slug\` — texto` — formato dos guardrails.
+ *
+ * O texto pode continuar nas linhas seguintes, indentado, como qualquer item de
+ * lista em markdown. Casar só até o fim da linha física cortava a regra ao meio
+ * — "nunca prometer aprovação garantida de crédito **ou**" foi para o banco
+ * assim, e de lá para o pacote que orienta quem faz a arte.
+ */
 export function extrairGuardrails(
   corpo: string,
 ): { slug: string; corpo: string }[] {
-  const itens = [...corpo.matchAll(/^- `([a-z-]+)` — (.+)$/gm)];
+  const itens = [...corpo.matchAll(/^- `([a-z-]+)` — (.+(?:\n[ \t]+\S.*)*)/gm)];
   if (itens.length === 0)
     throw new Error("bloco de guardrails sem nenhuma restrição");
-  return itens.map((m) => ({ slug: m[1], corpo: m[2].trim() }));
+  return itens.map((m) => ({
+    slug: m[1],
+    // A quebra é de formatação, não de sentido: vira espaço.
+    corpo: m[2].replace(/\s*\n\s*/g, " ").trim(),
+  }));
 }
 
 export interface TemaLido {
