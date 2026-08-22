@@ -116,6 +116,32 @@ async function lerArquivo(
 }
 
 /**
+ * A legenda já contém este trecho?
+ *
+ * Comparação frouxa de propósito: aspas curvas contra retas, espaço duplo e
+ * reticências tipográficas fariam duas cópias do mesmo texto parecerem
+ * diferentes.
+ */
+function contem(legenda: string | null, trecho: string | null): boolean {
+  if (!legenda || !trecho) return false;
+  const limpar = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  return limpar(legenda).includes(limpar(trecho));
+}
+
+/** Tira marcação de um trecho que vai ser embutido noutra frase formatada. */
+function semMarcacao(texto: string): string {
+  return texto
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^[#>\s-]+/, "")
+    .trim();
+}
+
+/**
  * A direção de arte, do jsonb para o vocabulário do app.
  *
  * O banco guarda as chaves como o pipeline as escreve — `must_have`,
@@ -834,77 +860,180 @@ export function backendPostgres(
           .select()
           .from(t.pilar)
           .where(eq(t.pilar.slug, linha.pilarSlug));
+        const guardrails = await tx.select().from(t.guardrail);
 
         const hero = candidatas.find((c) => c.indice === linha.heroIndice);
         const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
         const visual = (linha.visualBrief ?? {}) as Record<string, unknown>;
         const origemDados = (linha.origem ?? {}) as Record<string, unknown>;
-        const lista = (v: unknown) =>
-          Array.isArray(v) && v.length > 0
-            ? v.map((x) => `- ${x}`).join("\n")
-            : "_(nada declarado)_";
+        const modelo = (pilar?.template ?? {}) as Record<string, unknown>;
+        const formato = (modelo.formato ?? {}) as Record<string, unknown>;
 
-        const conteudo = `# ${linha.headline}
+        const itens = (v: unknown): string[] =>
+          Array.isArray(v) ? v.map((x) => String(x)) : [];
+        const bullets = (v: unknown, vazio = "_(nada declarado)_") => {
+          const l = itens(v);
+          return l.length ? l.map((x) => `- ${x}`).join("\n") : vazio;
+        };
 
-> Package do content-radar para o Smart Design.
-> Brief \`${linha.briefId}\` · pilar \`${linha.pilarSlug}\` · público \`${linha.publicoSlug}\`
+        /**
+         * A proporção vem do **template do pilar**, não do `visual_brief`.
+         *
+         * O briefer deixa `aspect_ratio` nulo, e por isso o pacote chegou a
+         * omitir o formato — conclui que o dado não existia quando ele mora
+         * noutra tabela. É de lá que o pacote antigo tirava "1:1 (1080x1080)",
+         * e sem isso quem faz a arte não sabe o enquadramento.
+         */
+        const proporcao =
+          formato.proporcao ?? visual.aspect_ratio ?? visual.aspectRatio;
+        const medida = [proporcao, formato.dimensao && `(${formato.dimensao})`]
+          .filter(Boolean)
+          .join(" ");
 
-## A arte
+        /**
+         * O que conferir antes de publicar.
+         *
+         * Três origens, um lugar só: o que a ingestão achou pendente no brief,
+         * o envelhecimento calculado, e a nota de quem revisou. Espalhadas —
+         * evento do scan, coluna, cabeça de alguém — nenhuma delas chega a
+         * quem vai fazer a peça.
+         */
+        const diasDeVida = Math.floor(
+          (Date.now() - linha.criadoEm.getTime()) / 86_400_000,
+        );
+        const atencao = [
+          ...(Array.isArray(linha.avisos) ? (linha.avisos as string[]) : []),
+          /**
+           * Duas semanas é o limiar porque a pauta nasce de notícia: passado
+           * isso, "pela primeira vez na história" pode ter deixado de ser
+           * verdade sem ninguém avisar. Não é erro do brief — é conferência
+           * antes de publicar.
+           */
+          ...(diasDeVida >= 14
+            ? [
+                `o brief tem ${diasDeVida} dias: confirme se o dado não foi ` +
+                  `superado antes de publicar, e revise o enquadramento de novidade`,
+              ]
+            : []),
+          ...(linha.reviewNotes
+            ? [`nota da revisão: ${linha.reviewNotes}`]
+            : []),
+        ];
 
-${
-  /**
-   * Proporção e template só aparecem quando existem. `aspect_ratio` vem
-   * `null` desde os briefs importados e a spec 004 não o define — o
-   * "4:5" que a maquete mostrava era decoração. Imprimir "Formato: —"
-   * faria o pacote anunciar um dado que o pipeline nunca produziu.
-   */
-  [
-    visual.aspect_ratio ?? visual.aspectRatio,
-    visual.base_template ?? visual.baseTemplate,
-  ].some(Boolean)
-    ? `- **Formato:** ${[
-        visual.aspect_ratio ?? visual.aspectRatio,
-        (visual.base_template ?? visual.baseTemplate)
-          ? `template \`${visual.base_template ?? visual.baseTemplate}\``
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ")}\n`
-    : ""
-}
-- **Skill sugerida:** \`${destino.od_skill_ref ?? "—"}\`
-- **Alternativas:** ${Array.isArray(destino.alternativas) && destino.alternativas.length ? (destino.alternativas as string[]).map((a) => `\`${a}\``).join(", ") : "—"}
-- **Hero:** ${
+        const heroTexto =
           linha.heroDecididoEm === null
             ? "**não decidida** — este brief não deveria ter chegado aqui"
             : hero?.cloudUrl
               ? hero.cloudUrl
               : linha.heroIndice === null
                 ? "**sem foto** — o Smart Design gera a arte"
-                : "**escolhida, mas ainda sem URL do Cloudinary**"
+                : "**escolhida, mas ainda sem URL do Cloudinary**";
+
+        /**
+         * O bloco para colar é a razão de o pacote existir.
+         *
+         * Sem ele, quem vai gerar a peça lê o documento inteiro e monta o prompt
+         * de cabeça — e o que se perde na montagem é justamente o que ninguém
+         * confere depois: uma regra da marca, um item do "evitar". Aqui vai tudo
+         * o que o agente do Smart Design precisa, de uma vez.
+         */
+        const paraColar = [
+          `Crie um post de feed Instagram${medida ? ` em ${medida}` : ""}.`,
+          ``,
+          `PILAR: ${pilar?.nome ?? linha.pilarSlug} · PÚBLICO: ${linha.publicoSlug}`,
+          ``,
+          `── HEADLINE (overlay da arte) ──`,
+          linha.headline,
+          ``,
+          `── CAPTION (cole no Instagram) ──`,
+          linha.captionDraft ?? "(sem rascunho de legenda)",
+          /**
+           * Hook e CTA só entram separados quando a legenda não os contém. Por
+           * especificação ela abre com um e fecha com o outro — mas quando isso
+           * falha, omiti-los perderia a chamada para ação, que é o que converte.
+           */
+          ...(contem(linha.captionDraft, linha.hook)
+            ? []
+            : [``, `── HOOK ──`, linha.hook ?? "(sem hook)"]),
+          ...(contem(linha.captionDraft, linha.cta)
+            ? []
+            : [``, `── CTA ──`, linha.cta ?? "(sem CTA)"]),
+          ``,
+          `── HASHTAGS ──`,
+          (linha.hashtags ?? []).map((h) => `#${h}`).join(" ") || "(nenhuma)",
+          ``,
+          `── ARTE ──`,
+          String(
+            visual.composition_notes ??
+              visual.compositionNotes ??
+              "(sem notas de composição)",
+          ),
+          ``,
+          `MUST-HAVE:`,
+          bullets(visual.must_have ?? visual.mustHave, "- (nada declarado)"),
+          ``,
+          `EVITAR:`,
+          bullets(
+            visual.avoid_visual ?? visual.avoidVisual,
+            "- (nada declarado)",
+          ),
+          ...(itens(modelo.regras_obrigatorias).length
+            ? [``, `REGRAS DO PILAR:`, bullets(modelo.regras_obrigatorias)]
+            : []),
+          ...(guardrails.length
+            ? [
+                ``,
+                `GUARDRAILS DA MARCA:`,
+                guardrails.map((g) => `- ${g.corpo}`).join("\n"),
+              ]
+            : []),
+          ...(marca?.telefoneExibicao
+            ? [
+                ``,
+                `CONTATO NA ARTE: ${marca.telefoneExibicao} · ${marca.canalPrincipal}`,
+              ]
+            : []),
+        ].join("\n");
+
+        const conteudo = `# ${linha.headline}
+
+> Package do content-radar para o Smart Design.
+> Brief \`${linha.briefId}\` · pilar \`${linha.pilarSlug}\` · público \`${linha.publicoSlug}\`
+
+## O que produzir
+
+${medida ? `- **Formato:** ${medida}\n` : ""}- **Skill no Smart Design:** \`${destino.od_skill_ref ?? "—"}\`${
+          Array.isArray(destino.alternativas) && destino.alternativas.length
+            ? ` · alternativas ${(destino.alternativas as string[])
+                .map((a) => `\`${a}\``)
+                .join(", ")}`
+            : ""
+        }
+- **Hero:** ${heroTexto}${hero?.alt ? `\n- **Alt da hero:** ${hero.alt}` : ""}${
+          hero?.licenseHint
+            ? `\n- **Licença:** ${hero.licenseHint}${
+                hero.licensable === false ? " · **não licenciável**" : ""
+              }`
+            : ""
         }
 
-### Precisa ter
+## Para colar no Smart Design
 
-${lista(visual.mustHave ?? visual.must_have)}
+\`\`\`
+${paraColar}
+\`\`\`
 
-### Evitar
+${
+  atencao.length
+    ? `## Pontos de atenção\n\n${atencao.map((a) => `- ${a}`).join("\n")}\n\n`
+    : ""
+}## Por que esta pauta
 
-${lista(visual.avoidVisual ?? visual.avoid_visual)}
-
-${visual.compositionNotes || visual.composition_notes ? `### Composição\n\n${visual.compositionNotes ?? visual.composition_notes}\n` : ""}
-## A copy
-
-**Hook:** ${linha.hook ?? "—"}
-
-${linha.captionDraft ?? "_(sem rascunho de legenda)_"}
-
-**CTA:** ${linha.cta ?? "—"}
-${marca?.telefoneExibicao ? `**Telefone na arte:** ${marca.telefoneExibicao} · ${marca.canalPrincipal}\n` : ""}
-${linha.hashtags?.length ? `**Hashtags:** ${linha.hashtags.map((h) => `#${h}`).join(" ")}\n` : ""}
-## Por que esta pauta
-
-${pilar ? `**${pilar.nome}** — ${pilar.corpo.split("\n")[0]}\n\n` : ""}${origemDados.why_match ?? "_(sem justificativa registrada)_"}
+${
+  pilar
+    ? `**${pilar.nome}** — ${semMarcacao(pilar.corpo.split("\n")[0])}\n\n`
+    : ""
+}${origemDados.why_match ?? "_(sem justificativa registrada)_"}
 
 ## De onde veio
 
@@ -919,30 +1048,38 @@ ${
 _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicação é manual._
 `;
 
-        await tx
-          .update(t.brief)
-          .set({ handoffEm: new Date() })
-          .where(eq(t.brief.id, linha.id));
+        /**
+         * O carimbo marca a **primeira** entrega. Reexportar não é entregar de
+         * novo: é alguém pegando o arquivo outra vez — para refazer a arte, para
+         * conferir, ou porque o pacote mudou. Sobrescrever `handoff_em` faria a
+         * data da entrega andar para frente sem que nada tivesse acontecido, e
+         * gravar `handoff-finished` de novo contaria a mesma história duas vezes.
+         */
+        const primeira = linha.handoffEm === null;
+        if (primeira) {
+          await tx
+            .update(t.brief)
+            .set({ handoffEm: new Date() })
+            .where(eq(t.brief.id, linha.id));
+        }
 
         await tx.insert(t.evento).values({
           ambienteId: ambiente,
-          tipo: "handoff-finished",
+          tipo: primeira ? "handoff-finished" : "handoff-reexportado",
           ator: "app:radar-web",
           briefId: linha.id,
           extra: {
             hero_choice: linha.heroIndice,
             cloudinary: hero?.cloudUrl ? "url" : "skipped",
+            ...(primeira
+              ? {}
+              : { entregue_em: linha.handoffEm?.toISOString() }),
           },
         });
 
         return { nome: `${linha.slug}.md`, conteudo };
       }),
 
-    /**
-     * Pede uma varredura. O índice único cobre `rodando`; os demais estados em
-     * andamento precisam da checagem explícita, senão a pessoa acumula pedidos
-     * que só vai descobrir quando dois scans iguais gerarem pauta repetida.
-     */
     enfileirarScan: (pedido) =>
       dentro(async (tx) => {
         const emAndamento = await tx
@@ -1062,9 +1199,17 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
             .select({ n: sql<number>`count(*)::int` })
             .from(t.filaPedido)
             .where(
+              /**
+               * O desempate entra na comparação: `criado_em` sozinho empata
+               * quando dois pedidos caem no mesmo microssegundo, e aí os dois
+               * se contam mutuamente e ambos viram "2º da fila". Comparar o par
+               * `(criado_em, scan_id)` dá ordem total — duas posições nunca
+               * coincidem, que é o mínimo que uma posição precisa prometer.
+               */
               sql`${t.filaPedido.reivindicadoEm} is null
-                  and ${t.filaPedido.criadoEm} <= (
-                    select criado_em from fila_pedido where scan_id = ${linha.id}
+                  and (${t.filaPedido.criadoEm}, ${t.filaPedido.scanId}) <= (
+                    select criado_em, scan_id from fila_pedido
+                    where scan_id = ${linha.id}
                   )`,
             );
           posicao = n;

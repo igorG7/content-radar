@@ -46,6 +46,30 @@ histórico. A memória do agente fica no servidor (a sessão do SDK), mas o
 ponteiro para ela mora no navegador. Precisa de tabela e de decisão sobre
 retenção.
 
+**Revisor de brief sob demanda.** Um agente que, acionado por botão na página
+do brief, abre as `source_urls` e confere o que a copy afirma — "a legenda diz
+38,6% e a fonte diz 38,4%" — além de apontar envelhecimento e contradição com
+os guardrails. Cai nos "Pontos de atenção" que já existem no pacote.
+
+Não é o briefer que faz isso: seria o autor revisando o próprio texto na mesma
+passada em que o escreve, e o contexto dele é o *finding* — ele nunca abre a
+fonte, então não teria como confirmar o número que escreveu.
+
+Três restrições decididas junto com o desenho: **não edita** (observa e
+registra; corrigir é do humano, como toda ferramenta do chat), **distingue "não
+confirmei" de "está errado"** (fonte fora do ar não é dado inventado, e
+misturar os dois transforma aviso em ruído que se pula), e **cita trecho e
+fonte** em cada apontamento.
+
+Sob demanda, não automático ao fim da varredura: pagar por brief que talvez
+seja rejeitado de cara não se justifica, e o scan já leva 21 a 26 minutos.
+
+Adiado de propósito, com gatilho: **alguns briefs reais**. Hoje existe um só, e
+a lista de verificações sairia do que eu imagino que dá errado. Nenhum dos
+defeitos desta semana — nomes de campo divergindo, guardrail truncado na
+importação, posição de fila empatando — teria sido previsto assim; todos vieram
+de execução.
+
 **Purga do que subiu para o Cloudinary.** A escolha da arte agora sobe a foto
 com `public_id` estável por brief, e guarda o `cloudinary_public_id`. Rejeitar
 um brief apaga a mídia local, mas **não** apaga o objeto remoto — é o que a

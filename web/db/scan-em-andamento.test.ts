@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { Pool } from "pg";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
+import { tomarFila, devolverFila } from "./fila-exclusiva";
 import { JaRodando } from "../lib/store";
 
 /**
@@ -87,6 +88,9 @@ async function limpar() {
 }
 
 beforeAll(async () => {
+  // A fila é do servidor: quem a manipula inteira precisa dela só para si.
+  await tomarFila();
+
   if (!disponivel) return;
   for (const slug of [A, B]) {
     await dono("delete from ambiente where slug = $1", [slug]);
@@ -104,6 +108,7 @@ afterAll(async () => {
       await dono("delete from ambiente where slug = $1", [slug]);
     }
   }
+  await devolverFila();
   await encerrarPool();
 });
 
@@ -170,6 +175,31 @@ describe.skipIf(!disponivel)("varredura em andamento", () => {
     expect(deA?.posicao ?? 0).toBeGreaterThan(deB?.posicao ?? 0);
     expect(deA?.pedido).toEqual({ escopo: "local", pilar: undefined, alvo: 3 });
     expect(deA?.iniciadoEm).toBeNull();
+  });
+
+  it("dois pedidos no mesmo instante não recebem a mesma posição", async () => {
+    // `criado_em` sozinho empata quando duas transações caem no mesmo
+    // microssegundo: cada uma conta a outra e ambas viram "2ª da fila". Posição
+    // que se repete não é posição. O empate é raro no relógio e frequente na
+    // suíte, que foi onde ele apareceu.
+    await limpar();
+    const [a] = await dono("select id from ambiente where slug = $1", [A]);
+    const [b] = await dono("select id from ambiente where slug = $1", [B]);
+    const pedidoA = await backendPostgres(a.id).enfileirarScan({
+      escopo: "local",
+    });
+    const pedidoB = await backendPostgres(b.id).enfileirarScan({
+      escopo: "trends",
+    });
+    // Força o empate em vez de torcer por ele.
+    await dono(
+      "update fila_pedido set criado_em = timestamptz '2026-01-01 00:00:00+00' where scan_id in ($1,$2)",
+      [pedidoA.scanId, pedidoB.scanId],
+    );
+
+    const posA = (await backendPostgres(a.id).varreduraRecente())?.posicao;
+    const posB = (await backendPostgres(b.id).varreduraRecente())?.posicao;
+    expect(posA).not.toBe(posB);
   });
 
   it("para de prometer posição depois que o pedido saiu da fila", async () => {

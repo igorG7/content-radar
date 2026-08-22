@@ -115,12 +115,19 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     );
     ambienteId = rows[0].id;
     for (const [tabela, valores] of [
-      ["pilar", "'decisao','Decisão','Quem decide precisa de critério.',1"],
+      // Com `template`: é de lá que sai o formato da peça, como nos pilares
+      // reais da Avanz.
+      [
+        "pilar",
+        `'decisao','Decisão','Quem decide precisa de critério.',1,
+         '{"formato":{"proporcao":"1:1","dimensao":"1080x1080"},
+           "regras_obrigatorias":["respeitar a paleta oficial"]}'`,
+      ],
       ["publico", "'investidor','Investidor','Compra para rentabilizar.'"],
     ] as const) {
       await dono(
         `begin; select set_config('app.ambiente', '${ambienteId}', true);
-         insert into ${tabela} (ambiente_id, slug, nome, corpo${tabela === "pilar" ? ", ordem" : ""})
+         insert into ${tabela} (ambiente_id, slug, nome, corpo${tabela === "pilar" ? ", ordem, template" : ""})
          values ('${ambienteId}', ${valores}); commit`,
       );
     }
@@ -209,10 +216,9 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     expect(conteudo).toContain(
       "escritura é o critério de decisão do ICP investidor",
     );
-    // Proporção quando existe: 4:5 e 1:1 mudam o enquadramento inteiro. Vale
-    // dizer que o pipeline hoje **não** produz este campo — o teste garante o
-    // caminho, não que ele seja percorrido na prática.
-    expect(conteudo).toContain("4:5");
+    // A proporção vem do template do pilar, não do visual_brief: é lá que o
+    // dado existe, e foi o que o pacote antigo usava.
+    expect(conteudo).toContain("1:1");
     // E de onde a copy saiu, para conferir se um número é real.
     expect(conteudo).toContain("https://exemplo.test/fonte");
 
@@ -229,17 +235,185 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     expect(evento.extra.hero_choice).toBe(0);
   });
 
-  it("não anuncia formato quando o dado não existe", async () => {
-    // `aspect_ratio` vem null desde os briefs importados e a spec não o define.
-    // "Formato: —" faria o pacote prometer um dado que ninguém produziu.
+  it("não repete hook e CTA que já estão dentro da legenda", async () => {
+    // A legenda abre com o hook e fecha com o CTA, por especificação. Rotular
+    // os dois e imprimir a legenda inteira mostrava o mesmo texto duas vezes.
+    const slug = `${SLUG}-sem-repetir`;
+    const id = await semearBrief(slug, "pendente-publicacao");
+    await noAmbiente(
+      `update brief set hook = 'Abre assim.', cta = 'Fecha assim.',
+       caption_draft = 'Abre assim.
+
+Meio da legenda.
+
+Fecha assim.' where id = $1`,
+      [id],
+    );
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).not.toContain("**Hook:**");
+    expect(conteudo).not.toContain("**CTA:**");
+    // A legenda sai íntegra: é ela que a pessoa cola no Instagram.
+    expect(conteudo).toContain("Abre assim.");
+    expect(conteudo).toContain("Fecha assim.");
+  });
+
+  it("não perde hook nem CTA quando a legenda não os contém", async () => {
+    // A legenda deveria abrir com o hook e fechar com o CTA. Quando não abre
+    // nem fecha, omiti-los perderia a chamada para ação — que é o que converte.
+    const slug = `${SLUG}-com-rotulo`;
+    const id = await semearBrief(slug, "pendente-publicacao");
+    await noAmbiente(
+      `update brief set hook = 'Um hook à parte', cta = 'Manda mensagem',
+       caption_draft = 'Uma legenda que não cita nenhum dos dois.' where id = $1`,
+      [id],
+    );
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).toContain("Um hook à parte");
+    expect(conteudo).toContain("Manda mensagem");
+  });
+
+  it("não aninha negrito ao citar o pilar", async () => {
+    // O corpo do pilar da Avanz começa com "**Tese:** ...". Embutir isso dentro
+    // de outra frase em negrito produzia `**nome** — **Tese:** ...`, que o
+    // markdown renderiza torto.
+    const slug = `${SLUG}-pilar-negrito`;
+    await semearBrief(slug, "pendente-publicacao");
+    await noAmbiente(
+      `update pilar set corpo = '**Tese:** ensinar o cliente a comprar bem.'
+       where slug = 'decisao'`,
+    );
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).toContain("— Tese: ensinar o cliente");
+    expect(conteudo).not.toContain("— **Tese:**");
+  });
+
+  it("não anuncia formato quando o pilar não tem template", async () => {
+    // Cliente que ainda não configurou a base visual do pilar. "Formato: —"
+    // faria o pacote prometer um dado que ninguém produziu.
+    //
+    // Pilar próprio em vez de apagar o template do outro: mutar estado que os
+    // demais testes usam e restaurar depois é a receita para uma falha que só
+    // aparece quando alguém reordena.
+    await noAmbiente(
+      `insert into pilar (ambiente_id, slug, nome, corpo, ordem)
+       values ($1,'sem-modelo','Sem modelo','x',9)`,
+      [ambienteId],
+    );
     const slug = `${SLUG}-sem-formato`;
     const id = await semearBrief(slug, "pendente-publicacao");
-    await noAmbiente("update brief set visual_brief = '{}' where id = $1", [
-      id,
-    ]);
+    await noAmbiente(
+      "update brief set pilar_slug = 'sem-modelo', visual_brief = '{}' where id = $1",
+      [id],
+    );
 
     const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
     expect(conteudo).not.toContain("**Formato:**");
+  });
+
+  it("o bloco para colar leva guardrails e regras do pilar", async () => {
+    // É o que impede a arte de prometer o que a marca não promete. Estavam no
+    // banco e não chegavam ao pacote — quem gera a peça não tinha como saber.
+    await noAmbiente(
+      `insert into guardrail (ambiente_id, slug, corpo)
+       values ($1,'nao-prometer','nunca prometer aprovação garantida')
+       on conflict do nothing`,
+      [ambienteId],
+    );
+    const slug = `${SLUG}-guardrails`;
+    await semearBrief(slug, "pendente-publicacao");
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).toContain("GUARDRAILS DA MARCA");
+    expect(conteudo).toContain("nunca prometer aprovação garantida");
+    expect(conteudo).toContain("REGRAS DO PILAR");
+    expect(conteudo).toContain("respeitar a paleta oficial");
+  });
+
+  it("o bloco para colar traz tudo o que a peça precisa, de uma vez", async () => {
+    // A razão de o pacote existir: um bloco só, em vez de sete seções para
+    // alguém montar o prompt de cabeça — e perder um item no caminho.
+    const slug = `${SLUG}-bloco`;
+    await semearBrief(slug, "pendente-publicacao");
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    const bloco = conteudo.split("```")[1] ?? "";
+    for (const parte of [
+      "HEADLINE",
+      "CAPTION",
+      "HASHTAGS",
+      "ARTE",
+      "MUST-HAVE",
+      "EVITAR",
+    ]) {
+      expect(bloco).toContain(parte);
+    }
+    expect(bloco).toContain("Lote na RMBH com escritura");
+    expect(bloco).toContain("mapa");
+  });
+
+  it("leva ao pacote o que precisa ser conferido antes de publicar", async () => {
+    // Três origens, uma seção: o que a ingestão achou pendente, o
+    // envelhecimento calculado e a nota de quem revisou. Espalhadas, nenhuma
+    // delas chega a quem faz a peça.
+    const slug = `${SLUG}-atencao`;
+    const id = await semearBrief(slug, "pendente-publicacao");
+    await noAmbiente(
+      `update brief set avisos = '["sem candidatas de imagem"]',
+       review_notes = 'confirmar o percentual com a fonte',
+       criado_em = now() - interval '40 days' where id = $1`,
+      [id],
+    );
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).toContain("## Pontos de atenção");
+    expect(conteudo).toContain("sem candidatas de imagem");
+    expect(conteudo).toContain("confirmar o percentual com a fonte");
+    expect(conteudo).toContain("40 dias");
+  });
+
+  it("não abre seção de atenção quando não há o que conferir", async () => {
+    // Seção vazia com "nada a relatar" treina a pessoa a ignorar a seção — e
+    // aí ela ignora quando houver algo.
+    const slug = `${SLUG}-sem-atencao`;
+    await semearBrief(slug, "pendente-publicacao");
+
+    const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
+    expect(conteudo).not.toContain("## Pontos de atenção");
+  });
+
+  it("reexportar não move a data da entrega", async () => {
+    // Baixar o arquivo de novo — para refazer a arte, conferir, ou porque o
+    // pacote mudou — não é entregar de novo. Sobrescrever `handoff_em` faria a
+    // data da entrega andar para frente sem nada ter acontecido.
+    const slug = `${SLUG}-reexporta`;
+    const id = await semearBrief(slug, "pendente-publicacao");
+    const store = backendPostgres(ambienteId);
+
+    await store.exportar(slug);
+    const [primeira] = await noAmbiente(
+      "select handoff_em from brief where id = $1",
+      [id],
+    );
+
+    await store.exportar(slug);
+    const [segunda] = await noAmbiente(
+      "select handoff_em from brief where id = $1",
+      [id],
+    );
+    expect(String(segunda.handoff_em)).toBe(String(primeira.handoff_em));
+
+    const eventos = await noAmbiente(
+      `select tipo from evento where brief_id = $1
+       and tipo in ('handoff-finished','handoff-reexportado') order by ts`,
+      [id],
+    );
+    expect(eventos.map((e) => e.tipo)).toEqual([
+      "handoff-finished",
+      "handoff-reexportado",
+    ]);
   });
 
   it("diz no pacote quando não há foto, em vez de omitir a linha", async () => {

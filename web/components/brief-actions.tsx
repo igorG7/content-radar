@@ -31,6 +31,32 @@ export function BriefActions({ brief }: { brief: BriefView }) {
     </Link>
   );
 
+  /**
+   * Baixar o pacote continua disponível depois de publicado.
+   *
+   * Ele é a referência de como a arte foi feita: quem precisa refazer a peça,
+   * mudar o formato ou repostar quer o arquivo de novo. Esconder após a
+   * publicação era limite da interface, não regra — o backend nunca impediu.
+   */
+  const exportar = (
+    <a
+      className="btn btn-secondary"
+      href={`/api/briefs/${brief.slug}/export`}
+      download={`${brief.slug}.md`}
+      onClick={() =>
+        toast({
+          tone: "ok",
+          title: `Pacote baixado · ${brief.briefId}`,
+          detail:
+            "Registrado como reexportação — a data da entrega original não muda.",
+        })
+      }
+    >
+      <IconExport />
+      Baixar pacote
+    </a>
+  );
+
   if (brief.state === "pendente-aprovacao") {
     return (
       <div className="row-tight">
@@ -168,8 +194,9 @@ export function BriefActions({ brief }: { brief: BriefView }) {
                   toast({
                     tone: "ok",
                     title: `Pacote gerado · ${brief.briefId}`,
-                    detail:
-                      "Um .md com copy, direção visual e a URL da hero. Evento handoff-finished gravado.",
+                    detail: brief.handoffAt
+                      ? "Um .md com copy, direção visual e a hero. Registrado como reexportação."
+                      : "Um .md com copy, direção visual e a hero. Evento handoff-finished gravado.",
                   });
                 }}
               >
@@ -186,9 +213,10 @@ export function BriefActions({ brief }: { brief: BriefView }) {
           <pre className="code" style={{ marginTop: 14 }}>
             <span className="c-com"># {brief.slug}.md</span>
             {"\n"}
+            {/* Sem proporção: o pipeline nunca preenche `aspect_ratio`, e
+                anunciá-la aqui prometia um dado que o pacote não carrega. */}
             <span className="c-key">A arte</span> skill{" "}
-            {brief.odSkillRef ?? "—"} · {brief.visualBrief.aspectRatio} ·
-            must_have · avoid_visual{"\n"}
+            {brief.odSkillRef ?? "—"} · must_have · avoid_visual{"\n"}
             <span className="c-key">A copy</span> hook, legenda, CTA, hashtags
             {"\n"}
             <span className="c-key">Hero</span>{" "}
@@ -222,6 +250,7 @@ export function BriefActions({ brief }: { brief: BriefView }) {
           Ver no Instagram
         </a>
       )}
+      {brief.handoffAt ? exportar : null}
       <Link className="btn btn-ghost" href={`/acervo?estado=${brief.state}`}>
         Voltar ao acervo
       </Link>

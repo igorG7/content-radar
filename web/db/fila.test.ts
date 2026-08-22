@@ -5,6 +5,7 @@ import { executar } from "./executor";
 import { backendPostgres } from "./backend";
 import { JaRodando } from "../lib/store";
 import { encerrarPool } from "./cliente";
+import { tomarFila, devolverFila } from "./fila-exclusiva";
 
 const enfileirar = (
   ambienteId: string,
@@ -76,6 +77,9 @@ async function limpar() {
 }
 
 beforeAll(async () => {
+  // A fila é do servidor: quem a manipula inteira precisa dela só para si.
+  await tomarFila();
+
   if (!disponivel) return;
   for (const slug of [A, B]) {
     await dono("delete from ambiente where slug = $1", [slug]);
@@ -92,6 +96,7 @@ afterAll(async () => {
     for (const slug of [A, B])
       await dono("delete from ambiente where slug = $1", [slug]);
   }
+  await devolverFila();
   await encerrarPool();
 });
 
