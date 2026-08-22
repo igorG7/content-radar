@@ -29,12 +29,26 @@ seguintes de [`design-migracao.md`](./design-migracao.md).
 
 ## Fase 4 — o que falta
 
-**Uma execução real.** A credencial deixou de faltar: o SDK usa a autenticação
-local do Claude Code, e uma sonda de um turno respondeu em 8s. O que ainda não
-foi exercitado com saída de verdade: a detecção de estágio pela invocação do
-subagente, a ingestão, e o carregamento das skills sob
-`settingSources: ["project"]`. Falta só rodar — são 12 a 63 minutos e custo
-real, então é decisão de quando, não de se dá.
+**A execução real aconteceu** — seis varreduras entre 20 e 22 de agosto, no
+ambiente `avanz-teste`. Estão provados com saída de verdade: detecção de estágio,
+ingestão, carregamento das skills sob `settingSources: ["project"]`, cache de
+mídia por ambiente e o contrato `.json` do brief. A `scan-006` produziu o
+primeiro brief íntegro — legenda, CTA, hashtags, `od_skill_ref`, direção de arte,
+imagem baixada, sem um aviso.
+
+Duração por estágio, primeira medição que esta ferramenta já teve:
+
+| | pesquisa | filtragem | redação | total |
+|---|---|---|---|---|
+| seasonal · filtrado | 12,4 · 15,2 | 6,3 · 4,7 | 3,9 · 3,9 | 24,1 · 25,5 |
+| cases · todos | 8,9 | 11,2 | 3,9 | 26,4 |
+| cases · filtrado | 12,4 · 7,2 | 7,5 · 5,8 | — · 5,8 | — · 21,1 |
+
+Duas execuções idênticas deram 12,4 e 7,2 minutos de pesquisa — 42% de
+diferença. É a mesma variação inexplicada que o §8.2 do desenho de execução
+apontou no `trends`, agora atribuível a um estágio em vez de diluída no total.
+O que falta para explicá-la é a contagem parcial (`fontes_lidas`,
+`fontes_sem_resposta`) que a skill ainda não preenche.
 
 **O processo trabalhador** existe (`web/scripts/trabalhador.mts`) e foi provado
 ponta a ponta: reivindicou um pedido real, carimbou início, falhou pelo motivo
