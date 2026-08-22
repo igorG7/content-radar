@@ -24,6 +24,7 @@ import * as t from "./schema";
 import {
   loadManifest,
   MANIFEST_PATH,
+  escreverAtomico,
   RADAR_ROOT,
   resolvePaths,
   type BriefState,
@@ -42,7 +43,7 @@ import type {
 } from "../lib/store";
 import { JaRodando, StoreError } from "../lib/store";
 import type { Destruidor, Enviador } from "../lib/midia/cloudinary";
-import { readFile, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 type LinhaBrief = typeof t.brief.$inferSelect;
@@ -388,7 +389,7 @@ export function backendPostgres(
     },
 
     async gravarManifestBruto(texto) {
-      await writeFile(MANIFEST_PATH, texto, "utf8");
+      await escreverAtomico(MANIFEST_PATH, texto);
     },
 
     listarEstado: (estado) => dentro((tx) => listar(tx, estado)),
@@ -859,7 +860,7 @@ export function backendPostgres(
         if (amb && dono === amb.slug) {
           const { patchManifest } = await import("../lib/config/manifest-edit");
           const bruto = await readFile(MANIFEST_PATH, "utf8");
-          await writeFile(MANIFEST_PATH, patchManifest(bruto, edicoes), "utf8");
+          await escreverAtomico(MANIFEST_PATH, patchManifest(bruto, edicoes));
         }
       }),
 

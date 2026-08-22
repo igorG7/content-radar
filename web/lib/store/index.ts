@@ -20,6 +20,7 @@ import path from "node:path";
 import {
   loadManifest,
   MANIFEST_PATH,
+  escreverAtomico,
   RADAR_ROOT,
   resolvePaths,
   type BriefState,
@@ -435,7 +436,7 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
     },
 
     async gravarManifestBruto(texto) {
-      await writeFile(MANIFEST_PATH, texto, "utf8");
+      await escreverAtomico(MANIFEST_PATH, texto);
     },
 
     async listarEstado(estado) {

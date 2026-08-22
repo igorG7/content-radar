@@ -132,7 +132,13 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   foi feita.
 - **Banco só para a suíte** — `web/scripts/preparar-banco-de-teste.mts` está
   pronto; falta o `CREATE DATABASE radar_teste OWNER radar_owner`, que exige
-  superusuário. Resolve o que já aconteceu: o trabalhador reivindicando pedidos
+  superusuário.
+
+  Deixou de ser precaução e virou defeito medido: **1 falha em 20 rodadas** com
+  o trabalhador de pé, **0 em 20** com ele parado. O `reivindicar()` pega o
+  pedido mais antigo de qualquer ambiente — inclusive os criados por teste — e
+  ao fazê-lo entre duas leituras de posição desloca as contagens. O teste está
+  certo; forçá-lo a passar enfraqueceria o que ele verifica. Resolve o que já aconteceu: o trabalhador reivindicando pedidos
   criados por teste, e a suíte apagando ambientes no mesmo banco onde o
   conteúdo da Avanz vive.
 

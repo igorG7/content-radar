@@ -69,6 +69,27 @@ const ManifestSchema = z.object({
 export type Manifest = z.infer<typeof ManifestSchema>;
 
 /** Read fresh on every call so config edits take effect without a restart. */
+/**
+ * Grava substituindo o arquivo de uma vez.
+ *
+ * `writeFile` trunca antes de escrever: quem ler nesse instante recebe arquivo
+ * vazio, e o YAML vira `null`. Não é hipótese — derrubou um teste que só lia o
+ * manifest enquanto outro o restaurava, e vale igual em produção, onde gravar
+ * configuração e rodar varredura acontecem ao mesmo tempo.
+ *
+ * `rename` no mesmo diretório é atômico no POSIX: o leitor vê o conteúdo antigo
+ * ou o novo, nunca metade.
+ */
+export async function escreverAtomico(
+  caminho: string,
+  conteudo: string,
+): Promise<void> {
+  const { rename, writeFile } = await import("node:fs/promises");
+  const temporario = `${caminho}.${process.pid}.tmp`;
+  await writeFile(temporario, conteudo, "utf8");
+  await rename(temporario, caminho);
+}
+
 export async function loadManifest(): Promise<Manifest> {
   const raw = await readFile(MANIFEST_PATH, "utf8");
   return ManifestSchema.parse(parse(raw));

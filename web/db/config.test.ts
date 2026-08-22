@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
-import { MANIFEST_PATH } from "../lib/manifest";
+import { MANIFEST_PATH, escreverAtomico } from "../lib/manifest";
 
 /**
  * A configuração passou a viver no banco. O manifest.yaml continua recebendo a
@@ -54,7 +54,9 @@ describe.skipIf(!disponivel)("configuração no banco", () => {
   });
 
   afterAll(async () => {
-    await writeFile(MANIFEST_PATH, manifestOriginal, "utf8");
+    // Atômico: restaurar com writeFile truncava o arquivo, e quem o lesse
+    // nesse instante recebia YAML vazio.
+    await escreverAtomico(MANIFEST_PATH, manifestOriginal);
     const dono = new Pool({
       connectionString: process.env.DATABASE_URL_MIGRATIONS,
     });
