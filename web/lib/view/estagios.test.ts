@@ -56,4 +56,26 @@ describe("linhas de estágio", () => {
       "pendente",
     ]);
   });
+
+  it("estágio que não aconteceu para de dizer que está a caminho", () => {
+    // A scan-007 acabou dentro da pesquisa. Filtragem e redação apareciam como
+    // "pendente", que é promessa: elas nunca iam rodar.
+    const linhas = linhasDeEstagio([pesquisa], "concluido", true);
+    expect(linhas.map((l) => l.situacao)).toEqual([
+      "concluido",
+      "nao-alcancado",
+      "nao-alcancado",
+    ]);
+  });
+
+  it("enquanto roda, o que falta continua pendente", () => {
+    // O oposto, e igualmente necessário: marcar como não alcançado uma etapa
+    // que ainda vem seria o mesmo erro invertido.
+    const linhas = linhasDeEstagio([pesquisa], "pesquisa", false);
+    expect(linhas.map((l) => l.situacao)).toEqual([
+      "corrente",
+      "pendente",
+      "pendente",
+    ]);
+  });
 });

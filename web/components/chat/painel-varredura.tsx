@@ -107,9 +107,16 @@ export function PainelVarredura() {
                     </>
                   ) : (
                     <>
-                      <span className="pill pill-bare">✓</span>{" "}
-                      {scan.resultado?.briefs ?? 0}{" "}
-                      {scan.resultado?.briefs === 1 ? "pauta" : "pautas"}
+                      {/* Sem ✓ quando não saiu pauta: a marca de sucesso ao lado
+                          de "0 pautas" fazia a tela parecer comemorar o vazio. */}
+                      <span
+                        className={`pill pill-bare${scan.resultado?.briefs ? "" : " muted"}`}
+                      >
+                        {scan.resultado?.briefs ? "✓" : "—"}
+                      </span>{" "}
+                      {scan.resultado?.briefs
+                        ? `${scan.resultado.briefs} ${scan.resultado.briefs === 1 ? "pauta" : "pautas"}`
+                        : "terminou sem pauta"}
                       {scan.resultado?.minutos
                         ? ` em ${scan.resultado.minutos.toFixed(1).replace(".", ",")} min`
                         : ""}
@@ -148,7 +155,11 @@ export function PainelVarredura() {
             )}
 
             <div className="stack-sm" style={{ marginTop: 4 }}>
-              {linhasDeEstagio(scan.estagios, scan.estado).map((l) => {
+              {linhasDeEstagio(
+                scan.estagios,
+                scan.estado,
+                !scan.emAndamento,
+              ).map((l) => {
                 const parciais = Object.entries(l.extra)
                   .map(([k, v]) => `${v} ${ROTULO[k] ?? k}`)
                   .join(" · ");
@@ -170,10 +181,19 @@ export function PainelVarredura() {
                         ? "✓"
                         : l.situacao === "corrente"
                           ? "agora"
-                          : "—"}
+                          : l.situacao === "nao-alcancado"
+                            ? "×"
+                            : "—"}
                     </span>
-                    <span className="small">
+                    <span
+                      className={
+                        l.situacao === "nao-alcancado" ? "small muted" : "small"
+                      }
+                    >
                       {l.rotulo}
+                      {l.situacao === "nao-alcancado" ? (
+                        <span className="muted"> · não chegou a rodar</span>
+                      ) : null}
                       {l.entrouEm !== null ? (
                         <span className="muted">
                           {" "}

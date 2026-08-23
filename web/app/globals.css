@@ -2779,12 +2779,30 @@ a.counter-card:hover {
 }
 
 /* chat + entrevista do vault */
+/*
+ * Coluna flexível, não grid de linhas fixas.
+ *
+ * As linhas eram posicionais — `auto minmax(0,1fr) auto` — e isso quebra assim
+ * que o número de filhos que participam do layout muda. Foi o que aconteceu: o
+ * `.drop-hint` do chat é `position: absolute`, então **não ocupa linha**, e as
+ * duas caixas restantes deslizavam uma posição. O log recebia a linha `auto`
+ * em vez da flexível (parava de rolar e crescia sem limite) e o compositor
+ * recebia a `1fr` (esticava numa caixa vazia enorme). A entrevista do vault,
+ * com três filhos de verdade, ficava certa — e por isso o defeito parecia
+ * intermitente.
+ *
+ * Aqui o elemento flexível é dito pelo nome. Quantos irmãos existem deixa de
+ * importar.
+ */
 .chat-shell {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: min(72vh, 720px);
 }
 .chat-shell .chat-log {
+  flex: 1 1 auto;
+  /* Sem isto o item flex não encolhe abaixo do conteúdo e a rolagem não vale. */
+  min-height: 0;
   align-content: start;
 }
 .composer-row {
