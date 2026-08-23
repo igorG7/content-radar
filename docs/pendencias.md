@@ -139,6 +139,20 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   parava por vault vazio); a flake de posição na fila sumiu (0/20, era 1/20); e
   o pulo silencioso morreu — banco declarado e fora do ar agora **falha** a
   suíte em vez de deixá-la verde com 96 testes escondidos.
+
+- **A fixture do teste ainda sai dos arquivos do cliente** — o preparo do
+  `radar_teste` semeia a Avanz lendo `docs/vault-avanz.md`, `manifest.yaml` e
+  `store/briefs/`. Funciona e é reproduzível, mas cria um motivo novo para esses
+  arquivos continuarem existindo, bem quando a intenção é aposentá-los.
+
+  Não urge: eles seguem no repositório de qualquer jeito enquanto o legado não
+  for removido. Vira bloqueio no dia em que alguém perguntar "posso apagar o
+  `store/briefs/`?" — e a resposta for "não, a suíte depende".
+
+  A saída é uma fixture própria: vault sintético, versionado, escrito para o
+  teste. Melhora os três testes de quebra, que hoje podem falhar porque a Avanz
+  mudou o foco editorial — coisa que nada tem a ver com workspace.
+
 - **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
   dimensionamento de fila.
 - **Onde o dado da Avanz vive** — hoje no `radar_dev`, junto com tudo, tocado
