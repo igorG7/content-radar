@@ -1,10 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useActionState, useState } from "react";
 import { entrarAcao, type EstadoLogin } from "@/app/login/acoes";
-
-const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function Form() {
   const params = useSearchParams();
@@ -85,15 +84,6 @@ function Form() {
             )}
           </div>
 
-          <div className="row-between" style={{ gap: "var(--gap-xs)" }}>
-            <label
-              className="small muted row-tight"
-              style={{ gap: 6, cursor: "pointer" }}
-            >
-              <input type="checkbox" defaultChecked /> Manter conectado
-            </label>
-          </div>
-
           {estado.erro && (
             <p className="field-error" role="alert" style={{ marginTop: 4 }}>
               {estado.erro}
@@ -112,7 +102,7 @@ function Form() {
       </div>
 
       <p className="auth-foot meta">
-        content-radar · acesso restrito — contas são criadas pelo operador
+        Ainda não tem conta? <Link href="/cadastro">Criar uma</Link>
       </p>
     </div>
   );
