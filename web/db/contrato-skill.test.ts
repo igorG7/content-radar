@@ -3,6 +3,7 @@ import { readFile, readdir, access } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { Pool } from "pg";
+import { ambienteSemeado } from "./teste-banco";
 import { materializar, descartar, type Workspace } from "./workspace";
 import { encerrarPool } from "./cliente";
 import { RADAR_ROOT } from "../lib/manifest";
@@ -15,22 +16,7 @@ import { RADAR_ROOT } from "../lib/manifest";
  * scan de verdade rodar — 20 minutos depois, com dinheiro de API gasto.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    const { rows } = await sonda.query(
-      "select count(*)::int n from ambiente where slug='avanz-imoveis'",
-    );
-    return rows[0].n > 0;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await ambienteSemeado("avanz-imoveis");
 
 let ws: Workspace;
 afterAll(async () => {

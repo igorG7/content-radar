@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { Pool } from "pg";
+import { bancoDisponivel } from "./teste-banco";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
 import { tomarFila, devolverFila } from "./fila-exclusiva";
@@ -12,20 +13,7 @@ import { JaRodando } from "../lib/store";
  * (design-execucao-scan §7).
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 const A = "teste-andamento-a";
 const B = "teste-andamento-b";

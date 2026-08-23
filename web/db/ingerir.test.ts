@@ -1,7 +1,8 @@
 import { describe, expect, it, afterAll, beforeAll } from "vitest";
-import { mkdir, writeFile, appendFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { Pool } from "pg";
+import { ambienteSemeado } from "./teste-banco";
 import { materializar, descartar, type Workspace } from "./workspace";
 import { ingerir } from "./ingerir";
 import { encerrarPool } from "./cliente";
@@ -12,22 +13,7 @@ import { encerrarPool } from "./cliente";
  * não existe não entra, e nem os eventos entram junto.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    const { rows } = await sonda.query(
-      "select count(*)::int n from ambiente where slug='avanz-imoveis'",
-    );
-    return rows[0].n > 0;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await ambienteSemeado("avanz-imoveis");
 
 let ambienteId = "";
 const criados: Workspace[] = [];

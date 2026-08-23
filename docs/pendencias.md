@@ -130,24 +130,15 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   as seguintes viram `handoff-reexportado`, sem mover a data. Baixar continua
   disponível depois de publicado, porque o pacote é a referência de como a arte
   foi feita.
-- **Banco só para a suíte** — `web/scripts/preparar-banco-de-teste.mts` está
-  pronto; falta o `CREATE DATABASE radar_teste OWNER radar_owner`, que exige
-  superusuário.
+- ~~**Banco só para a suíte**~~ — feito. A suíte roda em `radar_teste`, criado
+  e semeado por `web/scripts/preparar-banco-de-teste.mts` a partir do
+  repositório (vault, `store/`, `manifest.yaml`) — sem depender de outro banco.
 
-  Deixou de ser precaução e virou defeito medido: **1 falha em 20 rodadas** com
-  o trabalhador de pé, **0 em 20** com ele parado. O `reivindicar()` pega o
-  pedido mais antigo de qualquer ambiente — inclusive os criados por teste — e
-  ao fazê-lo entre duas leituras de posição desloca as contagens. O teste está
-  certo; forçá-lo a passar enfraqueceria o que ele verifica. Resolve o que já aconteceu: o trabalhador reivindicando pedidos
-  criados por teste, e a suíte apagando ambientes no mesmo banco onde o
-  conteúdo da Avanz vive.
-
-  Junto disso, corrigir o **pulo silencioso**: sem banco, 96 dos 164 testes são
-  ignorados e a suíte fica verde. O `skipIf` existe para quem clona o repositório
-  sem Postgres, mas hoje mascara configuração errada — apontar para um banco
-  inexistente "passou" numa tentativa desta sessão. Com banco dedicado, ausência
-  de banco deixa de ser normal e vira falha.
-
+  Fechou três buracos de uma vez: o trabalhador do pm2 deixou de reivindicar
+  pedido de teste como se fosse varredura (chegava a tentar executar, e só
+  parava por vault vazio); a flake de posição na fila sumiu (0/20, era 1/20); e
+  o pulo silencioso morreu — banco declarado e fora do ar agora **falha** a
+  suíte em vez de deixá-la verde com 96 testes escondidos.
 - **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
   dimensionamento de fila.
 - **Onde o dado da Avanz vive** — hoje no `radar_dev`, junto com tudo, tocado

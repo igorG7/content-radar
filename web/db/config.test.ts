@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
+import { bancoDisponivel } from "./teste-banco";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
 import { MANIFEST_PATH, escreverAtomico } from "../lib/manifest";
@@ -10,20 +11,7 @@ import { MANIFEST_PATH, escreverAtomico } from "../lib/manifest";
  * mesma mudança enquanto as skills o lerem — projeção de uma fonte só.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 let ambienteId = "";
 let manifestOriginal = "";

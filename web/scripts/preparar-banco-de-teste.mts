@@ -93,4 +93,52 @@ const { rows } = await depois.query(
 );
 await depois.end();
 
-console.log(`${BANCO} pronto: ${rows[0].n} tabelas`);
+/**
+ * Semeia a Avanz também aqui.
+ *
+ * Três arquivos de teste leem a configuração de um cliente real em vez de criar
+ * a sua — é o acoplamento com o dado de verdade que lhes dá valor, porque é ele
+ * que pega contrato de skill quebrado e vault mal lido. Num banco recém-criado
+ * eles não teriam o que ler, e a separação de bancos teria custado 24 testes.
+ *
+ * Isso não copia nada do banco de trabalho: o vault mora num documento do
+ * repositório, e é dele que as duas semeaduras saem. O banco de teste continua
+ * descartável e reconstruível sem depender de nenhum outro.
+ */
+const { provisionar } = await import("../db/provisionar");
+const { semearVault } = await import("../db/seed/semear-vault");
+
+/**
+ * Rodar de novo tem de funcionar. Sem isto o segundo preparo morre em chave
+ * duplicada, e quem o rodasse concluiria que o banco de teste está corrompido
+ * quando o defeito é do script.
+ */
+const limpeza = new Pool({ connectionString: donoTeste });
+await limpeza.query("delete from ambiente where slug = $1", ["avanz-imoveis"]);
+await limpeza.end();
+
+const ambiente = await provisionar(
+  {
+    slug: "avanz-imoveis",
+    nome: "Avanz Imóveis",
+    email: "suite@teste.local",
+    senha: "suite-de-teste-local",
+  },
+  donoTeste,
+);
+const semeado = await semearVault(ambiente.ambienteId, donoTeste);
+
+/**
+ * O vault traz a prosa; escopos, fontes, marca, templates e o histórico de
+ * briefs vêm do `store/` e do `manifest.yaml`. São as duas metades da mesma
+ * semeadura — sem a segunda, os testes de workspace veem um ambiente que
+ * existe e está vazio, que é pior de diagnosticar que um ausente.
+ */
+const { importar } = await import("../db/seed/importar");
+const importado = await importar(ambiente.ambienteId, donoTeste);
+
+console.log(
+  `${BANCO} pronto: ${rows[0].n} tabelas, avanz-imoveis semeada ` +
+    `(${semeado.pilares} pilares, ${semeado.publicos} públicos, ${semeado.temas} temas, ` +
+    `${importado.briefs} briefs)`,
+);

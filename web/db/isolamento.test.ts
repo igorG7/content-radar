@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { Pool } from "pg";
+import { bancoDisponivel } from "./teste-banco";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { comAmbiente, db, encerrarPool } from "./cliente";
 import { ambiente, brief, evento, pilar, publico } from "./schema";
@@ -20,21 +21,7 @@ const B = "22222222-2222-2222-2222-222222222222";
  * banco indisponível faria cada teste sair pela porta dos fundos e o conjunto
  * passaria sem exercitar nada. Aqui ele é pulado à vista.
  */
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL_MIGRATIONS)
-    return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 /**
  * O Drizzle embrulha o erro do Postgres numa mensagem própria ("Failed query:

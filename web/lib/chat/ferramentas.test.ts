@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { Pool } from "pg";
+import { bancoDisponivel } from "../../db/teste-banco";
 import { backendPostgres } from "../../db/backend";
 import { encerrarPool } from "../../db/cliente";
 import { FERRAMENTAS, porNome } from "./ferramentas";
@@ -9,20 +10,7 @@ import { FERRAMENTAS, porNome } from "./ferramentas";
  * o vocabulário do ambiente certo, e nunca aceitar ambiente como argumento.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 const A = "teste-ferramentas-a";
 const B = "teste-ferramentas-b";

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { Pool } from "pg";
+import { bancoDisponivel } from "./teste-banco";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
 import { loadManifest, resolvePaths } from "../lib/manifest";
@@ -15,20 +16,7 @@ import { loadManifest, resolvePaths } from "../lib/manifest";
  * consulta nenhuma, então o isolamento dele precisa ser afirmado aqui.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 const A = "teste-midia-a";
 const B = "teste-midia-b";

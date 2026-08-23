@@ -3,6 +3,7 @@ import { mkdir, writeFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
+import { bancoDisponivel } from "./teste-banco";
 import { backendPostgres } from "./backend";
 import { encerrarPool } from "./cliente";
 
@@ -14,20 +15,7 @@ import { encerrarPool } from "./cliente";
  * cópia é a local. Apagar essa última não libera disco, perde a foto.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    await sonda.query("select 1");
-    return true;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await bancoDisponivel();
 
 const SLUG = "teste-purga";
 let ambienteId = "";

@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { Pool } from "pg";
+import { ambienteSemeado } from "./teste-banco";
 import { materializar, descartar, colher, type Workspace } from "./workspace";
 import { encerrarPool } from "./cliente";
 
@@ -12,22 +13,7 @@ import { encerrarPool } from "./cliente";
  * as skills esperam — e que um ambiente não alcance o de outro.
  */
 
-const disponivel = await (async () => {
-  if (!process.env.DATABASE_URL_MIGRATIONS) return false;
-  const sonda = new Pool({
-    connectionString: process.env.DATABASE_URL_MIGRATIONS,
-  });
-  try {
-    const { rows } = await sonda.query(
-      "select count(*)::int n from ambiente where slug='avanz-imoveis'",
-    );
-    return rows[0].n > 0;
-  } catch {
-    return false;
-  } finally {
-    await sonda.end();
-  }
-})();
+const disponivel = await ambienteSemeado("avanz-imoveis");
 
 async function idDe(slug: string): Promise<string> {
   const pool = new Pool({
@@ -41,8 +27,18 @@ async function idDe(slug: string): Promise<string> {
 }
 
 const criados: Workspace[] = [];
+const ambientesCriados: string[] = [];
 afterAll(async () => {
   for (const ws of criados) await descartar(ws);
+  if (ambientesCriados.length > 0) {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL_MIGRATIONS,
+    });
+    await pool.query("delete from ambiente where id = any($1::uuid[])", [
+      ambientesCriados,
+    ]);
+    await pool.end();
+  }
   await encerrarPool();
 });
 
@@ -192,9 +188,25 @@ describe.skipIf(!disponivel)("workspace materializado", () => {
   });
 
   it("um ambiente não alcança o vault de outro", async () => {
-    const ws = await materializar(await idDe("cliente-novo")).catch(
-      (e) => e as Error,
-    );
+    /**
+     * O segundo ambiente é criado aqui, não pressuposto.
+     *
+     * Antes o teste procurava um `cliente-novo` que alguém tinha criado à mão
+     * no banco de desenvolvimento. Funcionava lá e em lugar nenhum mais: num
+     * banco novo o `idDe` devolvia `undefined` e o teste quebrava no helper,
+     * sem dizer que faltava fixture. Um teste de isolamento não pode depender
+     * de dado ambiental — é justamente sobre não vazar entre ambientes.
+     */
+    const { provisionar } = await import("./provisionar");
+    const outro = await provisionar({
+      slug: `cliente-novo-${process.pid}`,
+      nome: "Cliente Novo",
+      email: `cliente-novo-${process.pid}@teste.local`,
+      senha: "isolamento-de-teste",
+    });
+    ambientesCriados.push(outro.ambienteId);
+
+    const ws = await materializar(outro.ambienteId).catch((e) => e as Error);
     // O cliente-novo tem um bloco só preenchido; materializa, mas com o vault
     // dele — não com o da Avanz.
     if (ws instanceof Error) {
