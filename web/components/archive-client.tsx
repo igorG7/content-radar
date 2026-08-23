@@ -26,7 +26,7 @@ export function ArchiveClient({
 }: {
   briefs: BriefView[];
   janelas: number[];
-  /** Instante da leitura do disco — o filtro de janela mede a partir dele. */
+  /** Instante da leitura — o filtro de janela mede a partir dele. */
   agoraIso: string;
 }) {
   const router = useRouter();
@@ -328,8 +328,8 @@ export function ArchiveClient({
                   }
                   body={
                     doEstado.length > 0
-                      ? `Os ${doEstado.length} briefs deste estado continuam no disco; o filtro atual não deixa nenhum passar.`
-                      : "Quando um brief for movido para este estado, o arquivo aparece aqui na próxima leitura de disco."
+                      ? `Os ${doEstado.length} briefs deste estado continuam lá; o filtro atual não deixa nenhum passar.`
+                      : "Quando uma pauta chegar a este estado, ela aparece aqui."
                   }
                   action={
                     <Link

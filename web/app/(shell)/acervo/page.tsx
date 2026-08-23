@@ -34,7 +34,7 @@ export default async function Acervo() {
             items={[{ label: "Painel", href: "/" }, { label: "Acervo" }]}
             back={{ href: "/", destino: "Painel" }}
           />
-          <span className="eyebrow">store/briefs/ · leitura</span>
+          <span className="eyebrow">somente leitura</span>
         </div>
         <h1 className="display" style={{ marginTop: 12 }}>
           Acervo

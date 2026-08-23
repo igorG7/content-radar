@@ -105,8 +105,7 @@ export default async function DetalheDoBrief({
               <hr className="rule" style={{ margin: "20px 0" }} />
               <p className="field-label">Por que casou com o perfil</p>
               <p style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
-                {brief.whyMatch ??
-                  "O frontmatter deste brief não traz why_match."}
+                {brief.whyMatch ?? "Este brief não traz why_match."}
               </p>
               <div className="grid-2" style={{ marginTop: 20 }}>
                 <div className="sunken">
@@ -125,14 +124,12 @@ export default async function DetalheDoBrief({
                   )}
                 </div>
                 <div className="sunken">
-                  <p className="field-label">Estado no disco</p>
+                  <p className="field-label">Estado</p>
                   <p style={{ marginTop: 6 }}>
                     <StatePill state={brief.state} />
                   </p>
                   <p className="meta" style={{ marginTop: 8 }}>
-                    store/briefs/{brief.state}/
-                    <br />
-                    {brief.slug}.md
+                    {brief.slug}
                   </p>
                 </div>
               </div>
@@ -247,9 +244,7 @@ export default async function DetalheDoBrief({
             </div>
             <div className="panel-body">
               <div className="row-between" style={{ marginBottom: 10 }}>
-                <span className="field-label">
-                  Candidatas em store/media/{brief.state}/
-                </span>
+                <span className="field-label">Candidatas</span>
                 <span
                   className={
                     !brief.heroChoiceDeclared
@@ -307,7 +302,7 @@ export default async function DetalheDoBrief({
                           <div className="alert-body">
                             <span className="small">
                               <span className="num">{m.file}</span> — declarada
-                              no frontmatter, ausente do cache.
+                              declarada, mas ausente do cache.
                             </span>
                           </div>
                         </div>
@@ -627,22 +622,27 @@ export default async function DetalheDoBrief({
 
           <div className="panel">
             <div className="panel-head">
-              <h2 className="h3">Estados do arquivo</h2>
+              <h2 className="h3">Ciclo da pauta</h2>
             </div>
             <div className="panel-body stack-sm">
               {BRIEF_STATES.map((estado) => (
                 <div className="row-between" key={estado}>
-                  <span className="small">{STATE_META[estado].label}</span>
-                  <span className="meta">
-                    {estado === brief.state
-                      ? "aqui"
-                      : `store/briefs/${estado}/`}
+                  <span
+                    className="small"
+                    style={
+                      estado === brief.state
+                        ? undefined
+                        : { color: "var(--muted)" }
+                    }
+                  >
+                    {STATE_META[estado].label}
                   </span>
+                  {estado === brief.state && <span className="meta">aqui</span>}
                 </div>
               ))}
               <p className="field-help">
-                A transição move o arquivo entre pastas — não existe coluna de
-                status em lugar nenhum.
+                Cada transição vira evento no ledger. O estado atual é o
+                resultado deles, e a trilha acima mostra como se chegou nele.
               </p>
             </div>
           </div>

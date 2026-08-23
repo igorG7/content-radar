@@ -126,10 +126,8 @@ export default async function Painel() {
                 decisão
               </h1>
               <p className="lead">
-                Fonte da verdade é o filesystem: {total} briefs em{" "}
-                <span className="num">store/briefs/</span>,{" "}
-                {ledger.events.length} eventos no ledger. Nenhum banco de dados
-                no caminho.
+                {total} briefs e {ledger.events.length} eventos no ledger — que
+                é append-only: nada aqui apaga histórico.
               </p>
             </div>
             <Link className="btn btn-primary" href="/fila">
@@ -170,12 +168,8 @@ export default async function Painel() {
               <div className="panel-body-flush">
                 {previa.length === 0 && (
                   <p className="small muted" style={{ padding: 18 }}>
-                    Nada pendente de aprovação. A próxima varredura escreve
-                    direto em{" "}
-                    <span className="num">
-                      store/briefs/pendente-aprovacao/
-                    </span>
-                    .
+                    Nada pendente de aprovação. As pautas da próxima varredura
+                    aparecem aqui.
                   </p>
                 )}
                 {previa.map((b) => (
@@ -381,8 +375,7 @@ export default async function Painel() {
                     </div>
                   ))}
                   <p className="field-help">
-                    O arquivo continua no disco e não entra em nenhuma contagem.
-                    Corrigir o frontmatter à mão o traz de volta à fila.
+                    Não entra em nenhuma contagem enquanto não for lido.
                   </p>
                 </div>
               </div>

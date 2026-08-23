@@ -176,7 +176,7 @@ export function LedgerClient({
             {filtrados.length === 0 ? (
               <EmptyState
                 title="Nenhum evento neste recorte"
-                body={`O ledger tem ${eventos.length} linhas; nenhuma casa com os filtros atuais. O arquivo em si nunca é filtrado no disco — é sempre append-only.`}
+                body={`O ledger tem ${eventos.length} eventos; nenhum casa com os filtros atuais. Filtrar é só da tela — o ledger em si é append-only.`}
                 action={
                   <Link
                     className="btn btn-secondary"
@@ -292,9 +292,8 @@ export function LedgerClient({
         title="Linhas cruas"
       >
         <p className="small">
-          É assim que o arquivo está no disco. Uma linha por evento, sem vírgula
-          entre elas, sem fechamento — por isso é seguro fazer append
-          concorrente.
+          Uma linha por evento, sem vírgula entre elas, sem fechamento — por
+          isso é seguro fazer append concorrente.
         </p>
         <pre
           className="code"

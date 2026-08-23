@@ -43,7 +43,7 @@ function rotaAtiva(pathname: string): string {
   if (pathname.startsWith("/ledger")) return "ledger";
   if (pathname.startsWith("/config")) return "config";
   if (pathname.startsWith("/perfil")) return "perfil";
-  // O detalhe do brief pertence à fila ou ao acervo conforme o estado no disco.
+  // O detalhe do brief pertence à fila ou ao acervo conforme o seu estado.
   if (pathname.startsWith("/briefs/pendente-aprovacao")) return "fila";
   if (pathname.startsWith("/briefs")) return "acervo";
   return "";

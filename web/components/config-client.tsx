@@ -24,7 +24,7 @@ export interface ConfigInicial {
   weights: Record<string, number>;
   escopos: ConfigEscopo[];
   janelas: { chave: string; dias: number }[];
-  /** Score de cada brief no disco — mostra o efeito de mexer no limiar. */
+  /** Score de cada brief já gravado — mostra o efeito de mexer no limiar. */
   scores: number[];
   avisos: { path: string; message: string }[];
 }
@@ -417,7 +417,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
               </div>
               <div className="sunken">
                 <p className="field-label">
-                  Efeito sobre os {impacto.total} briefs já no disco
+                  Efeito sobre os {impacto.total} briefs já gravados
                 </p>
                 <div
                   className="score-bar"
@@ -459,7 +459,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 </div>
                 <p className="field-help" style={{ marginTop: 8 }}>
                   Leitura retroativa: o limiar novo só vale para a próxima
-                  varredura, o que já está no disco não é reclassificado.
+                  varredura, o que já foi gravado não é reclassificado.
                 </p>
               </div>
             </div>

@@ -160,7 +160,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
 
   const decididos = visiveis.filter((b) => escolhas[b.slug] !== undefined);
 
-  /** A escolha vai para o frontmatter no instante em que é feita; aprovar
+  /** A escolha é gravada no instante em que é feita; aprovar
    *  continua sendo só a mudança de estado. */
   const escolher = useCallback(
     async (slug: string, valor: number | "none") => {
@@ -183,8 +183,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         toast({
           tone: "danger",
           title: `HTTP ${resposta?.status ?? "—"} · HERO_CHOICE`,
-          detail:
-            corpo?.error ?? "Não foi possível gravar a escolha no frontmatter.",
+          detail: corpo?.error ?? "Não foi possível gravar a escolha.",
         });
       }
     },
@@ -202,7 +201,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         });
         return;
       }
-      // `escolha` é o index declarado no frontmatter, não a posição na lista.
+      // `escolha` é o index declarado na pauta, não a posição na lista.
       if (
         typeof escolha === "number" &&
         brief.media.find((m) => m.index === escolha)?.missing
@@ -434,7 +433,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
             items={[{ label: "Painel", href: "/" }, { label: "Fila" }]}
             back={{ href: "/", destino: "Painel" }}
           />
-          <span className="eyebrow">store/briefs/pendente-aprovacao/</span>
+          <span className="eyebrow">pendente de aprovação</span>
         </div>
         <div className="row-between" style={{ marginTop: 12 }}>
           <h1 className="display">Fila de aprovação</h1>
@@ -569,7 +568,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
                   items.length > 0 ? (
                     <EmptyState
                       title="Nenhum brief neste recorte"
-                      body={`Os ${items.length} briefs da fila continuam no disco — o filtro atual é que não deixa nenhum passar.`}
+                      body={`Os ${items.length} briefs da fila continuam lá — o filtro atual é que não deixa nenhum passar.`}
                       action={
                         <Link
                           className="btn btn-secondary"
@@ -583,7 +582,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
                   ) : (
                     <EmptyState
                       title="Fila zerada"
-                      body="Nada pendente de aprovação. A próxima varredura escreve direto em store/briefs/pendente-aprovacao/."
+                      body="Nada pendente de aprovação. As pautas da próxima varredura aparecem aqui."
                       action={
                         <Link className="btn btn-secondary" href="/acervo">
                           Ver o acervo
@@ -822,8 +821,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
               className="small"
               style={{ marginTop: 6, whiteSpace: "pre-wrap" }}
             >
-              {explicando.whyMatch ??
-                "O frontmatter deste brief não traz why_match."}
+              {explicando.whyMatch ?? "Este brief não traz why_match."}
             </p>
             {explicando.borderlineReason && (
               <div className="sunken" style={{ marginTop: 16 }}>
@@ -870,7 +868,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
                     void escolher(ampliando.slug, media.index);
                     toast({
                       title: "Arte escolhida",
-                      detail: `foto ${media.index} · gravada em hero_choice no frontmatter.`,
+                      detail: `foto ${media.index} · gravada como arte escolhida.`,
                     });
                   }}
                 />
@@ -908,8 +906,7 @@ export function QueueClient({ briefs, ilegiveis, scoring }: Props) {
         {rejeitando && (
           <>
             <p className="small">
-              Rejeitar move o arquivo para{" "}
-              <span className="num">store/briefs/rejeitado/</span> e{" "}
+              Rejeitar marca a pauta como rejeitada e{" "}
               <strong>
                 apaga todas as {rejeitando.media.length} mídias em cache
               </strong>
@@ -1057,7 +1054,7 @@ function CandidataAmpliada({
           <span className="field-label">alt:</span> {media.alt ?? "—"}
         </p>
         <p className="meta" style={{ marginTop: 6 }}>
-          {media.licenseHint ?? "sem license_hint no frontmatter"}
+          {media.licenseHint ?? "sem license_hint declarado"}
         </p>
         {media.licensable === false && (
           <div
@@ -1081,7 +1078,7 @@ function CandidataAmpliada({
             <IconAlert />
             <div className="alert-body">
               <span className="small">
-                Declarada no frontmatter mas ausente do disco. Aprovar com ela
+                Declarada na pauta mas ausente do cache. Aprovar com ela
                 selecionada devolve 422.
               </span>
             </div>

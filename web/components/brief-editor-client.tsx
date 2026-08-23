@@ -300,7 +300,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
           <span className="num">
             /api/brief-editor/{brief.state}/{brief.slug}
           </span>{" "}
-          — reescrita cirúrgica do frontmatter, o resto do arquivo fica intacto.
+          — só os campos editados mudam; o resto da pauta fica intacto.
         </p>
       </div>
 
@@ -527,7 +527,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                 </span>
               ) : (
                 <span className="muted">
-                  Nada alterado desde a última leitura do disco
+                  Nada alterado desde a última leitura
                 </span>
               )}
             </p>
@@ -553,7 +553,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                 type="submit"
                 disabled={!sujo || erros.length > 0 || gravando}
               >
-                {gravando ? "Gravando…" : "Salvar no frontmatter"}
+                {gravando ? "Gravando…" : "Salvar"}
               </button>
             </div>
           </div>
@@ -612,7 +612,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
         onClose={() => setDiffAberto(false)}
         wide
         eyebrow={brief.briefId}
-        title="O que vai ser reescrito no frontmatter"
+        title="O que vai ser gravado"
       >
         <p className="small">
           Só as chaves abaixo são tocadas. Comentários, ordem das demais chaves

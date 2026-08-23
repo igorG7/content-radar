@@ -22,7 +22,7 @@ export default async function Ledger() {
     })),
   );
 
-  // Mais recente primeiro: o arquivo é append-only, então a ordem no disco é
+  // Mais recente primeiro: o ledger é append-only, então a ordem de gravação é
   // cronológica crescente.
   const eventos = [...ledger.events].reverse();
 
