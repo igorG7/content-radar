@@ -9,8 +9,9 @@
   **não vai ser usada por enquanto**: a Avanz entra direto no banco de produção
   quando ele existir, e o cadastro é desligado junto. Detalhe abaixo.
 
-- **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
-  dimensionamento de fila.
+- **Tela de consumo** — a medição já grava (ver abaixo); falta mostrar. Adiada
+  de propósito até acumular execuções: tela de custo com tabela vazia não diz
+  nada e ainda sugere que o custo é zero.
 
 - **Retenção de conversas** — nada apaga conversa antiga, e ninguém decidiu por
   quanto tempo ficam.
@@ -90,6 +91,21 @@ só parava por vault vazio — proteção acidental, não separação. A falha
 intermitente de posição na fila sumiu junto (0 em 20 rodadas; era 1 em 20). E o
 pulo silencioso morreu: banco declarado e fora do ar agora **falha** a suíte, em
 vez de deixá-la verde com 96 testes escondidos, que foi o que aconteceu uma vez.
+
+**Varredura e chat medem o que gastam.** Uma linha por modelo por execução, em
+`consumo` — tokens, cache, buscas web e custo estimado. Antes disso o SDK
+entregava os números em todo resultado e nós os descartávamos: seis varreduras
+reais, nenhuma com custo registrado.
+
+Duas armadilhas da API, documentadas nela mesma e fáceis de errar: `usage` cobre
+só o laço principal e **exclui subagente** — que é quase toda a varredura —, e
+`modelUsage` é **cumulativo**, então o último resultado substitui em vez de
+somar. Errar qualquer uma das duas dá número plausível e errado, que é pior que
+número nenhum.
+
+Gravado em `finally` e com o erro engolido: execução que falhou também gastou, e
+é justamente esse custo que hoje sumiria. Perder a medição de uma varredura é
+ruim; perder a varredura por causa da medição é pior.
 
 **Injeção por ferramenta em vez de arquivo** — chegou pela metade, antes do
 gatilho previsto. O **chat** já funciona assim: seis ferramentas sobre a camada
