@@ -22,7 +22,6 @@ export async function bancoDisponivel(): Promise<boolean> {
   const sonda = new Pool({ connectionString: url });
   try {
     await sonda.query("select 1");
-    return true;
   } catch (erro) {
     throw new Error(
       `DATABASE_URL_MIGRATIONS está declarada mas o banco não respondeu: ` +
@@ -33,6 +32,55 @@ export async function bancoDisponivel(): Promise<boolean> {
     );
   } finally {
     await sonda.end();
+  }
+
+  /**
+   * Fora do try acima de propósito: esquema atrasado não é falha de conexão, e
+   * embrulhar um no outro produziu "o banco não respondeu: o banco está 1
+   * migração atrás", que manda investigar a coisa errada.
+   */
+  const outra = new Pool({ connectionString: url });
+  try {
+    await esquemaEmDia(outra);
+  } finally {
+    await outra.end();
+  }
+  return true;
+}
+
+/**
+ * Recusa rodar contra um esquema atrasado.
+ *
+ * A suíte roda no `radar_teste` e as migrações costumam ser aplicadas no banco
+ * de trabalho primeiro. Sem esta checagem o sintoma é `relation "x" does not
+ * exist` espalhado por vários arquivos, que parece defeito do código novo — foi
+ * o que aconteceu na primeira migração depois de separar os bancos, e custou
+ * minutos até eu perceber que o código estava certo e o banco é que estava
+ * velho.
+ *
+ * Compara o que existe na pasta de migrações com o que o banco registra ter
+ * aplicado. Contagem basta: as migrações só crescem, e nenhuma é reescrita.
+ */
+async function esquemaEmDia(sonda: Pool): Promise<void> {
+  const { readdir } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const dir = path.join(process.cwd(), "db", "migrations");
+  const naPasta = (await readdir(dir)).filter((f) => f.endsWith(".sql")).length;
+
+  const { rows } = await sonda.query<{ n: number }>(
+    "select count(*)::int as n from drizzle.__drizzle_migrations",
+  );
+  const aplicadas = rows[0]?.n ?? 0;
+
+  if (aplicadas < naPasta) {
+    throw new Error(
+      `o banco de teste está ${naPasta - aplicadas} migração(ões) atrás ` +
+        `(${aplicadas} de ${naPasta}). Rode:
+
+` +
+        `  npx tsx --env-file=.env.local scripts/preparar-banco-de-teste.mts
+`,
+    );
   }
 }
 

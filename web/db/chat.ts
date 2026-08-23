@@ -23,6 +23,7 @@ import {
 import { z } from "zod";
 import { FERRAMENTAS } from "../lib/chat/ferramentas";
 import type { RadarStore } from "../lib/store";
+import { linhasDeConsumo } from "../lib/telemetria";
 
 export interface Turno {
   papel: "usuario" | "agente";
@@ -106,11 +107,13 @@ export async function* conversar(
   nomeDoAmbiente: string,
   mensagem: string,
   sessaoAnterior?: string,
+  conversaId?: string,
 ): AsyncGenerator<EventoChat> {
   const servidor = servidorDeFerramentas(store);
   const permitidas = FERRAMENTAS.map((f) => `mcp__radar__${f.nome}`);
 
   let sessaoId: string | null = sessaoAnterior ?? null;
+  let ultimoUso: Parameters<typeof linhasDeConsumo>[0];
 
   try {
     const execucao = query({
@@ -150,6 +153,12 @@ export async function* conversar(
         }
       }
 
+      // Cumulativo: o último resultado substitui, não soma. Ver telemetria.ts.
+      if (msg.type === "result") {
+        ultimoUso =
+          (msg as { modelUsage?: Parameters<typeof linhasDeConsumo>[0] })
+            .modelUsage ?? ultimoUso;
+      }
       if (msg.type === "result" && msg.subtype !== "success") {
         yield { tipo: "erro", mensagem: `execução terminou em ${msg.subtype}` };
         return;
@@ -159,5 +168,21 @@ export async function* conversar(
     yield { tipo: "fim", sessaoId };
   } catch (erro) {
     yield { tipo: "erro", mensagem: (erro as Error).message };
+  } finally {
+    /**
+     * No `finally` para medir também o turno que falhou ou que o usuário
+     * interrompeu — os dois já gastaram. Erro engolido: perder a medição é
+     * melhor que derrubar a conversa por causa dela.
+     */
+    try {
+      const linhas = linhasDeConsumo(ultimoUso);
+      if (linhas.length > 0) {
+        await store.registrarConsumo({ origem: "chat", conversaId, linhas });
+      }
+    } catch (falha) {
+      console.warn(
+        `[chat] não consegui registrar consumo: ${(falha as Error).message}`,
+      );
+    }
   }
 }

@@ -71,6 +71,13 @@
       "when": 1787424508475,
       "tag": "0009_conversa_do_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787494151995,
+      "tag": "0010_consumo",
+      "breakpoints": true
     }
   ]
 }

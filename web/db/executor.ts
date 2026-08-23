@@ -20,6 +20,7 @@ import * as t from "./schema";
 import { materializar, descartar, type Workspace } from "./workspace";
 import { ingerir, type RelatorioIngestao } from "./ingerir";
 import { JaRodando, type Estagio, type PedidoDeScan } from "../lib/store";
+import { linhasDeConsumo } from "../lib/telemetria";
 
 export type { Estagio, PedidoDeScan };
 export { JaRodando };
@@ -80,6 +81,7 @@ export async function executar(
   let preservarWorkspace = false;
   const inicio = Date.now();
   const estagios: { estagio: Estagio; minuto: number }[] = [];
+  let ultimoUso: Parameters<typeof linhasDeConsumo>[0];
   const minuto = () => Math.round(((Date.now() - inicio) / 60000) * 10) / 10;
 
   /**
@@ -297,6 +299,21 @@ export async function executar(
       if (estagio && estagios.at(-1)?.estagio !== estagio) {
         await marcarEstagio(estagio);
       }
+      /**
+       * O consumo chega no resultado, e é **cumulativo**: cada resultado traz o
+       * total corrente, não o incremento. Por isso o último substitui o
+       * anterior em vez de somar — somar contaria o mesmo gasto várias vezes, e
+       * o erro cresceria com a duração, que é justamente quando o número
+       * importa.
+       *
+       * Guardado mesmo quando a execução falha: varredura que quebrou aos 20
+       * minutos gastou os 20 minutos, e é esse custo que ninguém enxerga hoje.
+       */
+      if (msg.type === "result") {
+        ultimoUso =
+          (msg as { modelUsage?: Parameters<typeof linhasDeConsumo>[0] })
+            .modelUsage ?? ultimoUso;
+      }
       if (msg.type === "result" && msg.subtype !== "success") {
         throw new Error(`execução terminou em ${msg.subtype}`);
       }
@@ -413,6 +430,29 @@ export async function executar(
       workspace: ws?.dir,
     };
   } finally {
+    /**
+     * A medição é gravada aconteça o que acontecer — inclusive em falha, que é
+     * quando o custo dói mais e hoje some sem registro.
+     *
+     * Dentro do próprio `finally` e com o erro engolido: perder a medição de
+     * uma varredura é ruim, perder a varredura por causa da medição é pior.
+     */
+    try {
+      const linhas = linhasDeConsumo(ultimoUso);
+      if (linhas.length > 0) {
+        const { backendPostgres } = await import("./backend");
+        await backendPostgres(ambienteId).registrarConsumo({
+          origem: "scan",
+          scanId,
+          linhas,
+        });
+      }
+    } catch (falha) {
+      console.warn(
+        `[executor] não consegui registrar consumo: ${(falha as Error).message}`,
+      );
+    }
+
     /**
      * O workspace some — **menos** quando a ingestão recusou.
      *

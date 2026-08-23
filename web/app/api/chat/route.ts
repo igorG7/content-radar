@@ -67,6 +67,7 @@ export const POST = rota(async (request: Request) => {
           sessao?.ambienteNome ?? "empresa",
           parsed.data.mensagem,
           sessaoAgente ?? undefined,
+          parsed.data.conversaId,
         )) {
           if (evento.tipo === "texto") texto += evento.delta;
           if (evento.tipo === "ferramenta") ferramentas.push(evento.nome);

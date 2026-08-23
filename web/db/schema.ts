@@ -569,7 +569,10 @@ export const conversa = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [politicaAmbiente(t.ambienteId), unique("conversa_ambiente_id_uk").on(t.ambienteId, t.id)],
+  (t) => [
+    politicaAmbiente(t.ambienteId),
+    unique("conversa_ambiente_id_uk").on(t.ambienteId, t.id),
+  ],
 );
 
 export const mensagem = pgTable(
@@ -633,5 +636,78 @@ export const evento = pgTable(
     index("evento_ts_idx").on(t.ambienteId, t.ts.desc()),
     index("evento_brief_idx").on(t.ambienteId, t.briefId, t.ts),
     politicaAmbiente(t.ambienteId),
+  ],
+);
+
+/**
+ * Consumo por execução — quanto custou cada varredura e cada conversa.
+ *
+ * Uma linha por **modelo** por execução, não uma por execução: a varredura
+ * atravessa vários modelos (o laço principal, os subagentes, e o que o SDK
+ * chama por dentro para compactar), e o total agregado esconde justamente onde
+ * o dinheiro foi. Saber que um scan custou X sem saber que 80% veio do
+ * pesquisador não ajuda a baratear nada.
+ *
+ * Os números vêm de `modelUsage` do SDK, e não de `usage`: aquele campo cobre
+ * só o laço principal e **exclui subagente**, que é onde quase todo o trabalho
+ * de uma varredura acontece. Usar `usage` daria um custo plausível e errado por
+ * uma ordem de grandeza — o pior tipo de número, porque ninguém desconfia dele.
+ *
+ * `custoUsd` é estimativa do SDK, calculada com a tabela de preços dele; não é
+ * fatura. Serve para comparar execuções entre si e para dimensionar, não para
+ * cobrar ao centavo.
+ */
+export const consumo = pgTable(
+  "consumo",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ambienteId: uuid("ambiente_id")
+      .notNull()
+      .references(() => ambiente.id, { onDelete: "cascade" }),
+    /**
+     * De onde veio o gasto: `scan` ou `chat`. Coluna própria em vez de inferir
+     * de qual id está preenchido — inferência quebra quando surgir a terceira
+     * origem, e surgirá (o revisor de brief já está desenhado).
+     */
+    origem: text("origem").notNull(),
+    /** Preenchido conforme a origem; o outro fica nulo. */
+    scanId: uuid("scan_id"),
+    conversaId: uuid("conversa_id"),
+    /** Chave de `modelUsage`. Pode ser alias; `canonicalModel` vai no jsonb. */
+    modelo: text("modelo").notNull(),
+    inputTokens: bigint("input_tokens", { mode: "number" }).notNull(),
+    outputTokens: bigint("output_tokens", { mode: "number" }).notNull(),
+    cacheLeituraTokens: bigint("cache_leitura_tokens", {
+      mode: "number",
+    }).notNull(),
+    cacheEscritaTokens: bigint("cache_escrita_tokens", {
+      mode: "number",
+    }).notNull(),
+    /** Busca na web é cobrada por requisição, não por token. */
+    buscasWeb: bigint("buscas_web", { mode: "number" }).notNull().default(0),
+    /** Numeric, não float: centavo somado em ponto flutuante deriva. */
+    custoUsd: numeric("custo_usd", { precision: 12, scale: 6 }).notNull(),
+    /** O resto do que o SDK devolveu, para não voltar aqui a cada pergunta nova. */
+    extra: jsonb("extra").$type<Record<string, unknown>>(),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    politicaAmbiente(t.ambienteId),
+    // Compostas com o ambiente, como o resto: sem isso um consumo apontaria
+    // para scan de outro cliente e o banco aceitaria.
+    foreignKey({
+      columns: [t.ambienteId, t.scanId],
+      foreignColumns: [scan.ambienteId, scan.id],
+      name: "consumo_scan_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [t.ambienteId, t.conversaId],
+      foreignColumns: [conversa.ambienteId, conversa.id],
+      name: "consumo_conversa_fk",
+    }).onDelete("cascade"),
+    index("consumo_ambiente_idx").on(t.ambienteId, t.criadoEm),
+    index("consumo_scan_idx").on(t.ambienteId, t.scanId),
   ],
 );

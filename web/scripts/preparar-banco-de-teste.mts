@@ -83,10 +83,22 @@ await depois.query(
 );
 
 /**
- * O ledger é append-only também no teste: sem isto, um teste poderia apagar
- * evento e passar, escondendo que a proteção existe (migração 0001).
+ * Refaz os REVOKE que o GRANT acima acabou de desfazer.
+ *
+ * A ordem é traiçoeira: as migrações revogam, e o `GRANT ... ON ALL TABLES`
+ * logo depois devolve tudo. Sem esta lista o banco de teste fica **mais
+ * permissivo** que produção justamente nas tabelas que existem para não ser
+ * reescritas — e o sintoma é um teste de proteção passando por engano.
+ *
+ * Aconteceu: a tabela `consumo` nasceu append-only na migração e chegou aqui
+ * com UPDATE e DELETE de volta.
  */
-await depois.query(`REVOKE UPDATE, DELETE ON TABLE "evento" FROM ${papelApp}`);
+const APPEND_ONLY = ["evento", "consumo"];
+for (const tabela of APPEND_ONLY) {
+  await depois.query(
+    `REVOKE UPDATE, DELETE ON TABLE "${tabela}" FROM ${papelApp}`,
+  );
+}
 
 const { rows } = await depois.query(
   "select count(*)::int as n from information_schema.tables where table_schema='public'",

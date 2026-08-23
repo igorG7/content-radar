@@ -16,6 +16,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
+import type { LinhaDeConsumo } from "@/lib/telemetria";
 import path from "node:path";
 import {
   loadManifest,
@@ -189,6 +190,19 @@ export interface Varredura {
  * existem, e um `--pillar` inventado só falharia dentro da execução, vinte
  * minutos e um custo depois.
  */
+/** Uma execução e o que ela custou, já somada por modelo. */
+export interface GastoPorExecucao {
+  origem: "scan" | "chat";
+  scanId: string | null;
+  conversaId: string | null;
+  rotulo: string;
+  custoUsd: number;
+  tokens: number;
+  buscasWeb: number;
+  modelos: number;
+  quando: string;
+}
+
 export interface Vocabulario {
   pilares: {
     slug: string;
@@ -390,6 +404,23 @@ export interface RadarStore {
     ensaio?: boolean;
   }): Promise<{ apagados: number; bytes: number; preservados: number }>;
 
+  /**
+   * Grava o consumo de uma execução. Uma linha por modelo — ver `telemetria.ts`
+   * para por que os números vêm de `modelUsage` e não de `usage`.
+   *
+   * Nunca deve derrubar quem chama: perder a medição de uma varredura é ruim,
+   * perder a varredura por causa da medição é pior.
+   */
+  registrarConsumo(entrada: {
+    origem: "scan" | "chat";
+    scanId?: string;
+    conversaId?: string;
+    linhas: LinhaDeConsumo[];
+  }): Promise<void>;
+
+  /** Consumo agregado do ambiente, do mais recente para o mais antigo. */
+  consumoRecente(limite?: number): Promise<GastoPorExecucao[]>;
+
   lerLedger(): Promise<LedgerReadResult>;
   registrarEvento(
     evento: Omit<LedgerEvent, "ts"> & { ts?: string },
@@ -560,6 +591,12 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async purgarMidia() {
       return { apagados: 0, bytes: 0, preservados: 0 };
+    },
+
+    // O backend de arquivo não mede: não é ele que executa varredura nem chat.
+    async registrarConsumo() {},
+    async consumoRecente() {
+      return [];
     },
 
     async listarConversas() {

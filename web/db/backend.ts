@@ -1351,6 +1351,63 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         };
       }),
 
+    registrarConsumo: ({ origem, scanId, conversaId, linhas }) =>
+      dentro(async (tx) => {
+        if (linhas.length === 0) return;
+        await tx.insert(t.consumo).values(
+          linhas.map((l) => ({
+            ambienteId: ambiente,
+            origem,
+            scanId: scanId ?? null,
+            conversaId: conversaId ?? null,
+            ...l,
+          })),
+        );
+      }),
+
+    /**
+     * Agrega por execução, não por linha: a pergunta que se faz é "quanto
+     * custou aquela varredura", e o detalhamento por modelo é o segundo clique.
+     *
+     * A ordenação usa o instante mais recente do grupo — as linhas de uma
+     * execução são gravadas juntas, mas nada garante o mesmo microssegundo.
+     */
+    consumoRecente: (limite = 50) =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select({
+            origem: t.consumo.origem,
+            scanId: t.consumo.scanId,
+            conversaId: t.consumo.conversaId,
+            custoUsd: sql<string>`sum(${t.consumo.custoUsd})`,
+            tokens: sql<string>`sum(${t.consumo.inputTokens} + ${t.consumo.outputTokens}
+              + ${t.consumo.cacheLeituraTokens} + ${t.consumo.cacheEscritaTokens})`,
+            buscasWeb: sql<string>`sum(${t.consumo.buscasWeb})`,
+            modelos: sql<string>`count(*)`,
+            quando: sql<string>`max(${t.consumo.criadoEm})`,
+            scanRef: sql<string | null>`max(${t.scan.scanRef})`,
+            titulo: sql<string | null>`max(${t.conversa.titulo})`,
+          })
+          .from(t.consumo)
+          .leftJoin(t.scan, eq(t.scan.id, t.consumo.scanId))
+          .leftJoin(t.conversa, eq(t.conversa.id, t.consumo.conversaId))
+          .groupBy(t.consumo.origem, t.consumo.scanId, t.consumo.conversaId)
+          .orderBy(sql`max(${t.consumo.criadoEm}) desc`)
+          .limit(limite);
+
+        return linhas.map((l) => ({
+          origem: l.origem as "scan" | "chat",
+          scanId: l.scanId,
+          conversaId: l.conversaId,
+          rotulo: l.scanRef ?? l.titulo ?? "sem referência",
+          custoUsd: Number(l.custoUsd),
+          tokens: Number(l.tokens),
+          buscasWeb: Number(l.buscasWeb),
+          modelos: Number(l.modelos),
+          quando: new Date(l.quando).toISOString(),
+        }));
+      }),
+
     purgarMidia: (opcoes = {}) =>
       dentro(async (tx) => {
         const [ajustes] = await tx.select().from(t.config);
