@@ -5,10 +5,9 @@
 
 ## O que falta
 
-- **Criar cliente pela interface.** `provisionar` só existe como CLI: não há
-  como cadastrar um cliente sem terminal. É o passo zero do segundo cliente, e
-  o único item que impede alguém que não seja o dono do servidor de usar o
-  produto.
+- **Fechar o cadastro antes do deploy** — a tela existe (`/cadastro`) e
+  **não vai ser usada por enquanto**: a Avanz entra direto no banco de produção
+  quando ele existir, e o cadastro é desligado junto. Detalhe abaixo.
 
 - **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
   dimensionamento de fila.
@@ -101,6 +100,35 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
 §5.4).
 
 ## Adiados com gatilho
+
+**O cadastro fica desligado até o deploy.** `/cadastro` cria empresa, conta e
+ambiente, e está testado — mas a decisão é não usá-lo agora. Quando o banco de
+produção existir, o usuário da Avanz é criado direto nele e a tela sai do ar.
+
+O que precisa entrar **junto** com o deploy, não depois:
+
+- **Desligar o cadastro** — por variável de ambiente, não removendo o código: a
+  tela volta quando houver segundo cliente de verdade, e código apagado é código
+  reescrito pior.
+- **Confirmação de e-mail** — hoje não há envio de e-mail em lugar nenhum do
+  produto, então é trabalho de verdade, não uma linha.
+- **Limite de cadastro** — sem ele o endpoint é uma torneira aberta de
+  ambientes. Enquanto a app não está publicada isso não custa nada; publicada,
+  custa.
+- **Proteção de rota** — está melhor do que eu supus ao escrever isto. A guarda
+  já é única: vive no layout do shell, e as onze rotas de API dependem de
+  `radarStore()`, que recusa sem sessão (`SemSessao` → 401). Página nova dentro
+  do shell nasce protegida sem fazer nada.
+
+  O que fica é a defesa em profundidade que hoje não existe: um `middleware.ts`
+  recusando antes de qualquer render. Sem ele, uma rota criada **fora** do
+  `(shell)` — como o próprio `/cadastro` — nasce aberta, e é preciso lembrar
+  disso. Não é buraco atual; é o que separa "não esquecemos" de "não dá para
+  esquecer".
+
+Enquanto nada disso existe, a app não pode ficar exposta. O que segura hoje é
+ela não estar publicada — que é circunstância, não proteção.
+
 
 **Revisor de brief sob demanda.** Um agente que, acionado por botão na página
 do brief, abre as `source_urls` e confere o que a copy afirma — "a legenda diz
