@@ -1,33 +1,31 @@
 # Pendências
 
-> Estado em 2026-08-17, com o histórico até `dc4e116` mais a correção do
-> frontmatter e os blocos, ainda não commitados. Ordenado por quem
-> destrava quem, não por tamanho.
+> Estado em 2026-08-23, com o histórico até `68042e7`. Ordenado por quem destrava
+> quem, não por tamanho.
 
-## Prontas para começar
+## O que falta
 
-**Migrações das tabelas operacionais.** `ambiente`, `usuario`, `brief`,
-`brief_candidata`, `scan` e `evento` não dependem das decisões acima — só as
-tabelas do vault dependem. DDL pronto em
-[`design-esquema-banco.md`](./design-esquema-banco.md). Aplicar no `radar_dev`
-e verificar o RLS com dados de duas empresas fictícias.
+- **Criar cliente pela interface.** `provisionar` só existe como CLI: não há
+  como cadastrar um cliente sem terminal. É o passo zero do segundo cliente, e
+  o único item que impede alguém que não seja o dono do servidor de usar o
+  produto.
 
-Duas escolhas técnicas menores no caminho: cliente de Postgres (`pg` puro ou
-algo como Drizzle) e ferramenta de migração.
+- **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
+  dimensionamento de fila.
 
-## Depois
+- **Retenção de conversas** — nada apaga conversa antiga, e ninguém decidiu por
+  quanto tempo ficam.
 
-**Fase 1 — importador.** 33 briefs, 208 eventos e o vault. Roda contra cópia
-até as contagens baterem. Dois obstáculos já medidos: 32 eventos com `event`
-dentro de `extra` (formato antigo) e frontmatter dobrado em 80 colunas. E um
-terceiro descoberto no teste de RLS: **o importador roda como `radar_owner` e
-esbarra no `FORCE ROW LEVEL SECURITY`** — precisa declarar `app.ambiente` a
-cada lote.
+- **Deploy**, e com ele a separação do dado da Avanz. Detalhe abaixo, em
+  _Onde o dado da Avanz vive_.
 
-**Fase 2 — backend de Postgres** atrás da interface `RadarStore`, e as fases
-seguintes de [`design-migracao.md`](./design-migracao.md).
+- **Fixture própria da suíte** — detalhe abaixo. Só vira bloqueio no dia em que
+  alguém quiser apagar o `store/briefs/`.
 
-## Fase 4 — o que falta
+- **Revisor de brief sob demanda** — adiado com gatilho declarado: alguns briefs
+  reais. Detalhe abaixo.
+
+## O que ficou provado
 
 **A execução real aconteceu** — seis varreduras entre 20 e 22 de agosto, no
 ambiente `avanz-teste`. Estão provados com saída de verdade: detecção de estágio,
@@ -38,11 +36,11 @@ imagem baixada, sem um aviso.
 
 Duração por estágio, primeira medição que esta ferramenta já teve:
 
-| | pesquisa | filtragem | redação | total |
-|---|---|---|---|---|
+|                     | pesquisa    | filtragem | redação   | total       |
+| ------------------- | ----------- | --------- | --------- | ----------- |
 | seasonal · filtrado | 12,4 · 15,2 | 6,3 · 4,7 | 3,9 · 3,9 | 24,1 · 25,5 |
-| cases · todos | 8,9 | 11,2 | 3,9 | 26,4 |
-| cases · filtrado | 12,4 · 7,2 | 7,5 · 5,8 | — · 5,8 | — · 21,1 |
+| cases · todos       | 8,9         | 11,2      | 3,9       | 26,4        |
+| cases · filtrado    | 12,4 · 7,2  | 7,5 · 5,8 | — · 5,8   | — · 21,1    |
 
 Duas execuções idênticas deram 12,4 e 7,2 minutos de pesquisa — 42% de
 diferença. É a mesma variação inexplicada que o §8.2 do desenho de execução
@@ -66,13 +64,51 @@ score?" — frase que só se resolve se a memória sobreviveu.
 O que ficou em aberto aqui é **retenção**: nada apaga conversa antiga, e ninguém
 decidiu por quanto tempo elas ficam.
 
+**A mídia do Cloudinary tem dono.** A escolha da arte sobe a foto com
+`public_id` estável por brief — reescolher sobrescreve o mesmo objeto em vez de
+deixar órfão pago na conta. Descartar uma candidata apaga o arquivo local **e**
+o objeto remoto.
+
+**A purga do cache local é código**, e com ela caiu a última skill
+determinística. O que se exige dela é sobretudo o que ela não faz: não toca em
+mídia de brief que ainda não saiu, nem em recém-publicada, nem — acima de tudo
+— naquela cuja única cópia é a local, onde apagar não libera disco, perde a
+foto.
+
+As outras três saíram do repositório em 2026-08-20. `radar-mv` virou
+`aplicarTransicao`, `radar-mark-published` virou `marcarPublicado`, e
+`radar-handoff` virou `exportar` — que devolve **um `.md`** para download em vez
+de escrever cinco arquivos em `store/packages/`. Eram código escrito em prosa:
+mudança de estado com regra fixa quer transação, não um modelo decidindo.
+
+**A suíte tem banco próprio.** Roda em `radar_teste`, criado e semeado por
+`web/scripts/preparar-banco-de-teste.mts` a partir do repositório — sem depender
+de nenhum outro banco.
+
+Fechou três buracos de uma vez. O trabalhador do pm2 deixou de reivindicar
+pedido de teste como se fosse varredura de verdade: chegava a tentar executar, e
+só parava por vault vazio — proteção acidental, não separação. A falha
+intermitente de posição na fila sumiu junto (0 em 20 rodadas; era 1 em 20). E o
+pulo silencioso morreu: banco declarado e fora do ar agora **falha** a suíte, em
+vez de deixá-la verde com 96 testes escondidos, que foi o que aconteceu uma vez.
+
+**Injeção por ferramenta em vez de arquivo** — chegou pela metade, antes do
+gatilho previsto. O **chat** já funciona assim: seis ferramentas sobre a camada
+(`web/lib/chat/ferramentas.ts`), nenhuma delas tocando em arquivo, e o ambiente
+nunca como argumento. O **executor do scan** continua materializando workspace,
+porque as skills leem caminho relativo. O gatilho declarado para converter o
+resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
+§5.4).
+
+## Adiados com gatilho
+
 **Revisor de brief sob demanda.** Um agente que, acionado por botão na página
 do brief, abre as `source_urls` e confere o que a copy afirma — "a legenda diz
 38,6% e a fonte diz 38,4%" — além de apontar envelhecimento e contradição com
 os guardrails. Cai nos "Pontos de atenção" que já existem no pacote.
 
 Não é o briefer que faz isso: seria o autor revisando o próprio texto na mesma
-passada em que o escreve, e o contexto dele é o *finding* — ele nunca abre a
+passada em que o escreve, e o contexto dele é o _finding_ — ele nunca abre a
 fonte, então não teria como confirmar o número que escreveu.
 
 Três restrições decididas junto com o desenho: **não edita** (observa e
@@ -90,28 +126,6 @@ defeitos desta semana — nomes de campo divergindo, guardrail truncado na
 importação, posição de fila empatando — teria sido previsto assim; todos vieram
 de execução.
 
-**Purga do que subiu para o Cloudinary.** A escolha da arte agora sobe a foto
-com `public_id` estável por brief, e guarda o `cloudinary_public_id`. Rejeitar
-um brief apaga a mídia local, mas **não** apaga o objeto remoto — é o que a
-purga precisa fazer, e é o primeiro trabalho concreto da housekeeping.
-
-**`radar-housekeeping`** é a última skill determinística sem código — a purga
-de mídia. É a de menor pressa: não move estado de brief nenhum.
-
-As outras três saíram do repositório em 2026-08-20. `radar-mv` virou
-`aplicarTransicao`, `radar-mark-published` virou `marcarPublicado`, e
-`radar-handoff` virou `exportar` — que devolve **um `.md`** para download em vez
-de escrever cinco arquivos em `store/packages/`. Eram código escrito em prosa:
-mudança de estado com regra fixa quer transação, não um modelo decidindo.
-
-**Injeção por ferramenta em vez de arquivo** — chegou pela metade, antes do
-gatilho previsto. O **chat** já funciona assim: seis ferramentas sobre a camada
-(`web/lib/chat/ferramentas.ts`), nenhuma delas tocando em arquivo, e o ambiente
-nunca como argumento. O **executor do scan** continua materializando workspace,
-porque as skills leem caminho relativo. O gatilho declarado para converter o
-resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
-§5.4).
-
 ## Soltas
 
 - **`positioning.md` do vault da Avanz** cita `brand.json#/target_audience`
@@ -126,20 +140,6 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   `contato` têm dado real. Bom para maquete, perigoso se virar semente de
   importação.
 - **`painel.png`** na raiz do repositório, sem destino definido.
-- **Reexportação de pacote** — resolvido: o carimbo marca a primeira entrega e
-  as seguintes viram `handoff-reexportado`, sem mover a data. Baixar continua
-  disponível depois de publicado, porque o pacote é a referência de como a arte
-  foi feita.
-- ~~**Banco só para a suíte**~~ — feito. A suíte roda em `radar_teste`, criado
-  e semeado por `web/scripts/preparar-banco-de-teste.mts` a partir do
-  repositório (vault, `store/`, `manifest.yaml`) — sem depender de outro banco.
-
-  Fechou três buracos de uma vez: o trabalhador do pm2 deixou de reivindicar
-  pedido de teste como se fosse varredura (chegava a tentar executar, e só
-  parava por vault vazio); a flake de posição na fila sumiu (0/20, era 1/20); e
-  o pulo silencioso morreu — banco declarado e fora do ar agora **falha** a
-  suíte em vez de deixá-la verde com 96 testes escondidos.
-
 - **A fixture do teste ainda sai dos arquivos do cliente** — o preparo do
   `radar_teste` semeia a Avanz lendo `docs/vault-avanz.md`, `manifest.yaml` e
   `store/briefs/`. Funciona e é reproduzível, mas cria um motivo novo para esses
@@ -153,8 +153,6 @@ resto segue o segundo cliente ([`design-migracao.md`](./design-migracao.md)
   teste. Melhora os três testes de quebra, que hoje podem falhar porque a Avanz
   mudou o foco editorial — coisa que nada tem a ver com workspace.
 
-- **Telemetria de consumo** — frente aberta mais antiga; trava cobrança e
-  dimensionamento de fila.
 - **Onde o dado da Avanz vive** — hoje no `radar_dev`, junto com tudo, tocado
   por script e por suíte. Incomoda com razão, mas criar um `radar_prod` antes de
   existir produção só troca o nome: o app continuaria apontando para ele em
