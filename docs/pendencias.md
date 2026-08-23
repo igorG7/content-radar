@@ -163,10 +163,6 @@ de execução.
   contradição morar. O que fica é o importador reportar divergência
   ([`design-migracao.md`](./design-migracao.md) §5).
 
-- **Conteúdo fictício no catálogo de blocos.** Em `web/lib/vault/blocos.ts`,
-  públicos, pilares, temas e paleta não são os da Avanz — só `geografia` e
-  `contato` têm dado real. Bom para maquete, perigoso se virar semente de
-  importação.
 - **`painel.png`** na raiz do repositório, sem destino definido.
 - **A fixture do teste ainda sai dos arquivos do cliente** — o preparo do
   `radar_teste` semeia a Avanz lendo `docs/vault-avanz.md`, `manifest.yaml` e
