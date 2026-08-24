@@ -214,7 +214,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
 
     if (edits.length === 0) {
       toast({
-        title: "Nada a gravar no manifest",
+        title: "Nada a salvar",
         detail: "Só o @ do Instagram mudou.",
       });
       return;
@@ -246,9 +246,9 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
     setDiffAberto(false);
     toast({
       tone: "ok",
-      title: "manifest.yaml gravado",
+      title: "Configuração salva",
       detail:
-        "Patch aplicado preservando os comentários. A próxima varredura já usa estes valores.",
+        "Gravado na configuração deste cliente. A próxima varredura já usa estes valores.",
     });
     router.refresh();
   }
@@ -312,7 +312,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           <section className="panel">
             <div className="panel-head">
               <h2 className="h3">Perfil que publica</h2>
-              <span className="meta">local — não vive no manifest</span>
+              <span className="meta">fica só neste navegador</span>
             </div>
             <div className="panel-body">
               <div
@@ -342,7 +342,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 {HANDLE_OK.test(handle) ? (
                   <p className="field-help">
                     Usado no cabeçalho e na legenda da prévia do post, em todas
-                    as telas. Fica no navegador — o manifest não tem essa chave.
+                    as telas. Fica no navegador, não na conta.
                   </p>
                 ) : (
                   <p className="field-error">
@@ -677,7 +677,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                   Alterações não gravadas
                 </span>
               ) : (
-                <span className="muted">manifest.yaml igual ao disco</span>
+                <span className="muted">Sem alterações</span>
               )}
             </p>
             <div className="row-tight">
@@ -694,7 +694,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 type="submit"
                 disabled={problemas.length > 0 || gravando}
               >
-                {gravando ? "Gravando…" : "Gravar manifest.yaml"}
+                {gravando ? "Salvando…" : "Salvar"}
               </button>
             </div>
           </div>
@@ -728,8 +728,11 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
 
           <div className="panel">
             <div className="panel-head">
-              <h2 className="h3">Trecho do arquivo</h2>
-              <span className="meta">manifest.yaml</span>
+              <h2 className="h3">Como a varredura vai ler</h2>
+              {/* O manifest é a projeção que a skill consome; a fonte da
+                  verdade é o banco. O nome do arquivo aparece porque é assim
+                  que ele chega ao workspace da varredura. */}
+              <span className="meta">manifest.yaml do workspace</span>
             </div>
             <div className="panel-body" style={{ padding: 12 }}>
               <pre className="code code-wrap">
@@ -843,7 +846,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
               </span>
             ))
           ) : (
-            <span className="c-com">sem alterações no manifest</span>
+            <span className="c-com">sem alterações</span>
           )}
         </pre>
         <p className="field-help" style={{ marginTop: 12 }}>
