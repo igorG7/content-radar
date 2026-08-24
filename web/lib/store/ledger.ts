@@ -17,13 +17,34 @@ export interface LedgerReadResult {
   malformedLines: number[];
 }
 
-/** Writers disagree on whether `event` is top-level or inside `extra`. */
+/**
+ * Os escritores discordam sobre onde os campos moram — no topo ou dentro de
+ * `extra`. E discordam **entre execuções**: a mesma skill escreveu `brief_id`
+ * no topo numa varredura e dentro de `extra` noutra.
+ *
+ * Ler um lugar só não dá erro, dá silêncio. O `event` fora do lugar virava
+ * `desconhecido`; o `brief_id` fora do lugar deixava o evento sem vínculo, e a
+ * linha do tempo do brief aparecia **vazia** — foi assim que o `2026-W34-001`
+ * passou de nascimento não registrado, quando o registro existia o tempo todo,
+ * solto.
+ */
+const doTopoOuDoExtra = (
+  parsed: Record<string, unknown>,
+  extra: Record<string, unknown> | undefined,
+  campo: string,
+): string | undefined => {
+  const valor = parsed[campo] ?? extra?.[campo];
+  return typeof valor === "string" && valor !== "" ? valor : undefined;
+};
+
 function normalize(parsed: Record<string, unknown>): LedgerEvent {
   const extra = parsed.extra as Record<string, unknown> | undefined;
-  const event = parsed.event ?? extra?.event;
+  const event = doTopoOuDoExtra(parsed, extra, "event");
   return {
     ...parsed,
-    event: typeof event === "string" ? event : "unknown",
+    event: event ?? "unknown",
+    brief_id: doTopoOuDoExtra(parsed, extra, "brief_id") ?? null,
+    scan_id: doTopoOuDoExtra(parsed, extra, "scan_id") ?? null,
   } as LedgerEvent;
 }
 

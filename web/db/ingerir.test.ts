@@ -523,4 +523,45 @@ describe.skipIf(!disponivel)("ingestão", () => {
     expect(new Date(linha.ts as string).toISOString()).toBe(haUmaHora);
     expect(linha.declarado).toBeNull();
   });
+
+  it("vincula o evento ao brief mesmo com brief_id dentro de extra", async () => {
+    /**
+     * A skill põe `brief_id` no topo numa execução e dentro de `extra` noutra.
+     * Lendo só o topo, o evento entrava sem vínculo e a linha do tempo do brief
+     * ficava **vazia** — o `2026-W34-001` parecia nunca ter nascido, e o
+     * `brief-created` dele estava no banco o tempo todo, solto.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const ref = `2026-W97-${String(process.pid).slice(-3)}`;
+    await simularSaida(
+      ws,
+      {
+        brief_id: ref,
+        slug: `${ref}_com-extra`,
+        headline: "Nasceu com o id no lugar errado",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: `hash-${ref}`,
+      },
+      [],
+    );
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        actor: "skill:radar-scan",
+        // Sem `brief_id` no topo — só dentro de extra, como a skill já fez.
+        extra: { event: "brief-created", brief_id: ref },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws);
+    const [linha] = await noAmbiente(
+      `select e.tipo from evento e join brief b on b.id = e.brief_id
+       where b.brief_id = '${ref}' and e.tipo = 'brief-created'`,
+    );
+    expect(linha?.tipo).toBe("brief-created");
+  });
 });
