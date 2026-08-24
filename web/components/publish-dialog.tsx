@@ -5,9 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { IconCheck } from "@/components/ui/icons";
 import { fmtDate, doCampo, paraCampo } from "@/lib/format";
 import { TRANSITION_ERRORS, type BriefView } from "@/lib/view/brief-view";
-
-const IG_URL =
-  /^https?:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,}\/?(\?.*)?$/;
+import { ehUrlDePost } from "@/lib/instagram";
 
 export interface PublishData {
   ig_post_url: string;
@@ -44,7 +42,7 @@ export function PublishDialog({
     if (!brief) return;
     const limpa = url.trim();
     if (!limpa) return setErroUrl(TRANSITION_ERRORS.IG_URL_REQUIRED);
-    if (!IG_URL.test(limpa))
+    if (!ehUrlDePost(limpa))
       return setErroUrl(TRANSITION_ERRORS.IG_URL_INVALID);
     if (!quando) return setErroData(TRANSITION_ERRORS.PUBLISHED_AT_REQUIRED);
 

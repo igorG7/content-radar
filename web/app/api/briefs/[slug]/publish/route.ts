@@ -2,9 +2,16 @@ import path from "node:path";
 import { z } from "zod";
 import { radarStore } from "@/lib/store";
 import { rota } from "@/lib/rota";
+import { ehUrlDePost } from "@/lib/instagram";
 
 const Body = z.object({
-  igPostUrl: z.string().url(),
+  /**
+   * A **mesma função** que o formulário usa, não uma regex repetida: duas
+   * cópias divergem, e esta já divergiria no `trim`. Antes aqui era só `url()`
+   * — a tela recusava e a API aceitava, então a proteção valia só para quem
+   * passasse pela tela.
+   */
+  igPostUrl: z.string().refine(ehUrlDePost),
   publicadoEm: z.string().datetime({ offset: true }),
 });
 

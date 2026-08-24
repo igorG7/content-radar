@@ -13,6 +13,7 @@ import {
   IconPencil,
 } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/format";
+import { podeExportar } from "@/lib/view/acoes";
 import { TRANSITION_ERRORS, type BriefView } from "@/lib/view/brief-view";
 
 export function BriefActions({ brief }: { brief: BriefView }) {
@@ -250,7 +251,7 @@ export function BriefActions({ brief }: { brief: BriefView }) {
           Ver no Instagram
         </a>
       )}
-      {brief.handoffAt ? exportar : null}
+      {podeExportar(brief.state) ? exportar : null}
       <Link className="btn btn-ghost" href={`/acervo?estado=${brief.state}`}>
         Voltar ao acervo
       </Link>
