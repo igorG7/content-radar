@@ -687,7 +687,7 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                 disabled={!sujo}
                 onClick={() => setDiffAberto(true)}
               >
-                Ver o diff
+                Ver o que muda
               </button>
               <button
                 className="btn btn-primary"
@@ -802,8 +802,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
         open={diffAberto}
         onClose={() => setDiffAberto(false)}
         wide
-        eyebrow="manifest.yaml"
-        title="Diff antes de gravar"
+        eyebrow="antes de salvar"
+        title="O que vai mudar"
         footer={
           <>
             <button
@@ -819,16 +819,15 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
               disabled={gravando || problemas.length > 0}
               onClick={() => void gravar()}
             >
-              {gravando ? "Gravando…" : "Gravar agora"}
+              {gravando ? "Salvando…" : "Salvar"}
             </button>
           </>
         }
       >
         <p className="small">
-          O patch é cirúrgico: cada linha abaixo vira um{" "}
-          <span className="num">{"{path, value}"}</span> em{" "}
-          <span className="num">PATCH /api/config</span>. Comentários, ordem das
-          chaves e formatação do resto do arquivo ficam intactos.
+          Só o que está listado muda — o resto da configuração fica como está. A
+          próxima varredura usa estes valores; as que já rodaram não são
+          reavaliadas.
         </p>
         <pre className="code" style={{ marginTop: 14, whiteSpace: "pre-wrap" }}>
           {edits.length > 0 ? (
