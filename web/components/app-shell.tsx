@@ -11,7 +11,6 @@ import {
   type NavIconName,
 } from "@/components/ui/icons";
 import { useVault } from "@/components/vault-provider";
-import { useNome } from "@/lib/session";
 import { sairAcao } from "@/app/login/acoes";
 
 interface Rota {
@@ -88,6 +87,8 @@ function ThemeToggle() {
 export interface SessaoDaTela {
   email: string;
   ambiente: string;
+  /** Do banco, com o trecho antes do @ como origem quando ninguém escolheu. */
+  nome: string;
 }
 
 export function AppShell({
@@ -102,7 +103,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const { progresso } = useVault();
-  const nome = useNome(sessao.email);
+  const nome = sessao.nome;
   const ativa = rotaAtiva(pathname);
 
   function badgeDe(key: string): number {

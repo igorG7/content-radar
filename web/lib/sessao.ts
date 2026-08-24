@@ -138,3 +138,32 @@ export async function autenticar(
 export async function encerrarSessao(): Promise<void> {
   (await cookies()).delete(COOKIE);
 }
+
+/**
+ * O nome de exibição, do banco.
+ *
+ * Não vai no cookie de propósito: a sessão é assinada e dura dias, então um
+ * nome carimbado nela só mudaria no próximo login — a pessoa editaria o próprio
+ * nome e a tela seguiria com o antigo.
+ *
+ * Vazio devolve o trecho antes do @ do e-mail, que é o que a tela já fazia
+ * quando isto morava no `localStorage`.
+ */
+export async function nomeDeExibicao(sessao: Sessao): Promise<string> {
+  const [linha] = await db()
+    .select({ nome: tUsuario.nome })
+    .from(tUsuario)
+    .where(eq(tUsuario.id, sessao.usuarioId));
+  return linha?.nome?.trim() || sessao.email.split("@")[0];
+}
+
+/** `null` limpa e devolve o nome derivado do e-mail. */
+export async function gravarNomeDeExibicao(
+  usuarioId: string,
+  nome: string | null,
+): Promise<void> {
+  await db()
+    .update(tUsuario)
+    .set({ nome: nome?.trim() || null })
+    .where(eq(tUsuario.id, usuarioId));
+}

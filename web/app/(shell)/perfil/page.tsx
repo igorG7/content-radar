@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { PerfilClient } from "@/components/perfil-client";
-import { sessaoAtual } from "@/lib/sessao";
+import { nomeDeExibicao, sessaoAtual } from "@/lib/sessao";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +22,7 @@ export default async function Perfil() {
         email: sessao.email,
         ambiente: sessao.ambienteNome,
         expiraEm: new Date(sessao.expiraEm).toISOString(),
+        nome: await nomeDeExibicao(sessao),
       }}
     />
   );

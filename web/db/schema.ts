@@ -75,6 +75,13 @@ export const usuario = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull().unique(),
+    /**
+     * Como a pessoa é chamada nas telas. Vazio cai no trecho antes do @ do
+     * e-mail — que é o que já acontecia, só que guardado no `localStorage`,
+     * onde o nome era da máquina: digitar num navegador e abrir noutro
+     * mostrava outro.
+     */
+    nome: text("nome"),
     senhaHash: text("senha_hash").notNull(),
     ambienteId: uuid("ambiente_id")
       .notNull()

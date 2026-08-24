@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
 import { VaultProvider } from "@/components/vault-provider";
 import { radarStore } from "@/lib/store";
-import { sessaoAtual } from "@/lib/sessao";
+import { nomeDeExibicao, sessaoAtual } from "@/lib/sessao";
 
 // O store é lido a cada request, então nada aqui pode ser pré-renderizado.
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
 
+  const nome = await nomeDeExibicao(sessao);
   const store = await radarStore();
   const [{ briefs }, blocos, configuracao] = await Promise.all([
     store.listarFila(),
@@ -32,7 +33,11 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
               tinha acabado de entrar com o seu. */}
           <AppShell
             filaCount={briefs.length}
-            sessao={{ email: sessao.email, ambiente: sessao.ambienteNome }}
+            sessao={{
+              email: sessao.email,
+              ambiente: sessao.ambienteNome,
+              nome,
+            }}
           >
             {children}
           </AppShell>

@@ -2,7 +2,6 @@
 
 import { setLocal, useLocal } from "./use-local";
 
-const NOME_KEY = "radar-perfil-nome";
 const MODELO_KEY = "radar-chat-modelo";
 const ESFORCO_KEY = "radar-chat-esforco";
 
@@ -15,30 +14,11 @@ const ESFORCO_KEY = "radar-chat-esforco";
  * ser — há cookie assinado, argon2 e 401 nas rotas —, mas a tela continuou
  * exibindo o e-mail fictício para quem tinha acabado de entrar com o seu.
  *
- * O que sobra aqui é preferência de máquina: modelo e esforço do chat. O nome de
- * exibição está de passagem: pertence ao usuário. O @ do Instagram já saiu —
- * mora em `marca`, ao lado do telefone.
+ * O que sobra aqui é preferência de máquina: modelo e esforço do chat. O nome
+ * de exibição foi para a tabela `usuario` e o @ do Instagram para `marca` — o
+ * primeiro é da pessoa, o segundo do cliente, e nenhum dos dois é da máquina
+ * em que se abriu o navegador.
  */
-
-/**
- * O nome de exibição: escolha da pessoa, com o e-mail como origem quando ela
- * não escolheu.
- *
- * Recebe o e-mail em vez de uma sessão porque a sessão deixou de morar aqui —
- * ela vem do cookie, pelo servidor. Enquanto isto continuar no `localStorage`,
- * o nome é da máquina e não da conta; o lugar dele é a tabela `usuario`.
- */
-export function useNome(email: string): string {
-  const salvo = useLocal<string>(NOME_KEY, "");
-  if (salvo) return salvo;
-  return email.split("@")[0];
-}
-
-export function gravarNome(nome: string): void {
-  setLocal(NOME_KEY, nome);
-}
-
-/** O @ que aparece no cabeçalho da prévia do post. O manifest não guarda isso. */
 
 /**
  * Modelo e esforço do chat. Ficam aqui porque o chat escolhe e o perfil

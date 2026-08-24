@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { sairAcao } from "@/app/login/acoes";
+import { gravarNomeAcao } from "@/app/(shell)/perfil/acoes";
 import { Crumb } from "@/components/ui/pieces";
 import { IconLogout } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/format";
@@ -12,10 +13,8 @@ import {
   armazenamentoDisponivel,
   gravarEsforco,
   gravarModelo,
-  gravarNome,
   useEsforco,
   useModelo,
-  useNome,
   type EsforcoId,
   type ModeloId,
 } from "@/lib/session";
@@ -24,11 +23,13 @@ export interface SessaoDoPerfil {
   email: string;
   ambiente: string;
   expiraEm: string;
+  /** Do banco: é a conta que carrega o nome, não o navegador. */
+  nome: string;
 }
 
 export function PerfilClient({ sessao }: { sessao: SessaoDoPerfil }) {
   const toast = useToast();
-  const nome = useNome(sessao.email);
+  const nome = sessao.nome;
   const modelo = useModelo();
   const esforco = useEsforco();
 
@@ -107,10 +108,20 @@ export function PerfilClient({ sessao }: { sessao: SessaoDoPerfil }) {
                 <button
                   className="btn btn-primary"
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     // Vazio é intenção válida: volta ao padrão derivado do e-mail.
                     const valor = campo.trim();
-                    gravarNome(valor);
+                    const dados = new FormData();
+                    dados.set("nome", valor);
+                    const r = await gravarNomeAcao({}, dados);
+                    if (r.erro) {
+                      toast({
+                        tone: "danger",
+                        title: "Não salvou",
+                        detail: r.erro,
+                      });
+                      return;
+                    }
                     setRascunho(null);
                     toast({
                       tone: "ok",
