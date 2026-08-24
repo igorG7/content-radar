@@ -392,4 +392,76 @@ describe.skipIf(!disponivel)("ingestão", () => {
     );
     await expect(ingerir(ws)).rejects.toThrow(/recusada/i);
   });
+
+  it("enxerga o aborto que a skill escreve no formato antigo", async () => {
+    /**
+     * A skill grava o nome do evento **dentro de `extra`**. A colheita lia
+     * `event` só no topo, então todo evento dela entrava como `desconhecido` e
+     * a detecção de aborto — que procura `scan-aborted` — nunca achava nada.
+     *
+     * Não é hipótese: a scan-007 abortou por schema inválido do pesquisador,
+     * a skill registrou o aborto, e o banco gravou `concluido`. A tela disse
+     * que deu certo uma varredura que a própria skill declarou abortada.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        brief_id: null,
+        actor: "skill:radar-scan",
+        extra: {
+          event: "scan-aborted",
+          scan_id: "2026-W34-scan-001",
+          stage: "researcher",
+          error: "schema-invalid",
+        },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.abortadaPelaSkill).not.toBeNull();
+    expect(r.abortadaPelaSkill?.motivo).toBeTruthy();
+
+    // E o evento não pode entrar como "desconhecido": o ledger é o registro do
+    // que houve, e um tipo genérico apaga justamente o que houve.
+    const [linha] = await noAmbiente(
+      "select tipo from evento where extra->>'error' = 'schema-invalid'",
+    );
+    expect(linha.tipo).toBe("scan-aborted");
+  });
+
+  it("liga os eventos ao scan que o executor criou, não ao que a skill inventou", async () => {
+    // A skill numera o scan contando os briefs do workspace e chega a
+    // `2026-W34-scan-001` enquanto o banco chamou a linha de outra coisa.
+    // Inferir o vínculo daí deixava todo evento da skill sem scan.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    // Ref única por execução e estado terminal: a suíte roda repetida no mesmo
+    // banco, e `rodando` esbarraria em `scan_um_rodando_por_ambiente` — a
+    // restrição que garante uma varredura por vez, e que este teste não precisa
+    // exercitar.
+    const [scan] = await noAmbiente(
+      `insert into scan (ambiente_id, scan_ref, escopo, alvo_qtd, estado)
+       values ('${ambienteId}','2026-W98-scan-${process.pid}','local',1,'concluido') returning id`,
+    );
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        actor: "skill:radar-scan",
+        extra: { event: "scan-started", scan_id: "2026-W34-scan-001" },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws, scan.id as string);
+
+    const [linha] = await noAmbiente(
+      `select scan_id from evento where scan_id = '${scan.id}'`,
+    );
+    expect(linha?.scan_id).toBe(scan.id);
+  });
 });

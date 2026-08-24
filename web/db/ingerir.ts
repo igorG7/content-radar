@@ -111,7 +111,20 @@ function citacoes(texto: string): string[] {
   return [...texto.matchAll(/§([A-Z]\d+)/g)].map((m) => m[1]);
 }
 
-export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
+export async function ingerir(
+  ws: Workspace,
+  /**
+   * O scan desta execução, dito por quem o criou.
+   *
+   * Era inferido do `scan_id` que a skill escrevia no ledger, e isso falhava
+   * por dois motivos ao mesmo tempo: o campo vem dentro de `extra`, e o valor é
+   * um número que a skill inventa contando os briefs do workspace
+   * (`2026-W34-scan-001`) sem saber como o banco chamou a linha
+   * (`2026-W34-scan-007`). O executor sabe o id de verdade — perguntar a ele
+   * acaba com a adivinhação.
+   */
+  scanDaExecucao?: string,
+): Promise<RelatorioIngestao> {
   const colheita = await colher(ws);
 
   return comAmbiente(ws.ambienteId, async (tx: Tx) => {
@@ -209,14 +222,18 @@ export async function ingerir(ws: Workspace): Promise<RelatorioIngestao> {
     }
 
     // ── scan da execução ────────────────────────────────────────────────────
-    const refScan = colheita.eventos.map((e) => str(e.scan_id)).find(Boolean);
-    let scanId: string | null = null;
-    if (refScan) {
-      const [linha] = await tx
-        .select({ id: t.scan.id })
-        .from(t.scan)
-        .where(eq(t.scan.scanRef, refScan));
-      scanId = linha?.id ?? null;
+    let scanId: string | null = scanDaExecucao ?? null;
+    if (!scanId) {
+      // Sem o id de quem chamou, resta o que a skill declarou — melhor que
+      // nada, e é o caminho do importador histórico.
+      const refScan = colheita.eventos.map((e) => str(e.scan_id)).find(Boolean);
+      if (refScan) {
+        const [linha] = await tx
+          .select({ id: t.scan.id })
+          .from(t.scan)
+          .where(eq(t.scan.scanRef, refScan));
+        scanId = linha?.id ?? null;
+      }
     }
 
     // ── briefs ──────────────────────────────────────────────────────────────

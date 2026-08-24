@@ -319,7 +319,7 @@ export async function executar(
       }
     }
 
-    const ingestao = await ingerir(ws);
+    const ingestao = await ingerir(ws, scanId);
 
     /**
      * Terminar sem exceção não é o mesmo que dar certo: a skill pode abortar

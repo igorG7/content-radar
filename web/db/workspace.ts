@@ -411,14 +411,21 @@ export interface Colheita {
 }
 
 export async function colher(ws: Workspace): Promise<Colheita> {
-  const ledger = await readFile(
+  /**
+   * Pelo `readLedger`, não por `JSON.parse` na mão.
+   *
+   * As skills escrevem o nome do evento **dentro de `extra`** — formato antigo
+   * que o `readLedger` já normaliza e que este trecho ignorava. O efeito era
+   * silencioso e grave: todo evento vindo da skill entrava no banco como
+   * `desconhecido`, e a detecção de aborto, que procura `scan-aborted`, nunca
+   * achava nada. A varredura que abortou por schema inválido foi gravada como
+   * `concluido`.
+   */
+  const { readLedger } = await import("../lib/store/ledger");
+  const { events } = await readLedger(
     path.join(ws.dir, "store", "ledger.jsonl"),
-    "utf8",
-  ).catch(() => "");
-  const eventos = ledger
-    .split("\n")
-    .filter((l) => l.trim() !== "")
-    .map((l) => JSON.parse(l) as Record<string, unknown>);
+  );
+  const eventos = events as unknown as Record<string, unknown>[];
 
   // Só a fila recebe brief novo; os outros três estados a skill não cria.
   const dirFila = path.join(ws.dir, "store", "briefs", "pendente-aprovacao");
