@@ -464,4 +464,63 @@ describe.skipIf(!disponivel)("ingestão", () => {
     );
     expect(linha?.scan_id).toBe(scan.id);
   });
+
+  it("carimbo no futuro é substituído pela hora da ingestão", async () => {
+    /**
+     * A skill escreveu `2026-08-24T12:50:00-03:00` à mão para um evento que
+     * acontecera às 11:50 UTC — minutos redondos, segundos zerados, quatro
+     * horas adiante. Ficou ordenado depois de eventos realmente posteriores.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const daquiA4h = new Date(Date.now() + 4 * 3600_000).toISOString();
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: daquiA4h,
+        actor: "skill:radar-scan",
+        extra: { event: "brief-created", slug: `inventado-${process.pid}` },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.avisos.map((a) => a.detalhe).join(" ")).toMatch(/futuro/);
+
+    const [linha] = await noAmbiente(
+      "select ts, extra->>'ts_declarado' as declarado from evento" +
+        ` where extra->>'slug' = 'inventado-${process.pid}'`,
+    );
+    // Gravado com a hora real...
+    expect(new Date(linha.ts as string).getTime()).toBeLessThan(
+      Date.now() + 60_000,
+    );
+    // ...e o que a skill afirmou não se perde: é a prova de que ela errou.
+    expect(linha.declarado).toBe(daquiA4h);
+  });
+
+  it("carimbo do passado é respeitado", async () => {
+    // O oposto importa: varredura longa gera evento genuinamente anterior à
+    // ingestão, e reescrevê-lo apagaria a duração por estágio.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const haUmaHora = new Date(Date.now() - 3600_000).toISOString();
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: haUmaHora,
+        actor: "skill:radar-scan",
+        extra: { event: "brief-created", slug: `passado-${process.pid}` },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws);
+    const [linha] = await noAmbiente(
+      "select ts, extra->>'ts_declarado' as declarado from evento" +
+        ` where extra->>'slug' = 'passado-${process.pid}'`,
+    );
+    expect(new Date(linha.ts as string).toISOString()).toBe(haUmaHora);
+    expect(linha.declarado).toBeNull();
+  });
 });

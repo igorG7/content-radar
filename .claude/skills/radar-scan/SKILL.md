@@ -101,6 +101,22 @@ roda no session principal, output é pro humano.
 
 ## Ledger
 
+**O `ts` vem do relógio, nunca da sua cabeça.** Toda linha do ledger usa:
+
+```bash
+TS=$(TZ=America/Sao_Paulo date -Iseconds)
+```
+
+Não é detalhe de estilo. Numa execução real você escreveu `"2026-08-24T12:50:00-03:00"`
+à mão — minutos redondos, segundos zerados — para um evento que aconteceu às
+11:50 UTC. O carimbo caiu **quatro horas no futuro**, depois de eventos que de
+fato vieram depois. Ordenação, janela de anti-repetição e duração por estágio
+saem todas erradas a partir daí, e nada avisa.
+
+A máquina roda em **UTC**; o `TZ=America/Sao_Paulo` é o que faz o `-03:00` que a
+spec pede ser verdadeiro em vez de decorativo. Carimbar `-03:00` num horário UTC
+adianta tudo em três horas.
+
 Append `store/ledger.jsonl` (JSONL append-only). Eventos: `scan-started`, `scan-aborted`,
 `scan-finished`, `brief-created`, `skip-redundant`, `skip-validation-failed`, `skip-low-score`,
 `skip-out-of-scope`, `brief-schema-invalid`. Schema canônico em spec 005 §18.

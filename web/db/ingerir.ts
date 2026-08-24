@@ -354,16 +354,47 @@ export async function ingerir(
     }
 
     // ── ledger ──────────────────────────────────────────────────────────────
+    const agora = new Date();
     for (const e of colheita.eventos) {
       const refBrief = str(e.brief_id);
+
+      /**
+       * Carimbo no futuro é carimbo inventado.
+       *
+       * A skill escreveu `2026-08-24T12:50:00-03:00` à mão para um evento das
+       * 11:50 UTC — quatro horas adiante, com minutos redondos e segundos
+       * zerados. Guardar como veio corrompe ordenação, janela de
+       * anti-repetição e duração por estágio, tudo em silêncio.
+       *
+       * O evento é ingerido segundos depois de acontecer, então `agora` é a
+       * melhor aproximação disponível. O valor declarado não se perde: fica em
+       * `extra.ts_declarado`, porque a evidência de que a skill errou é o que
+       * permite consertar a skill.
+       *
+       * Um minuto de folga absorve relógio ligeiramente adiantado sem deixar
+       * passar invenção — a que motivou isto errou por horas.
+       */
+      const declarado = str(e.ts) ? new Date(str(e.ts)!) : null;
+      const futuro =
+        declarado !== null && declarado.getTime() > agora.getTime() + 60_000;
+
+      if (futuro) {
+        avisos.push({
+          onde: `evento ${str(e.event) ?? "?"}`,
+          detalhe: `carimbo no futuro (${declarado!.toISOString()}) — gravado com a hora da ingestão`,
+        });
+      }
+
       await tx.insert(t.evento).values({
         ambienteId: ws.ambienteId,
-        ts: str(e.ts) ? new Date(str(e.ts)!) : new Date(),
+        ts: futuro || !declarado ? agora : declarado,
         tipo: str(e.event) ?? "desconhecido",
         ator: str(e.actor) ?? "skill:radar-scan",
         briefId: refBrief ? (idPorRef.get(refBrief) ?? null) : null,
         scanId,
-        extra: (e.extra ?? {}) as never,
+        extra: (futuro
+          ? { ...(e.extra ?? {}), ts_declarado: str(e.ts) }
+          : (e.extra ?? {})) as never,
       });
     }
 
