@@ -172,6 +172,18 @@ de execução.
 
 ## Soltas
 
+- **"Pontos de atenção" nunca chega preenchido, e o campo tem dois donos.**
+  Nenhum dos cinco briefs traz o que conferir antes de publicar — o briefer não
+  gera, e ainda não se sabe se é por falta de instrução ou porque a ingestão não
+  lê.
+
+  Debaixo disso há uma confusão maior: `review_notes` guarda **também** o motivo
+  da rejeição (`aplicarTransicao` escreve ali). Escrever pontos de atenção e
+  depois rejeitar apaga as notas, e o pacote imprimiria o motivo da rejeição
+  como "nota da revisão". Não morde hoje porque brief rejeitado não é exportado.
+
+  Separar as duas coisas é pré-requisito para preencher a primeira.
+
 - **Template próprio para os pilares editoriais.** Só `imovel-da-semana` e
   `decisao-inteligente` têm template; `inteligencia-imobiliaria`,
   `quem-comprou` e `mercado-rmbh` não. O pacote agora cai num padrão declarado
