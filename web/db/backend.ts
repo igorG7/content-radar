@@ -22,6 +22,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
 import { proporcaoEfetiva } from "../lib/view/proporcao";
+import { projetarConfig } from "../lib/config/projecao";
 import {
   loadManifest,
   MANIFEST_PATH,
@@ -403,7 +404,25 @@ export function backendPostgres(
   return {
     ambiente,
 
-    manifest: loadManifest,
+    /**
+     * O manifest do disco **com a configuração deste ambiente por cima**.
+     *
+     * Era `loadManifest` puro, e por isso a meta editada na tela de
+     * configuração ficava só no banco: o painel lia o arquivo e anunciava o
+     * valor antigo. Ver `lib/config/projecao.ts`.
+     */
+    manifest: () =>
+      dentro(async (tx) => {
+        const base = await loadManifest();
+        const [linha] = await tx.select().from(t.config);
+        if (!linha) return base;
+        return projetarConfig(base, {
+          pesos: linha.pesos as Record<string, unknown>,
+          caps: linha.caps as Record<string, unknown>,
+          janelas: linha.janelas as Record<string, unknown>,
+          volume: linha.volume as Record<string, unknown>,
+        });
+      }),
 
     async lerManifestBruto() {
       return readFile(MANIFEST_PATH, "utf8");
