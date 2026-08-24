@@ -1647,9 +1647,22 @@ a.counter-card:hover {
 }
 
 /* ─── timeline ──────────────────────────────────────────────────────────── */
+/*
+ * A linha do tempo cresce a cada evento — transição, correção, publicação — e
+ * um brief com histórico longo empurrava o painel inteiro para baixo. A rolagem
+ * é dela, não da página: o teto só entra em ação quando o conteúdo passa dele.
+ *
+ * Mesma medida da lista de conversas, que resolve o mesmo problema no chat.
+ */
 .timeline {
   display: grid;
   gap: 0;
+  /* 60vh mostra três eventos numa tela comum. Menos que isso e a rolagem
+     começa dentro do primeiro, o que é pior que a lista comprida. */
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  /* Espaço para a barra não cobrir o texto do último evento. */
+  padding-right: 4px;
 }
 .timeline-item {
   display: grid;

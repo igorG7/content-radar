@@ -14,6 +14,41 @@ import { STATE_META, scoringOf, toBriefView } from "@/lib/view/brief-view";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * O valor de um evento, encurtado para caber numa linha do tempo.
+ *
+ * `brief-corrected` guarda o texto anterior de cada campo editado — é o que
+ * responde depois "isto o agente escreveu ou fomos nós?". Uma legenda antiga
+ * tem quase mil caracteres, e desenhá-la inteira fazia um único evento ocupar
+ * mais altura que todo o resto do painel.
+ *
+ * O registro completo não se perde: fica no ledger, a um clique daqui.
+ */
+const LIMITE_NA_LINHA = 140;
+
+/**
+ * Quantos campos de um evento a linha do tempo mostra.
+ *
+ * O que estica o item não é o tamanho do valor, é a quantidade de chaves: o
+ * `brief-created` da skill traz onze, e onze linhas fazem um único evento ficar
+ * mais alto que a janela inteira — o leitor rolava dentro do primeiro item sem
+ * nunca ver o segundo.
+ *
+ * Cinco cabem e dão o essencial; o resto é contado, e o evento completo está no
+ * ledger.
+ */
+const CAMPOS_NA_LINHA = 5;
+
+function resumir(valor: unknown): string {
+  const texto =
+    typeof valor === "object" && valor !== null
+      ? JSON.stringify(valor)
+      : String(valor);
+  return texto.length > LIMITE_NA_LINHA
+    ? `${texto.slice(0, LIMITE_NA_LINHA)}…`
+    : texto;
+}
+
 function isBriefState(value: string): value is BriefState {
   return (BRIEF_STATES as readonly string[]).includes(value);
 }
@@ -601,18 +636,24 @@ export default async function DetalheDoBrief({
                         {evento.extra &&
                           Object.keys(evento.extra).length > 0 && (
                             <div className="json-view" style={{ marginTop: 6 }}>
-                              {Object.entries(evento.extra).map(
-                                ([chave, valor]) => (
+                              {Object.entries(evento.extra)
+                                .slice(0, CAMPOS_NA_LINHA)
+                                .map(([chave, valor]) => (
                                   <div className="json-row" key={chave}>
                                     <span className="json-key">{chave}</span>
                                     <span className="json-val">
-                                      {typeof valor === "object" &&
-                                      valor !== null
-                                        ? JSON.stringify(valor)
-                                        : String(valor)}
+                                      {resumir(valor)}
                                     </span>
                                   </div>
-                                ),
+                                ))}
+                              {Object.keys(evento.extra).length >
+                                CAMPOS_NA_LINHA && (
+                                <p className="meta" style={{ marginTop: 4 }}>
+                                  +
+                                  {Object.keys(evento.extra).length -
+                                    CAMPOS_NA_LINHA}{" "}
+                                  campo(s) — ver no ledger
+                                </p>
                               )}
                             </div>
                           )}
