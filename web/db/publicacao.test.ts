@@ -464,4 +464,53 @@ Fecha assim.' where id = $1`,
     );
     expect(linhas).toHaveLength(0);
   });
+
+  it("corrigir o CTA corrige a cópia dele dentro da legenda", async () => {
+    /**
+     * O briefer escreve o CTA duas vezes: campo e último parágrafo da legenda.
+     * Editar só o campo deixava as duas discordando, e o pacote saía com as
+     * duas — a errada dentro do bloco que se cola no Instagram.
+     */
+    const slug = `${SLUG}-cta-na-legenda`;
+    await semearBrief(slug, "pendente-aprovacao");
+    const store = backendPostgres(ambienteId);
+
+    // A legenda semeada termina com o CTA, como o briefer escreve.
+    await store.editarBrief("pendente-aprovacao", slug, {
+      caption_draft: "Corpo da legenda.\n\nChama no WhatsApp",
+    });
+    await store.editarBrief("pendente-aprovacao", slug, {
+      cta: "Fala com a gente no WhatsApp",
+    });
+
+    const [b] = await noAmbiente(
+      "select caption_draft, cta from brief where slug = $1",
+      [slug],
+    );
+    expect(b.cta).toBe("Fala com a gente no WhatsApp");
+    expect(b.caption_draft).toBe(
+      "Corpo da legenda.\n\nFala com a gente no WhatsApp",
+    );
+  });
+
+  it("não mexe na legenda que não terminava com o CTA", async () => {
+    // Só propaga cópia literal. Reescrever texto que a pessoa escreveu de outro
+    // jeito seria editar por conta própria.
+    const slug = `${SLUG}-cta-solto`;
+    await semearBrief(slug, "pendente-aprovacao");
+    const store = backendPostgres(ambienteId);
+
+    await store.editarBrief("pendente-aprovacao", slug, {
+      caption_draft: "Legenda que termina de outro jeito.",
+    });
+    await store.editarBrief("pendente-aprovacao", slug, {
+      cta: "Fala com a gente no WhatsApp",
+    });
+
+    const [b] = await noAmbiente(
+      "select caption_draft from brief where slug = $1",
+      [slug],
+    );
+    expect(b.caption_draft).toBe("Legenda que termina de outro jeito.");
+  });
 });

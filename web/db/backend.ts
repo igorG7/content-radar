@@ -134,6 +134,26 @@ function contem(legenda: string | null, trecho: string | null): boolean {
   return limpar(legenda).includes(limpar(trecho));
 }
 
+/** `undefined` some do update (preserva); `null` chega e limpa. */
+function manter<T>(valor: T | null | undefined): T | null | undefined {
+  return valor === undefined ? undefined : valor;
+}
+
+/**
+ * O primeiro **parágrafo**, não a primeira linha.
+ *
+ * A prosa do vault é quebrada em ~76 colunas, então a primeira linha física
+ * termina onde a largura acabou, não onde a frase acabou. O pacote saiu com
+ * "quem está em Mateus Leme, Esmeraldas ou Juatuba lê notícia local. A" — corte
+ * no meio, entregue ao cliente.
+ *
+ * É a terceira vez que largura de linha é confundida com fim de conteúdo neste
+ * repositório: já aconteceu com os guardrails na importação.
+ */
+function primeiroParagrafo(texto: string): string {
+  return (texto.split(/\n\s*\n/)[0] ?? "").replace(/\s*\n\s*/g, " ").trim();
+}
+
 /** Tira marcação de um trecho que vai ser embutido noutra frase formatada. */
 function semMarcacao(texto: string): string {
   return texto
@@ -711,15 +731,54 @@ export function backendPostgres(
         comparar("hashtags", campos.hashtags, linha.hashtags);
         comparar("review_notes", campos.review_notes, linha.reviewNotes);
 
+        /**
+         * Corrigir o CTA corrige também a cópia dele dentro da legenda.
+         *
+         * O briefer escreve o CTA duas vezes: como campo e como último
+         * parágrafo da legenda. Editar só o campo deixava as duas versões
+         * discordando, e o pacote saía com as duas — a errada dentro do bloco
+         * que a pessoa cola no Instagram, a certa num bloco separado logo
+         * abaixo. Foi o que aconteceu com o `2026-W35-001`.
+         *
+         * A troca é literal e só acontece quando a legenda terminava
+         * **exatamente** com o CTA anterior: aí não é reescrever texto alheio,
+         * é propagar a mesma correção para a segunda cópia da mesma frase.
+         */
+        let legenda = campos.caption_draft;
+        const ctaNovo = campos.cta ?? null;
+        const ctaVelho = linha.cta;
+        const legendaBase = legenda ?? linha.captionDraft;
+        let legendaSincronizada = false;
+
+        if (
+          ctaNovo &&
+          ctaVelho &&
+          ctaNovo !== ctaVelho &&
+          legendaBase &&
+          legendaBase.trimEnd().endsWith(ctaVelho.trim())
+        ) {
+          legenda =
+            legendaBase.trimEnd().slice(0, -ctaVelho.trim().length) + ctaNovo;
+          legendaSincronizada = true;
+        }
+
         await tx
           .update(t.brief)
           .set({
+            /**
+             * Ausente preserva; `null` explícito limpa.
+             *
+             * Era `?? null` em quase todos: quem editasse só o CTA apagava
+             * hook, legenda, hashtags e pontos de atenção de uma vez. Não
+             * mordeu porque o formulário sempre manda tudo — mas a rota aceita
+             * campo opcional, então bastava um cliente mandar o que mudou.
+             */
             headline: campos.headline ?? undefined,
-            hook: campos.hook ?? null,
-            captionDraft: campos.caption_draft ?? null,
-            cta: campos.cta ?? null,
+            hook: manter(campos.hook),
+            captionDraft: legendaSincronizada ? legenda : manter(legenda),
+            cta: manter(campos.cta),
             hashtags: campos.hashtags,
-            reviewNotes: campos.review_notes ?? null,
+            reviewNotes: manter(campos.review_notes),
             visualBrief: campos.visual_brief ?? linha.visualBrief,
             atualizadoEm: new Date(),
           })
@@ -733,7 +792,11 @@ export function backendPostgres(
             tipo: "brief-corrected",
             ator: "app:radar-web",
             briefId: linha.id,
-            extra: { campos: Object.keys(antes), antes },
+            extra: {
+              campos: Object.keys(antes),
+              antes,
+              ...(legendaSincronizada ? { legenda_sincronizada: true } : {}),
+            },
           });
         }
       }),
@@ -1150,7 +1213,7 @@ ${
 
 ${
   pilar
-    ? `**${pilar.nome}** — ${semMarcacao(pilar.corpo.split("\n")[0])}\n\n`
+    ? `**${pilar.nome}** — ${semMarcacao(primeiroParagrafo(pilar.corpo))}\n\n`
     : ""
 }${origemDados.why_match ?? "_(sem justificativa registrada)_"}
 

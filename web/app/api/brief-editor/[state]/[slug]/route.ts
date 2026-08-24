@@ -54,15 +54,34 @@ export const PATCH = rota(
     }
 
     const input = parsed.data;
+
+    /**
+     * Campo que não veio fica de fora do patch; campo que veio vazio vira
+     * `null` e limpa. O `?? null` de antes tratava as duas coisas igual, então
+     * um pedido com só o CTA apagava headline, hook, legenda e hashtags — e o
+     * schema marca todos como opcionais, então bastava mandar o que mudou.
+     */
+    const seVeio = <T>(bruto: unknown, valor: T | null) =>
+      bruto === undefined ? undefined : valor;
+
     const patches: EdicaoBrief = {
-      headline: cleanString(input.headline) ?? null,
-      hook: cleanString(input.hook) ?? null,
-      caption_draft: cleanString(input.captionDraft) ?? null,
-      hashtags: input.hashtags ?? [],
-      cta: cleanString(input.cta) ?? null,
-      suggested_slot: cleanString(input.suggestedSlot) ?? null,
-      format: cleanString(input.format) ?? null,
-      review_notes: cleanString(input.reviewNotes) ?? null,
+      headline: seVeio(input.headline, cleanString(input.headline) ?? null),
+      hook: seVeio(input.hook, cleanString(input.hook) ?? null),
+      caption_draft: seVeio(
+        input.captionDraft,
+        cleanString(input.captionDraft) ?? null,
+      ),
+      hashtags: input.hashtags,
+      cta: seVeio(input.cta, cleanString(input.cta) ?? null),
+      suggested_slot: seVeio(
+        input.suggestedSlot,
+        cleanString(input.suggestedSlot) ?? null,
+      ),
+      format: seVeio(input.format, cleanString(input.format) ?? null),
+      review_notes: seVeio(
+        input.reviewNotes,
+        cleanString(input.reviewNotes) ?? null,
+      ),
     };
 
     if (input.visualBrief) {
