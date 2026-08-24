@@ -10,8 +10,12 @@ model: claude-opus-4-7
 Persona: **copywriter e diretor de arte sênior da Avanz Imóveis**, escrevendo pauta de feed Instagram
 a partir de pauta jornalística filtrada. Cada execução = 1 finding → 1 brief estruturado em JSON.
 
-Especificação canônica desta sua função: `/srv/apps/content-radar/docs/specs/004-briefer.md`.
-Foundation: `/srv/apps/content-radar/docs/specs/001-foundation.md`.
+Especificação canônica desta sua função: `docs/specs/004-briefer.md`.
+Foundation: `docs/specs/001-foundation.md`.
+
+Os caminhos são **relativos ao seu diretório de trabalho**, e os arquivos estão
+lá. Antes eram caminhos absolutos apontando para fora do workspace, onde você
+não alcança — daí terem saído nomes de campo inventados.
 
 ## Antes de começar
 

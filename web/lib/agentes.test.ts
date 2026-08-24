@@ -88,4 +88,46 @@ describe("definição dos subagentes", () => {
       expect(a.tools.length, `${a.nome} não declara tools`).toBeGreaterThan(0);
     }
   });
+
+  it("caminho citado por agente com Read existe no workspace", async () => {
+    /**
+     * Ter `Read` não basta: o briefer apontava para
+     * `/srv/apps/content-radar/docs/specs/004-briefer.md`, absoluto e fora do
+     * workspace onde ele roda. A definição dizia, três linhas abaixo, que tudo
+     * é relativo ao diretório de trabalho — as duas coisas no mesmo arquivo.
+     *
+     * Caminho absoluto para dentro do repositório é sempre suspeito aqui: o
+     * agente roda isolado, e o que ele alcança é o que o workspace copiou.
+     */
+    for (const a of await definicoes()) {
+      const absolutos = [...a.corpo.matchAll(/`(\/srv\/[^`]+)`/g)].map(
+        (m) => m[1],
+      );
+      expect(
+        absolutos,
+        `${a.nome} cita caminho absoluto — o workspace não o alcança`,
+      ).toEqual([]);
+    }
+  });
+
+  it("todo arquivo que um agente manda ler está no workspace", async () => {
+    // O workspace copia `docs/specs/`; citar arquivo fora dele é mandar ler o
+    // que não existe, e o agente responde inventando.
+    const { readdir: ler } = await import("node:fs/promises");
+    const specs = new Set(
+      await ler(path.join(RADAR_ROOT, "docs", "specs")).catch(() => []),
+    );
+
+    for (const a of await definicoes()) {
+      const citados = [...a.corpo.matchAll(/docs\/specs\/([\w-]+\.md)/g)].map(
+        (m) => m[1],
+      );
+      for (const arquivo of citados) {
+        expect(
+          specs.has(arquivo),
+          `${a.nome} manda ler docs/specs/${arquivo}, que não existe`,
+        ).toBe(true);
+      }
+    }
+  });
 });

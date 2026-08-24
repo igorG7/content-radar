@@ -97,6 +97,50 @@ Carregue (via Read):
 - **`decision` ∈** `{promote-to-brief, promote-borderline, skip-redundant, skip-low-score, skip-out-of-scope}`.
 - **Caps mandam sobre borderline**: se qualquer cap do passo 3 acionou, a decisão é `skip-out-of-scope` mesmo que o score caia na banda 0.48–0.55. Borderline só vale quando nenhum cap disparou.
 - **Default ICP = comprador** quando ambíguo (cap 0.45 no icp_fit).
-- **Saída JSON estrita** no schema do §4 da spec 003. Sem markdown ao redor, sem comentários YAML.
+- **Saída JSON estrita** no envelope abaixo. Sem markdown ao redor, sem comentários YAML.
 - **Foco editorial declarado**: lotes/sítios/chácaras > MCMV-com-simulação > outros.
 - **Persona = editor Avanz**: priorize coerência editorial sobre "fofura" ou "viralidade".
+
+## Formato da sua resposta final
+
+Leia `docs/specs/003-matcher.md` §4 antes de emitir — o caminho é **relativo ao
+seu diretório de trabalho** e o arquivo está lá. Lá estão as regras de cada
+campo; aqui está o envelope, que é o que se erra de memória:
+
+```json
+{
+  "scan_id": "ecoa o do input",
+  "ranked": [
+    {
+      "finding": { "…original do researcher, intacto…" },
+      "pillar": "6-mercado-rmbh",
+      "icp": "comprador|investidor|proprietario|null",
+      "match_score": 0.82,
+      "match_score_breakdown": {
+        "pillar_fit": 0.90, "icp_fit": 0.80, "foco_editorial_fit": 0.85,
+        "geografia_fit": 0.95, "freshness": 0.70
+      },
+      "why_match": "…citando trecho do finding…",
+      "source_relevance_hints": [{ "component": "pillar_fit", "evidence": "…" }],
+      "topic_hash_matcher": "sha1 hex de 40 chars do title normalizado",
+      "redundant": false,
+      "decision": "promote-to-brief",
+      "decision_reason": "…"
+    }
+  ],
+  "meta": {
+    "scan_id": "…",
+    "total_in": 0, "total_promoted": 0,
+    "skipped": { "redundant": 0, "low_score": 0, "out_of_scope": 0 },
+    "threshold_used": 0.55,
+    "weights_used": {
+      "pillar_fit": 0.30, "icp_fit": 0.15, "foco_editorial_fit": 0.25,
+      "geografia_fit": 0.20, "freshness": 0.10
+    }
+  }
+}
+```
+
+**Todo finding da entrada aparece em `ranked[]`** — inclusive os que você
+descartou, com a `decision` dizendo por quê. Silenciar na saída tira do
+orquestrador a informação de que ele decide.
