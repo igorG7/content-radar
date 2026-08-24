@@ -21,6 +21,7 @@ import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { comAmbiente, type Tx } from "./cliente";
 import * as t from "./schema";
+import { proporcaoEfetiva } from "../lib/view/proporcao";
 import {
   loadManifest,
   MANIFEST_PATH,
@@ -153,15 +154,6 @@ function manter<T>(valor: T | null | undefined): T | null | undefined {
 function primeiroParagrafo(texto: string): string {
   return (texto.split(/\n\s*\n/)[0] ?? "").replace(/\s*\n\s*/g, " ").trim();
 }
-
-/**
- * O enquadramento quando ninguém declarou — nem a pessoa, nem o pilar.
- *
- * Vertical: o feed do Instagram dá mais altura de tela a 3:4 que a 1:1, e o
- * pacote precisa dizer alguma coisa a quem vai fazer a arte. Trocável no pilar
- * e, brief a brief, na tela de edição.
- */
-const PROPORCAO_PADRAO = "3:4";
 
 /** Tira marcação de um trecho que vai ser embutido noutra frase formatada. */
 function semMarcacao(texto: string): string {
@@ -445,7 +437,31 @@ export function backendPostgres(
           .from(t.briefCandidata)
           .where(eq(t.briefCandidata.briefId, linha.id));
         const aprovado = await aprovacoes(tx, [linha.id]);
-        return paraBrief(linha, candidatas, aprovado.get(linha.id));
+        const brief = paraBrief(linha, candidatas, aprovado.get(linha.id));
+
+        /**
+         * A tela mostra a proporção **efetiva**, não a sobreposição.
+         *
+         * O brief guarda `aspect_ratio` só quando alguém o editou — a ingestão
+         * descarta o que o briefer inventa. Sem preencher aqui, o detalhe
+         * exibia o rótulo seguido de nada, a prévia do feed recebia vazio, e o
+         * seletor da edição não casava com opção nenhuma: a pessoa via em
+         * branco enquanto o pacote já levava 3:4 ao Smart Design.
+         */
+        const [pilar] = await tx
+          .select({ template: t.pilar.template })
+          .from(t.pilar)
+          .where(eq(t.pilar.slug, linha.pilarSlug));
+        const formato = ((pilar?.template ?? {}) as Record<string, unknown>)
+          .formato as Record<string, unknown> | undefined;
+
+        if (brief.visualBrief) {
+          brief.visualBrief.aspectRatio = proporcaoEfetiva(
+            brief.visualBrief.aspectRatio,
+            formato?.proporcao as string | undefined,
+          );
+        }
+        return brief;
       }),
 
     planejarTransicao: (entrada) => dentro((tx) => planejar(tx, entrada)),
@@ -1088,11 +1104,10 @@ export function backendPostgres(
          * precisa ir para o pacote — melhor um padrão declarado aqui do que um
          * palpite diferente a cada brief.
          */
-        const proporcao =
-          visual.aspect_ratio ??
-          visual.aspectRatio ??
-          formato.proporcao ??
-          PROPORCAO_PADRAO;
+        const proporcao = proporcaoEfetiva(
+          (visual.aspect_ratio ?? visual.aspectRatio) as string | undefined,
+          formato.proporcao as string | undefined,
+        );
         const medida = [proporcao, formato.dimensao && `(${formato.dimensao})`]
           .filter(Boolean)
           .join(" ");

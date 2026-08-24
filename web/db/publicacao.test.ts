@@ -174,9 +174,14 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     );
     expect(brief.visualBrief?.mustHave).toEqual(["mapa"]);
     expect(brief.visualBrief?.avoidVisual).toEqual(["stock genérico"]);
-    // Ausente de propósito: a ingestão descarta a proporção que o briefer
-    // inventa, e o fixture segue o pipeline real. Quando existir, veio da tela.
-    expect(brief.visualBrief?.aspectRatio).toBeUndefined();
+    /**
+     * A tela recebe a proporção **efetiva**, não a sobreposição. O brief não
+     * tem nenhuma — a ingestão descarta a que o briefer inventa —, então vem a
+     * do template do pilar. Sem isto o detalhe exibia o rótulo seguido de nada
+     * e a prévia do feed ficava sem enquadramento, enquanto o pacote já levava
+     * um valor ao Smart Design.
+     */
+    expect(brief.visualBrief?.aspectRatio).toBe("1:1");
   });
 
   it("recusa publicar o que não foi aprovado", async () => {

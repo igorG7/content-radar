@@ -495,8 +495,10 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                     setDraft((d) => ({ ...d, aspectRatio: event.target.value }))
                   }
                 >
-                  <option value="1:1">1:1 — feed quadrado (padrão)</option>
-                  <option value="3:4">3:4 — retrato</option>
+                  <option value="1:1">1:1 — feed quadrado</option>
+                  {/* O padrão do produto quando nem o brief nem o pilar declaram.
+                      Ver lib/view/proporcao.ts. */}
+                  <option value="3:4">3:4 — retrato (padrão)</option>
                   <option value="4:5">4:5 — retrato alto</option>
                 </select>
               </div>
