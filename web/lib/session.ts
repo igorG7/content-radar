@@ -1,61 +1,38 @@
 "use client";
 
-import { clearLocal, setLocal, useLocal } from "./use-local";
-import { readLocal } from "./local";
+import { setLocal, useLocal } from "./use-local";
 
-const SESSION_KEY = "radar-sessao";
-const SAIU_KEY = "radar-sessao-saiu";
 const HANDLE_KEY = "radar-ig-handle";
 const NOME_KEY = "radar-perfil-nome";
 const MODELO_KEY = "radar-chat-modelo";
 const ESFORCO_KEY = "radar-chat-esforco";
 
-export interface Sessao {
-  email: string;
-  entrou_em: string;
-}
+/**
+ * O que ainda mora no navegador — e o que deixou de morar.
+ *
+ * A sessão saiu daqui. Havia uma de mentira: `USUARIO_DEMO`, fabricada a cada
+ * render quando não existia nenhuma, com o comentário "não existe backend de
+ * autenticação, não há guarda de rota". Isso era verdade na maquete e deixou de
+ * ser — há cookie assinado, argon2 e 401 nas rotas —, mas a tela continuou
+ * exibindo o e-mail fictício para quem tinha acabado de entrar com o seu.
+ *
+ * O que sobra aqui é preferência de máquina: modelo e esforço do chat. O nome
+ * de exibição e o @ do Instagram estão de passagem — o primeiro pertence ao
+ * usuário, o segundo ao ambiente.
+ */
 
 /**
- * Não existe backend de autenticação: a sessão é um registro local que
- * demonstra o fluxo entrar → usar → sair. Não há guarda de rota.
+ * O nome de exibição: escolha da pessoa, com o e-mail como origem quando ela
+ * não escolheu.
+ *
+ * Recebe o e-mail em vez de uma sessão porque a sessão deixou de morar aqui —
+ * ela vem do cookie, pelo servidor. Enquanto isto continuar no `localStorage`,
+ * o nome é da máquina e não da conta; o lugar dele é a tabela `usuario`.
  */
-export function useSessao(): Sessao | null {
-  return useLocal<Sessao | null>(SESSION_KEY, null);
-}
-
-export function entrar(email: string): Sessao {
-  const sessao: Sessao = { email, entrou_em: new Date().toISOString() };
-  clearLocal(SAIU_KEY);
-  setLocal(SESSION_KEY, sessao);
-  return sessao;
-}
-
-export function sair(): void {
-  clearLocal(SESSION_KEY);
-  // Marca a saída explícita para a sessão de demonstração não renascer na
-  // próxima tela — senão o "Sair" pareceria quebrado.
-  setLocal(SAIU_KEY, true);
-}
-
-/**
- * O painel abre com um usuário, para a barra nunca ficar sem identidade: sem
- * backend, quem abre não passou por login algum e barra sem identidade parece
- * defeito. Depois de sair de propósito, a barra passa a oferecer "Entrar" e
- * nada é recriado.
- */
-export const USUARIO_DEMO = "editor@empresa.com.br";
-
-export function garantirSessao(): void {
-  if (readLocal<Sessao | null>(SESSION_KEY, null)) return;
-  if (readLocal<boolean>(SAIU_KEY, false)) return;
-  entrar(USUARIO_DEMO);
-}
-
-/** O e-mail é a chave da sessão; o nome de exibição é escolha da pessoa. */
-export function useNome(sessao: Sessao | null): string {
+export function useNome(email: string): string {
   const salvo = useLocal<string>(NOME_KEY, "");
   if (salvo) return salvo;
-  return sessao ? sessao.email.split("@")[0] : "";
+  return email.split("@")[0];
 }
 
 export function gravarNome(nome: string): void {

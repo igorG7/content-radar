@@ -27,7 +27,15 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
     <Suspense>
       <VaultProvider blocos={blocos} configuracao={configuracao}>
         <ToastProvider>
-          <AppShell filaCount={briefs.length}>{children}</AppShell>
+          {/* A sessão desce do servidor. A casca mantinha uma própria no
+              navegador, de demonstração, e exibia um e-mail fictício para quem
+              tinha acabado de entrar com o seu. */}
+          <AppShell
+            filaCount={briefs.length}
+            sessao={{ email: sessao.email, ambiente: sessao.ambienteNome }}
+          >
+            {children}
+          </AppShell>
         </ToastProvider>
       </VaultProvider>
     </Suspense>

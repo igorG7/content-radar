@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { type ReactNode } from "react";
 import {
   IconLogout,
   IconMoon,
   IconSun,
-  IconUser,
   NAV_ICONS,
   type NavIconName,
 } from "@/components/ui/icons";
 import { useVault } from "@/components/vault-provider";
-import { garantirSessao, sair, useNome, useSessao } from "@/lib/session";
+import { useNome } from "@/lib/session";
+import { sairAcao } from "@/app/login/acoes";
 
 interface Rota {
   key: string;
@@ -85,23 +85,25 @@ function ThemeToggle() {
   );
 }
 
+export interface SessaoDaTela {
+  email: string;
+  ambiente: string;
+}
+
 export function AppShell({
   children,
   filaCount,
+  sessao,
 }: {
   children: ReactNode;
   filaCount: number;
+  /** Vem do cookie, pelo servidor. Ver o layout do shell. */
+  sessao: SessaoDaTela;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { progresso } = useVault();
-  const sessao = useSessao();
-  const nome = useNome(sessao);
+  const nome = useNome(sessao.email);
   const ativa = rotaAtiva(pathname);
-
-  // Escrever no storage é efeito sobre um sistema externo, não estado: quem
-  // relê a sessão é o `useSessao` acima, pelo mesmo canal.
-  useEffect(garantirSessao, []);
 
   function badgeDe(key: string): number {
     // Sem os blocos obrigatórios não existe fila: nada foi varrido ainda.
@@ -145,45 +147,32 @@ export function AppShell({
             })}
           </nav>
           <div className="nav-tail">
-            {sessao ? (
-              <Link
-                className="nav-user"
-                href="/perfil"
-                title={`Perfil de ${sessao.email}`}
-                aria-current={ativa === "perfil" ? "page" : undefined}
-              >
-                <span className="nav-user-mark" aria-hidden="true">
-                  {nome.charAt(0).toUpperCase()}
-                </span>
-                <span className="nav-user-txt">
-                  <span className="nav-user-nome">{nome}</span>
-                </span>
-              </Link>
-            ) : (
-              <Link className="nav-user" href="/login" title="Entrar no painel">
-                <span className="nav-user-mark" aria-hidden="true">
-                  <IconUser />
-                </span>
-                <span className="nav-user-txt">
-                  <span className="nav-user-nome">Entrar</span>
-                </span>
-              </Link>
-            )}
+            {/* Sem ramo de "não logado": o layout do shell redireciona quem
+                não tem sessão, então aqui ela sempre existe. O ramo antigo
+                existia porque a sessão era do navegador e podia faltar. */}
+            <Link
+              className="nav-user"
+              href="/perfil"
+              title={`${sessao.email} · ${sessao.ambiente}`}
+              aria-current={ativa === "perfil" ? "page" : undefined}
+            >
+              <span className="nav-user-mark" aria-hidden="true">
+                {nome.charAt(0).toUpperCase()}
+              </span>
+              <span className="nav-user-txt">
+                <span className="nav-user-nome">{nome}</span>
+              </span>
+            </Link>
             <ThemeToggle />
             <span className="nav-sep" aria-hidden="true" />
             <button
               className="theme-toggle"
               type="button"
-              title={sessao ? "Sair" : "Entrar"}
-              aria-label={
-                sessao
-                  ? `Sair da conta ${sessao.email}`
-                  : "Ir para a tela de login"
-              }
-              onClick={() => {
-                sair();
-                router.push("/login");
-              }}
+              title="Sair"
+              aria-label={`Sair da conta ${sessao.email}`}
+              /* O logout de verdade: apaga o cookie no servidor. O antigo
+                 limpava o `localStorage` e a sessão do servidor seguia de pé. */
+              onClick={() => void sairAcao()}
             >
               <IconLogout />
             </button>

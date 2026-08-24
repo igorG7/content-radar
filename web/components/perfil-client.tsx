@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/ui/toast";
-import { Crumb, EmptyState } from "@/components/ui/pieces";
+import { sairAcao } from "@/app/login/acoes";
+import { Crumb } from "@/components/ui/pieces";
 import { IconLogout } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/format";
 import {
@@ -14,20 +13,22 @@ import {
   gravarEsforco,
   gravarModelo,
   gravarNome,
-  sair,
   useEsforco,
   useModelo,
   useNome,
-  useSessao,
   type EsforcoId,
   type ModeloId,
 } from "@/lib/session";
 
-export function PerfilClient() {
-  const router = useRouter();
+export interface SessaoDoPerfil {
+  email: string;
+  ambiente: string;
+  expiraEm: string;
+}
+
+export function PerfilClient({ sessao }: { sessao: SessaoDoPerfil }) {
   const toast = useToast();
-  const sessao = useSessao();
-  const nome = useNome(sessao);
+  const nome = useNome(sessao.email);
   const modelo = useModelo();
   const esforco = useEsforco();
 
@@ -45,33 +46,6 @@ export function PerfilClient() {
       <span className="eyebrow">sessão do navegador</span>
     </div>
   );
-
-  // Sem sessão não há perfil para mostrar — e inventar um seria pior que dizer.
-  if (!sessao) {
-    return (
-      <>
-        <div className="page-head">
-          {cabecalho}
-          <h1 className="display" style={{ marginTop: 16 }}>
-            Perfil
-          </h1>
-        </div>
-        <div className="panel">
-          <div className="panel-body">
-            <EmptyState
-              title="Nenhuma sessão ativa"
-              body="O perfil descreve quem está usando o painel neste navegador. Entre para ver e ajustar o seu."
-              action={
-                <Link className="btn btn-primary" href="/login">
-                  Entrar
-                </Link>
-              }
-            />
-          </div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
@@ -239,8 +213,8 @@ export function PerfilClient() {
             </div>
             <div className="panel-body">
               <dl className="kv">
-                <dt>entrou em</dt>
-                <dd className="num">{fmtDate(sessao.entrou_em, true)}</dd>
+                <dt>expira em</dt>
+                <dd className="num">{fmtDate(sessao.expiraEm, true)}</dd>
                 <dt>armazenamento</dt>
                 <dd>
                   {armazenamentoDisponivel() ? (
@@ -260,13 +234,14 @@ export function PerfilClient() {
                 type="button"
                 style={{ width: "100%" }}
                 onClick={() => {
-                  sair();
+                  // O logout de verdade apaga o cookie no servidor e redireciona.
+                  // O antigo limpava o navegador e a sessão seguia de pé.
                   toast({
                     tone: "ok",
                     title: "Sessão encerrada",
                     detail: "Voltando para o login.",
                   });
-                  setTimeout(() => router.push("/login"), 700);
+                  setTimeout(() => void sairAcao(), 700);
                 }}
               >
                 <IconLogout />
