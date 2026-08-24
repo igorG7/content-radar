@@ -286,6 +286,42 @@ const lerAnexo: Ferramenta = {
   },
 };
 
+const simularVarredura: Ferramenta = {
+  nome: "simular_varredura",
+  descricao:
+    "Roda a varredura em modo plano (dry-run): diz o que ela faria — fontes, pilar, quantos briefs a anti-repetição compararia, o que a abortaria — sem invocar subagente, sem escrever brief e sem gastar o que uma varredura de verdade gasta. Use quando a pessoa perguntar se vale a pena, ou antes de confirmar um pedido caro. Leva um ou dois minutos.",
+  parametros: {
+    escopo: {
+      tipo: "string",
+      descricao: "Slug do escopo, de escopos_de_busca.",
+      obrigatorio: true,
+    },
+    pilar: {
+      tipo: "string",
+      descricao: "Slug do pilar. Sem ele, a simulação considera todos.",
+    },
+    alvo: { tipo: "number", descricao: "Quantas pautas o pedido buscaria." },
+  },
+  async executar(store, args) {
+    const { simular } = await import("../../db/ensaio");
+    const alvo = Number(args.alvo);
+
+    const r = await simular(store.ambiente, {
+      escopo: String(args.escopo ?? ""),
+      pilar: args.pilar ? String(args.pilar) : undefined,
+      alvo: Number.isFinite(alvo) && alvo > 0 ? alvo : undefined,
+    });
+
+    return {
+      plano: r.plano,
+      custo_da_simulacao_usd: Number(r.custoUsd.toFixed(4)),
+      // Dito explicitamente para o modelo não anunciar que enfileirou algo.
+      observacao:
+        "Nada foi enfileirado nem escrito. Para rodar de verdade, use pedir_varredura.",
+    };
+  },
+};
+
 export const FERRAMENTAS: Ferramenta[] = [
   escoposDeBusca,
   vocabulario,
@@ -293,6 +329,7 @@ export const FERRAMENTAS: Ferramenta[] = [
   resumoDaFila,
   varreduraAtual,
   pedirVarredura,
+  simularVarredura,
   anexosDaConversa,
   lerAnexo,
 ];

@@ -87,6 +87,12 @@ Sobre varredura:
 - Ela leva de 12 a 63 minutos e roda fora desta conversa. Pedir é enfileirar.
 - Confirme escopo e pilar com a pessoa antes de chamar \`pedir_varredura\`. É
   trabalho pago e não dá para cancelar pela metade.
+- Existe \`simular_varredura\`: roda a skill em modo plano e diz o que a
+  varredura faria, sem subagente e sem escrever nada. Ofereça quando a pessoa
+  hesitar sobre custo, quando a combinação for nova, ou quando pedir para "ver
+  antes". Ela leva um ou dois minutos e custa uma fração — a última varredura
+  de verdade custou pouco mais de sete dólares por duas pautas.
+- Simular **não** enfileira. Depois de simular, pergunte se é para rodar.
 - Se a pessoa já disse escopo e pilar claramente, não fique repetindo a
   pergunta — confirme uma vez e execute.
 - Depois de enfileirar, diga a referência e como acompanhar.

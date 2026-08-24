@@ -190,4 +190,25 @@ describe.skipIf(!disponivel)("ferramentas contra o banco", () => {
     expect(vB.pilares.map((p) => p.slug)).toEqual(["bastidor"]);
     expect(await chamar(B, "varredura_atual")).toEqual({ nenhuma: true });
   });
+
+  it("simular_varredura existe e não enfileira", async () => {
+    /**
+     * O agente respondia não conhecer dry-run porque nenhuma ferramenta o
+     * expunha — a skill o suporta desde sempre (`--dry-run` é sagrado lá) e o
+     * chat não sabia.
+     */
+    const f = porNome("simular_varredura");
+    expect(f).toBeDefined();
+    expect(f!.parametros.escopo.obrigatorio).toBe(true);
+    // O pilar é opcional: simular "todos" é pergunta legítima.
+    expect(f!.parametros.pilar.obrigatorio).toBeUndefined();
+  });
+
+  it("pedir e simular são ferramentas distintas", () => {
+    // Fundir as duas num parâmetro faria o modelo enfileirar por engano ao
+    // errar um booleano — e enfileirar é trabalho pago que não se cancela.
+    expect(porNome("pedir_varredura")).toBeDefined();
+    expect(porNome("simular_varredura")).toBeDefined();
+    expect(porNome("pedir_varredura")).not.toBe(porNome("simular_varredura"));
+  });
 });
