@@ -495,11 +495,22 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
                     setDraft((d) => ({ ...d, aspectRatio: event.target.value }))
                   }
                 >
-                  <option value="1:1">1:1 — feed quadrado</option>
-                  {/* O padrão do produto quando nem o brief nem o pilar declaram.
-                      Ver lib/view/proporcao.ts. */}
+                  {/* O padrão do produto vem primeiro — ver
+                      lib/view/proporcao.ts. Deixá-lo no meio da lista com 1:1
+                      no topo dizia uma coisa no rótulo e outra na ordem. */}
                   <option value="3:4">3:4 — retrato (padrão)</option>
                   <option value="4:5">4:5 — retrato alto</option>
+                  <option value="1:1">1:1 — feed quadrado</option>
+                  {/* Um pilar pode declarar proporção fora desta lista. Sem
+                      esta opção o valor efetivo não casaria com nenhuma, e o
+                      campo apareceria vazio como se nada estivesse escolhido —
+                      pior ainda, salvar apagaria a escolha do pilar. */}
+                  {draft.aspectRatio &&
+                    !["3:4", "4:5", "1:1"].includes(draft.aspectRatio) && (
+                      <option value={draft.aspectRatio}>
+                        {draft.aspectRatio} — do pilar
+                      </option>
+                    )}
                 </select>
               </div>
               <ListEditor
