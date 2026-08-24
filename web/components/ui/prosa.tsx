@@ -37,16 +37,6 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
     if (linhas.length === 0) return [];
     const key = `${keyBase}-${bi}`;
 
-    if (linhas[0].startsWith("## ")) {
-      return [
-        <h3 className="h3 prosa-titulo" key={`${key}-h`}>
-          {linhas[0].slice(3)}
-        </h3>,
-        ...(linhas.length > 1
-          ? blocos(linhas.slice(1).join("\n"), `${key}-r`)
-          : []),
-      ];
-    }
     /**
      * Tabela — o agente responde com ela sempre que a pergunta é "quais são",
      * e sem isto o bloco caía no ramo de parágrafo: a pessoa via os pipes
@@ -84,37 +74,88 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
         </div>,
       ];
     }
-    if (linhas.every((l) => /^- /.test(l))) {
-      return [
-        <ul className="prosa-lista" key={key}>
-          {linhas.map((l, li) => (
-            <li key={`${key}-${li}`}>{inline(l.slice(2), `${key}-${li}`)}</li>
-          ))}
-        </ul>,
-      ];
-    }
-    if (linhas.every((l) => /^\d+\. /.test(l))) {
-      return [
-        <ol className="prosa-lista is-num" key={key}>
-          {linhas.map((l, li) => (
-            <li key={`${key}-${li}`}>
-              {inline(l.replace(/^\d+\. /, ""), `${key}-${li}`)}
-            </li>
-          ))}
-        </ol>,
-      ];
-    }
-    return [
-      <p key={key}>
-        {linhas.map((l, li) => (
-          <span key={`${key}-${li}`}>
-            {li > 0 && <br />}
-            {inline(l, `${key}-${li}`)}
-          </span>
-        ))}
-      </p>,
-    ];
+    /**
+     * Segmenta o bloco em corridas do mesmo tipo, em vez de exigir que ele
+     * inteiro seja de um tipo só.
+     *
+     * A regra anterior pedia que **toda** linha fosse item para virar lista. O
+     * agente escreve "No radar:" e emenda os itens logo abaixo, sem linha em
+     * branco — o `every` reprovava e o bloco caía em parágrafo, com os hífens
+     * aparecendo crus na tela. É a forma mais comum de lista que existe.
+     */
+    return corridas(linhas).flatMap((corrida, ci) =>
+      renderizar(corrida, `${key}-${ci}`),
+    );
   });
+}
+
+type Tipo = "titulo" | "lista" | "numerada" | "paragrafo";
+
+function tipoDa(linha: string): Tipo {
+  if (linha.startsWith("## ")) return "titulo";
+  if (/^- /.test(linha)) return "lista";
+  if (/^\d+\. /.test(linha)) return "numerada";
+  return "paragrafo";
+}
+
+/** Agrupa linhas vizinhas do mesmo tipo. Título fica sempre sozinho. */
+function corridas(linhas: string[]): { tipo: Tipo; linhas: string[] }[] {
+  const saida: { tipo: Tipo; linhas: string[] }[] = [];
+  for (const linha of linhas) {
+    const tipo = tipoDa(linha);
+    const ultima = saida.at(-1);
+    if (ultima && ultima.tipo === tipo && tipo !== "titulo") {
+      ultima.linhas.push(linha);
+    } else {
+      saida.push({ tipo, linhas: [linha] });
+    }
+  }
+  return saida;
+}
+
+function renderizar(
+  corrida: { tipo: Tipo; linhas: string[] },
+  key: string,
+): ReactNode[] {
+  const { tipo, linhas } = corrida;
+
+  if (tipo === "titulo") {
+    return [
+      <h3 className="h3 prosa-titulo" key={`${key}-h`}>
+        {linhas[0].slice(3)}
+      </h3>,
+    ];
+  }
+  if (tipo === "lista") {
+    return [
+      <ul className="prosa-lista" key={key}>
+        {linhas.map((l, li) => (
+          <li key={`${key}-${li}`}>{inline(l.slice(2), `${key}-${li}`)}</li>
+        ))}
+      </ul>,
+    ];
+  }
+  if (tipo === "numerada") {
+    return [
+      <ol className="prosa-lista is-num" key={key}>
+        {linhas.map((l, li) => (
+          <li key={`${key}-${li}`}>
+            {inline(l.replace(/^\d+\. /, ""), `${key}-${li}`)}
+          </li>
+        ))}
+      </ol>,
+    ];
+  }
+  return [
+    <p key={key}>
+      {linhas.map((l, li) => (
+        <span key={`${key}-${li}`}>
+          {li > 0 && <br />}
+          {inline(l, `${key}-${li}`)}
+        </span>
+      ))}
+    </p>,
+  ];
 }
 
 export function Prosa({

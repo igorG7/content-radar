@@ -56,4 +56,34 @@ describe("prosa do chat", () => {
     expect(saida).toContain("<ul");
     expect(saida).toContain("<strong>um</strong>");
   });
+
+  it("lista logo abaixo da frase que a introduz vira lista", () => {
+    /**
+     * A forma mais comum que existe, e a que o agente usa: "No radar:" e os
+     * itens emendados, sem linha em branco. A regra antiga pedia que **toda**
+     * linha do bloco fosse item, então o conjunto caía em parágrafo e os
+     * hífens apareciam crus na tela.
+     */
+    const saida = html(
+      "No radar:\n- `imovel-da-semana` — curadoria\n- `mercado-rmbh` — notícia local",
+    );
+    expect(saida).toContain("<ul");
+    expect(saida.match(/<li/g)).toHaveLength(2);
+    // A frase de introdução continua parágrafo, antes da lista.
+    expect(saida.indexOf("No radar:")).toBeLessThan(saida.indexOf("<ul"));
+    // E o hífen não sobra como texto.
+    expect(saida).not.toContain(">- ");
+  });
+
+  it("duas listas separadas por um parágrafo não se fundem", () => {
+    // "Fora do radar:" abre a segunda lista; juntar as duas mudaria o sentido.
+    const saida = html("No radar:\n- a\nFora do radar:\n- b");
+    expect(saida.match(/<ul/g)).toHaveLength(2);
+  });
+
+  it("título dentro do bloco continua título", () => {
+    const saida = html("## Seção\n- item");
+    expect(saida).toContain("<h3");
+    expect(saida).toContain("<ul");
+  });
 });
