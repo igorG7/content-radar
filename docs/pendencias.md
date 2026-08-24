@@ -16,8 +16,30 @@
 - **Retenção de conversas** — nada apaga conversa antiga, e ninguém decidiu por
   quanto tempo ficam.
 
-- **Deploy**, e com ele a separação do dado da Avanz. Detalhe abaixo, em
-  _Onde o dado da Avanz vive_.
+- **Deploy.** O roteiro do banco está em
+  `web/scripts/preparar-banco-de-producao.mts` — ensaia por padrão, executa com
+  `--executar`, e recusa se `radar_prod` já tiver tabelas. O que falta é isto,
+  e nada disso é script:
+
+  1. `sudo -u postgres psql -c 'CREATE DATABASE radar_prod OWNER radar_owner'`
+     — exige superusuário, e por isso é seu.
+  2. **Backup.** Nada agenda cópia hoje. Banco de produção sem backup é banco
+     de produção até o primeiro acidente.
+  3. **Segredos.** `SESSION_SECRET`, credenciais do Postgres e do Cloudinary
+     precisam vir de fora do `.env.local` de uma máquina de desenvolvimento.
+     O servidor já tem um diretório de credenciais compartilhadas, administrado
+     por root, que serve de precedente.
+  4. **Apontar a app e o trabalhador** para `radar_prod`. Enquanto o `.env` de
+     produção não existir, é um banco cheio esperando.
+  5. **Onde a app roda em produção** — pode ser este servidor, já que ela vive
+     aqui; falta decidir porta, proxy e TLS.
+
+  Já resolvidos e fora da lista: cadastro fechado por padrão
+  (`CADASTRO_ABERTO`), limite de tentativas no login e no cadastro, e
+  `SESSION_SECRET` sem valor de fallback — a app recusa subir sem um.
+
+  Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
+  limite de cadastro além do rate-limit, e o middleware de rota.
 
 - **Fixture própria da suíte** — detalhe abaixo. Só vira bloqueio no dia em que
   alguém quiser apagar o `store/briefs/`.
