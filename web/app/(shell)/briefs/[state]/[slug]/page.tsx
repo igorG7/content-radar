@@ -480,10 +480,19 @@ export default async function DetalheDoBrief({
               <dl className="kv">
                 <dt>brief_id</dt>
                 <dd className="num">{brief.briefId}</dd>
-                <dt>scan_id</dt>
-                <dd className="num">{brief.scanId ?? "—"}</dd>
-                <dt>origin</dt>
-                <dd className="num">{brief.origin ?? "—"}</dd>
+                {/* `origin` marca o que **não** veio de varredura —
+                    `content-bank`, `user-request`. Ausente é o caso normal de
+                    quem nasceu do pipeline, e mostrar "—" ali fazia parecer
+                    dado perdido. Dizer de onde veio responde a mesma pergunta
+                    sem prometer um campo que não existe. */}
+                <dt>origem</dt>
+                <dd className="num">{brief.origin ?? "varredura"}</dd>
+                {brief.scanId && (
+                  <>
+                    <dt>scan_id</dt>
+                    <dd className="num">{brief.scanId}</dd>
+                  </>
+                )}
                 <dt>created_at</dt>
                 <dd className="num">
                   {brief.createdAt ? fmtDate(brief.createdAt, true) : "—"}
