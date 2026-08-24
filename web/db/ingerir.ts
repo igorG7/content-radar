@@ -111,6 +111,15 @@ function citacoes(texto: string): string[] {
   return [...texto.matchAll(/§([A-Z]\d+)/g)].map((m) => m[1]);
 }
 
+/** Tira `aspect_ratio` do que o briefer devolveu. Ver o uso, abaixo. */
+function semProporcao(bruto: unknown): Record<string, unknown> | null {
+  if (!bruto || typeof bruto !== "object") return null;
+  const resto = { ...(bruto as Record<string, unknown>) };
+  delete resto.aspect_ratio;
+  delete resto.aspectRatio;
+  return resto;
+}
+
 export async function ingerir(
   ws: Workspace,
   /**
@@ -295,7 +304,19 @@ export async function ingerir(
             source_urls: data.source_urls ?? [],
             source_excerpts: data.source_excerpts ?? [],
           },
-          visualBrief: (data.visual_brief ?? null) as never,
+          /**
+           * A direção de arte entra inteira, **menos a proporção**.
+           *
+           * Enquadramento é decisão de marca, não de quem escreve a pauta. O
+           * briefer inventava um por brief: dois do mesmo pilar, na mesma
+           * varredura, saíram 3:4 e 1:1 — e o pacote levava isso a quem faz a
+           * arte, produzindo feed desalinhado.
+           *
+           * Sem essa chave, o que sobrar em `aspect_ratio` foi escrito por uma
+           * pessoa na tela de edição. É o que permite a edição vencer o padrão
+           * do pilar sem precisar adivinhar quem escreveu o quê.
+           */
+          visualBrief: semProporcao(data.visual_brief) as never,
           destinoOd: {
             od_skill_ref: str(data.od_skill_ref) ?? null,
             alternativas: data.od_skill_alternatives ?? [],

@@ -276,7 +276,14 @@ od_skill_ref:    enum    required  ["ad-creative","poster-hero",
                                    # incluir no enum só geraria confusão.
                                    # avanz-instagram-post entra na spec 010.
 od_skill_alternatives:  array<string>  optional  # 1–2 alternativas pro editor
-template_ref_avanz: enum required  ["post-imovel","post-mes"]   # qual prompt JSON Avanz alimenta o package
+template_ref_avanz: enum optional  ["post-imovel","post-mes"]
+                   # DESCONTINUADO (2026-08-24). Era o prompt JSON da Avanz que
+                   # alimentaria o package. Nem o pacote exportado nem
+                   # INTEGRACAO-OPEN-DESIGN.md o mencionam: o Open Design virou
+                   # skill-based e quem diz o que fazer é `od_skill_ref`.
+                   # Nenhum brief jamais o preencheu, e exigir campo que ninguém
+                   # produz nem lê faz parecer que existe contrato onde não há.
+                   # O enquadramento da peça vem de outro lugar — ver abaixo.
 headline:        string  required  maxLength: 90    # ver §6.2
 hook:            string  required  maxLength: 120
 caption_draft:   string  required  # 3–5 parágrafos curtos, abre com hook, fecha com CTA
@@ -326,6 +333,24 @@ package_path:    string|null  required  default: null
 published_at:   string|null  required  default: null
 ig_post_url:    string|null  required  default: null
 ```
+
+### 4.2.1 De onde vem o enquadramento
+
+`aspect_ratio` **não é do briefer**. Enquadramento é decisão de marca, e deixá-lo
+com quem escreve a pauta produziu dois briefs do mesmo pilar, na mesma varredura,
+com 3:4 e 1:1 — o pacote levava isso a quem faz a arte.
+
+A ingestão descarta a proporção que vier no `visual_brief`. O pacote resolve na
+ordem:
+
+1. `visual_brief.aspect_ratio` do brief — só existe se **uma pessoa** o escreveu
+   na tela de edição;
+2. `formato.proporcao` do template do pilar — onde a marca declara;
+3. `3:4`, padrão do produto, porque três dos seis pilares da Avanz não têm
+   template e o pacote precisa dizer algo a quem faz a arte.
+
+O custo assumido no item 3: um cliente que nunca configurou nada vê 3:4 como se
+fosse escolha dele. É trocável no pilar e, brief a brief, na edição.
 
 ### 4.3 Validação no orquestrador
 

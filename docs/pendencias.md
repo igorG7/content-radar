@@ -172,19 +172,16 @@ de execução.
 
 ## Soltas
 
-- **`template_ref_avanz` vazio em todos os briefs**, e sem template para quatro
-  pilares. A spec 004 §4.2 marca o campo como obrigatório (enum `post-imovel` |
-  `post-mes`) — é ele que diz qual prompt JSON da Avanz alimenta o pacote no
-  Smart Design. Os cinco briefs existentes estão sem, inclusive os de
-  `decisao-inteligente`, cujo pilar tem template.
-
-  Atrás disso há a decisão editorial: só `imovel-da-semana` e
+- **Template próprio para os pilares editoriais.** Só `imovel-da-semana` e
   `decisao-inteligente` têm template; `inteligencia-imobiliaria`,
-  `quem-comprou` e `mercado-rmbh` não têm de onde tirar. Preencher o campo sem
-  resolver isso só empurraria o briefer a escolher por conta própria.
+  `quem-comprou` e `mercado-rmbh` não. O pacote agora cai num padrão declarado
+  (3:4) em vez do palpite do briefer, então isto deixou de sangrar — mas
+  continua sendo a marca que deveria dizer o enquadramento de cada pilar, e
+  `decisao-inteligente` aponta hoje para `post-mes`, template de efeméride, o
+  que provavelmente já é encaixe errado.
 
-  Encontrado pelo agente do chat num dry-run, não por teste nosso.
-
+  Trabalho de design da Avanz, não nosso. Um template talvez resolva os três:
+  são todos post editorial, sem foto de imóvel.
 - **O trabalhador não recarrega código.** Roda sob pm2 com `tsx`, então
   correção em `db/**` só passa a valer depois de `pm2 restart
   radar-trabalhador`. Já custou duas vezes: uma varredura rodou sem a

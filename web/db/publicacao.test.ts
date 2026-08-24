@@ -75,7 +75,11 @@ async function semearBrief(slug: string, estado: string) {
          0, now(),
          -- snake_case porque é o que o pipeline escreve de verdade; o fixture
          -- em camelCase escondia o descasamento que a tela sofria.
-         '{"aspect_ratio":"4:5","must_have":["mapa"],"avoid_visual":["stock genérico"]}',
+         --
+         -- Sem aspect_ratio: a ingestão passou a descartar o que o briefer
+         -- inventava, então proporção no brief só existe quando uma pessoa a
+         -- escreveu na edição. O fixture segue o pipeline real.
+         '{"must_have":["mapa"],"avoid_visual":["stock genérico"]}',
          '{"od_skill_ref":"carrossel-comparativo","alternativas":["card-dado"]}',
          '{"why_match":"escritura é o critério de decisão do ICP investidor",
            "source_urls":["https://exemplo.test/fonte"]}'
@@ -170,7 +174,9 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     );
     expect(brief.visualBrief?.mustHave).toEqual(["mapa"]);
     expect(brief.visualBrief?.avoidVisual).toEqual(["stock genérico"]);
-    expect(brief.visualBrief?.aspectRatio).toBe("4:5");
+    // Ausente de propósito: a ingestão descarta a proporção que o briefer
+    // inventa, e o fixture segue o pipeline real. Quando existir, veio da tela.
+    expect(brief.visualBrief?.aspectRatio).toBeUndefined();
   });
 
   it("recusa publicar o que não foi aprovado", async () => {
@@ -204,8 +210,8 @@ describe.skipIf(!disponivel)("publicar e exportar", () => {
     expect(conteudo).toContain(
       "escritura é o critério de decisão do ICP investidor",
     );
-    // A proporção vem do template do pilar, não do visual_brief: é lá que o
-    // dado existe, e foi o que o pacote antigo usava.
+    // Sem edição humana, a proporção vem do template do pilar — é lá que a
+    // marca a declara.
     expect(conteudo).toContain("1:1");
     // E de onde a copy saiu, para conferir se um número é real.
     expect(conteudo).toContain("https://exemplo.test/fonte");
@@ -278,9 +284,16 @@ Fecha assim.' where id = $1`,
     expect(conteudo).not.toContain("— **Tese:**");
   });
 
-  it("não anuncia formato quando o pilar não tem template", async () => {
-    // Cliente que ainda não configurou a base visual do pilar. "Formato: —"
-    // faria o pacote prometer um dado que ninguém produziu.
+  it("pilar sem template cai no padrão declarado", async () => {
+    /**
+     * Antes o pacote omitia o formato aqui, para não prometer dado que ninguém
+     * produziu. A regra mudou por decisão de marca: três dos seis pilares não
+     * têm template, e omitir empurrava a escolha para o briefer, que inventava
+     * uma proporção por brief — dois do mesmo pilar saíram 3:4 e 1:1.
+     *
+     * O custo assumido: um cliente que nunca configurou nada vê 3:4 como se
+     * fosse escolha dele. É trocável no pilar e, brief a brief, na edição.
+     */
     //
     // Pilar próprio em vez de apagar o template do outro: mutar estado que os
     // demais testes usam e restaurar depois é a receita para uma falha que só
@@ -298,7 +311,9 @@ Fecha assim.' where id = $1`,
     );
 
     const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
-    expect(conteudo).not.toContain("**Formato:**");
+    // O padrão declarado, não omissão: quem faz a arte precisa de um
+    // enquadramento, e sem este o briefer voltava a inventar um por brief.
+    expect(conteudo).toContain("**Formato:** 3:4");
   });
 
   it("o bloco para colar leva guardrails e regras do pilar", async () => {
@@ -512,5 +527,22 @@ Fecha assim.' where id = $1`,
       [slug],
     );
     expect(b.caption_draft).toBe("Legenda que termina de outro jeito.");
+  });
+
+  it("a proporção editada à mão vence a do pilar", async () => {
+    // A ordem era inversa, e nos pilares com template a edição não mudava nada
+    // — o campo existia na tela e não tinha efeito no pacote.
+    const slug = `${SLUG}-proporcao-editada`;
+    await semearBrief(slug, "pendente-publicacao");
+    const store = backendPostgres(ambienteId);
+
+    await store.editarBrief("pendente-publicacao", slug, {
+      visual_brief: { aspect_ratio: "9:16", must_have: ["mapa"] },
+    });
+
+    const { conteudo } = await store.exportar(slug);
+    expect(conteudo).toContain("**Formato:** 9:16");
+    // E o do pilar (1:1) não aparece: o mais específico venceu.
+    expect(conteudo).not.toContain("**Formato:** 1:1");
   });
 });

@@ -154,6 +154,15 @@ function primeiroParagrafo(texto: string): string {
   return (texto.split(/\n\s*\n/)[0] ?? "").replace(/\s*\n\s*/g, " ").trim();
 }
 
+/**
+ * O enquadramento quando ninguém declarou — nem a pessoa, nem o pilar.
+ *
+ * Vertical: o feed do Instagram dá mais altura de tela a 3:4 que a 1:1, e o
+ * pacote precisa dizer alguma coisa a quem vai fazer a arte. Trocável no pilar
+ * e, brief a brief, na tela de edição.
+ */
+const PROPORCAO_PADRAO = "3:4";
+
 /** Tira marcação de um trecho que vai ser embutido noutra frase formatada. */
 function semMarcacao(texto: string): string {
   return texto
@@ -1066,8 +1075,24 @@ export function backendPostgres(
          * noutra tabela. É de lá que o pacote antigo tirava "1:1 (1080x1080)",
          * e sem isso quem faz a arte não sabe o enquadramento.
          */
+        /**
+         * Quem manda no enquadramento, do mais específico ao mais geral.
+         *
+         * O brief primeiro: `aspect_ratio` só existe ali se uma pessoa o
+         * escreveu na edição — a ingestão descarta o que o briefer inventa. A
+         * ordem era inversa, e nos pilares com template a edição não mudava
+         * nada.
+         *
+         * Depois o pilar, que é onde a marca declara o formato. E por último
+         * 3:4, porque três dos seis pilares não têm template e alguma coisa
+         * precisa ir para o pacote — melhor um padrão declarado aqui do que um
+         * palpite diferente a cada brief.
+         */
         const proporcao =
-          formato.proporcao ?? visual.aspect_ratio ?? visual.aspectRatio;
+          visual.aspect_ratio ??
+          visual.aspectRatio ??
+          formato.proporcao ??
+          PROPORCAO_PADRAO;
         const medida = [proporcao, formato.dimensao && `(${formato.dimensao})`]
           .filter(Boolean)
           .join(" ");
