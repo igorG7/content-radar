@@ -414,4 +414,54 @@ Fecha assim.' where id = $1`,
     const { conteudo } = await backendPostgres(ambienteId).exportar(slug);
     expect(conteudo).toContain("sem foto");
   });
+
+  it("editar a copy vira evento, com o que havia antes", async () => {
+    /**
+     * O ledger registrava transição de estado e não mudança de conteúdo, então
+     * o texto que ia ao Instagram podia diferir do que o pipeline escreveu sem
+     * nada dizer. Aconteceu de verdade: o CTA do `2026-W35-001` saiu quebrado
+     * ("se esse caminha pra você"), foi corrigido à mão antes de publicar, e o
+     * histórico não tem uma linha sobre isso.
+     *
+     * O valor anterior é o que responde depois: o agente escreveu isto, ou
+     * fomos nós?
+     */
+    const slug = `${SLUG}-editado`;
+    await semearBrief(slug, "pendente-aprovacao");
+    const store = backendPostgres(ambienteId);
+
+    await store.editarBrief("pendente-aprovacao", slug, {
+      cta: "Fala com a gente no WhatsApp",
+    });
+
+    const [evento] = await noAmbiente(
+      `select e.tipo, e.extra from evento e join brief b on b.id = e.brief_id
+       where b.slug = $1 and e.tipo = 'brief-corrected'`,
+      [slug],
+    );
+    expect(evento).toBeDefined();
+    expect((evento.extra as { campos: string[] }).campos).toEqual(["cta"]);
+    expect((evento.extra as { antes: { cta: string } }).antes.cta).toBe(
+      "Chama no WhatsApp",
+    );
+  });
+
+  it("salvar sem mudar nada não vira evento", async () => {
+    // Abrir o editor e fechar é gesto de interface, não fato editorial. Registrar
+    // encheria o histórico de linhas que não dizem nada.
+    const slug = `${SLUG}-intocado`;
+    await semearBrief(slug, "pendente-aprovacao");
+    const store = backendPostgres(ambienteId);
+
+    await store.editarBrief("pendente-aprovacao", slug, {
+      cta: "Chama no WhatsApp",
+    });
+
+    const linhas = await noAmbiente(
+      `select 1 from evento e join brief b on b.id = e.brief_id
+       where b.slug = $1 and e.tipo = 'brief-corrected'`,
+      [slug],
+    );
+    expect(linhas).toHaveLength(0);
+  });
 });

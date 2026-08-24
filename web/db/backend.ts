@@ -682,6 +682,35 @@ export function backendPostgres(
             "brief não encontrado neste estado",
           );
         }
+        /**
+         * O que o humano reescreveu, antes de sobrescrever.
+         *
+         * Sem isto a edição some: o ledger registrava a transição de estado e
+         * não a mudança de conteúdo, então o texto que foi ao Instagram podia
+         * diferir do que o pipeline escreveu sem nada dizer. Aconteceu no
+         * `2026-W35-001` — o CTA saiu quebrado, foi corrigido à mão, e o
+         * histórico não tem uma linha sobre isso.
+         *
+         * Guardar o valor anterior é o que responde a pergunta que importa
+         * depois: o agente escreveu isto, ou fomos nós? Também é o insumo para
+         * julgar a qualidade do briefer sem depender de memória.
+         */
+        const antes: Record<string, unknown> = {};
+        const comparar = <T>(campo: string, novo: T, velho: T) => {
+          if (
+            novo !== undefined &&
+            JSON.stringify(novo) !== JSON.stringify(velho)
+          ) {
+            antes[campo] = velho;
+          }
+        };
+        comparar("headline", campos.headline, linha.headline);
+        comparar("hook", campos.hook, linha.hook);
+        comparar("caption_draft", campos.caption_draft, linha.captionDraft);
+        comparar("cta", campos.cta, linha.cta);
+        comparar("hashtags", campos.hashtags, linha.hashtags);
+        comparar("review_notes", campos.review_notes, linha.reviewNotes);
+
         await tx
           .update(t.brief)
           .set({
@@ -695,6 +724,18 @@ export function backendPostgres(
             atualizadoEm: new Date(),
           })
           .where(eq(t.brief.id, linha.id));
+
+        // Edição que não mudou nada não vira evento: salvar sem alterar é
+        // gesto de interface, não fato editorial.
+        if (Object.keys(antes).length > 0) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "brief-corrected",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: { campos: Object.keys(antes), antes },
+          });
+        }
       }),
 
     listarBlocos: () =>

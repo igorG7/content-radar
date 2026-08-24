@@ -29,6 +29,7 @@ export const EVENT_TONE: Record<string, string> = {
   published: "ok",
   "handoff-finished": "accent",
   "handoff-reexportado": "",
+  "brief-corrected": "accent",
   "cloudinary-uploaded": "accent",
   "mv-rejected": "danger",
   "mv-reverted": "danger",
