@@ -1681,6 +1681,82 @@ _Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicaç
         await tx.delete(t.conversa).where(eq(t.conversa.id, id));
       }),
 
+    guardarAnexo: ({ conversaId, nome, mime, bytes, conteudo }) =>
+      dentro(async (tx) => {
+        // A conversa é conferida antes: sem isto o erro viria da chave
+        // estrangeira, e o usuário leria uma violação de constraint.
+        const [existe] = await tx
+          .select({ id: t.conversa.id })
+          .from(t.conversa)
+          .where(eq(t.conversa.id, conversaId));
+        if (!existe) {
+          throw new StoreError("nao_encontrado", "conversa não encontrada");
+        }
+
+        const [linha] = await tx
+          .insert(t.anexo)
+          .values({
+            ambienteId: ambiente,
+            conversaId,
+            nome,
+            mime,
+            bytes,
+            conteudo,
+          })
+          .returning();
+
+        return {
+          id: linha.id,
+          nome: linha.nome,
+          mime: linha.mime,
+          bytes: linha.bytes,
+          criadoEm: linha.criadoEm.toISOString(),
+        };
+      }),
+
+    listarAnexos: (conversaId) =>
+      dentro(async (tx) => {
+        // Sem o conteúdo: a lista alimenta a tela, e trazer o texto de todos os
+        // anexos a cada abertura carregaria o que ninguém pediu.
+        const linhas = await tx
+          .select({
+            id: t.anexo.id,
+            nome: t.anexo.nome,
+            mime: t.anexo.mime,
+            bytes: t.anexo.bytes,
+            criadoEm: t.anexo.criadoEm,
+          })
+          .from(t.anexo)
+          .where(eq(t.anexo.conversaId, conversaId))
+          .orderBy(t.anexo.criadoEm);
+
+        return linhas.map((l) => ({
+          ...l,
+          criadoEm: l.criadoEm.toISOString(),
+        }));
+      }),
+
+    lerAnexo: (id) =>
+      dentro(async (tx) => {
+        const [linha] = await tx
+          .select()
+          .from(t.anexo)
+          .where(eq(t.anexo.id, id));
+        // O RLS já garante que só o ambiente dono enxerga; ausente aqui é
+        // ausente de verdade ou de outro cliente, e a resposta é a mesma.
+        if (!linha)
+          throw new StoreError("nao_encontrado", "anexo não encontrado");
+
+        return {
+          id: linha.id,
+          nome: linha.nome,
+          mime: linha.mime,
+          bytes: linha.bytes,
+          criadoEm: linha.criadoEm.toISOString(),
+          conteudo: linha.conteudo,
+        };
+      }),
+
     gravarMensagem: (conversaId, mensagem) =>
       dentro(async (tx) => {
         const [m] = await tx

@@ -42,7 +42,7 @@ export type EventoChat =
  * nunca aparece como argumento: é o que impede a fronteira entre clientes de
  * depender de o modelo se comportar.
  */
-function servidorDeFerramentas(store: RadarStore) {
+function servidorDeFerramentas(store: RadarStore, conversaId?: string) {
   return createSdkMcpServer({
     name: "radar",
     version: "1.0.0",
@@ -63,6 +63,7 @@ function servidorDeFerramentas(store: RadarStore) {
           const dados = await f.executar(
             store,
             args as Record<string, unknown>,
+            { conversaId },
           );
           return {
             content: [{ type: "text", text: JSON.stringify(dados, null, 2) }],
@@ -109,7 +110,7 @@ export async function* conversar(
   sessaoAnterior?: string,
   conversaId?: string,
 ): AsyncGenerator<EventoChat> {
-  const servidor = servidorDeFerramentas(store);
+  const servidor = servidorDeFerramentas(store, conversaId);
   const permitidas = FERRAMENTAS.map((f) => `mcp__radar__${f.nome}`);
 
   let sessaoId: string | null = sessaoAnterior ?? null;

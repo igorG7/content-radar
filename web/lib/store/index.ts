@@ -215,6 +215,15 @@ export interface Vocabulario {
 }
 
 /** Uma conversa do chat, com as mensagens que ela já tem. */
+/** O que a tela e o agente sabem de um anexo, sem carregar o conteúdo. */
+export interface AnexoGuardado {
+  id: string;
+  nome: string;
+  mime: string;
+  bytes: number;
+  criadoEm: string;
+}
+
 export interface Conversa {
   id: string;
   titulo: string;
@@ -374,6 +383,27 @@ export interface RadarStore {
   criarConversa(titulo: string): Promise<Conversa>;
   renomearConversa(id: string, titulo: string): Promise<void>;
   excluirConversa(id: string): Promise<void>;
+
+  /**
+   * Guarda um anexo da conversa. O conteúdo já chega como texto — só formatos
+   * textuais são aceitos, e a decodificação acontece na rota, onde o tipo é
+   * verificado.
+   *
+   * Não tem purga própria: cai com a conversa. Ver `anexo` no esquema.
+   */
+  guardarAnexo(entrada: {
+    conversaId: string;
+    nome: string;
+    mime: string;
+    bytes: number;
+    conteudo: string;
+  }): Promise<AnexoGuardado>;
+
+  /** Os anexos de uma conversa, sem o conteúdo — a lista é para a tela. */
+  listarAnexos(conversaId: string): Promise<AnexoGuardado[]>;
+
+  /** O conteúdo de um anexo. É o que a ferramenta do chat entrega ao agente. */
+  lerAnexo(id: string): Promise<AnexoGuardado & { conteudo: string }>;
 
   /**
    * Grava uma mensagem e devolve o que a tela precisa saber. `sessaoAgente`
@@ -591,6 +621,23 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
 
     async purgarMidia() {
       return { apagados: 0, bytes: 0, preservados: 0 };
+    },
+
+    // O backend de arquivo não guarda conversa, então também não guarda anexo.
+    async guardarAnexo() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda anexo",
+      );
+    },
+    async listarAnexos() {
+      return [];
+    },
+    async lerAnexo() {
+      throw new StoreError(
+        "nao_encontrado",
+        "o backend de arquivo não guarda anexo",
+      );
     },
 
     // O backend de arquivo não mede: não é ele que executa varredura nem chat.

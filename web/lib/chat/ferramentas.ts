@@ -33,6 +33,12 @@ export interface Ferramenta {
   executar(
     store: RadarStore,
     args: Record<string, unknown>,
+    /**
+     * O que a ferramenta sabe sem o modelo dizer. A conversa entra aqui, e não
+     * como parâmetro, pelo mesmo motivo do ambiente: id que o modelo escolhe é
+     * id que o modelo pode trocar.
+     */
+    contexto?: { conversaId?: string },
   ): Promise<Resultado>;
 }
 
@@ -229,6 +235,57 @@ const pedirVarredura: Ferramenta = {
   },
 };
 
+const anexosDaConversa: Ferramenta = {
+  nome: "anexos_da_conversa",
+  descricao:
+    "Os arquivos que a pessoa anexou nesta conversa, com nome e tamanho. Use antes de ler: o conteúdo vem por ler_anexo.",
+  parametros: {},
+  async executar(store, _args, contexto) {
+    if (!contexto?.conversaId) return { anexos: [] };
+    const anexos = await store.listarAnexos(contexto.conversaId);
+    return {
+      anexos: anexos.map((a) => ({
+        nome: a.nome,
+        bytes: a.bytes,
+        enviado_em: a.criadoEm,
+      })),
+    };
+  },
+};
+
+const lerAnexo: Ferramenta = {
+  nome: "ler_anexo",
+  descricao:
+    "O conteúdo de um arquivo anexado nesta conversa, por nome. Só arquivos de texto são aceitos no envio, então o que volta é o texto integral.",
+  parametros: {
+    nome: {
+      tipo: "string",
+      descricao: "Nome do arquivo, como aparece em anexos_da_conversa.",
+      obrigatorio: true,
+    },
+  },
+  async executar(store, args, contexto) {
+    if (!contexto?.conversaId) {
+      return { erro: "esta conversa não tem anexo" };
+    }
+    const procurado = String(args.nome ?? "").trim();
+    const anexos = await store.listarAnexos(contexto.conversaId);
+    const achado = anexos.find((a) => a.nome === procurado);
+
+    if (!achado) {
+      // Devolver a lista junto poupa um segundo turno quando o modelo errou o
+      // nome por pouco — e diz na cara que o arquivo pedido não está aqui.
+      return {
+        erro: `não há anexo chamado "${procurado}" nesta conversa`,
+        disponiveis: anexos.map((a) => a.nome),
+      };
+    }
+
+    const { conteudo, nome, bytes } = await store.lerAnexo(achado.id);
+    return { nome, bytes, conteudo };
+  },
+};
+
 export const FERRAMENTAS: Ferramenta[] = [
   escoposDeBusca,
   vocabulario,
@@ -236,6 +293,8 @@ export const FERRAMENTAS: Ferramenta[] = [
   resumoDaFila,
   varreduraAtual,
   pedirVarredura,
+  anexosDaConversa,
+  lerAnexo,
 ];
 
 export const porNome = (nome: string): Ferramenta | undefined =>

@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/icons";
 import { fmtDate, fmtRelative } from "@/lib/format";
 import {
+  ACCEPT,
+  EXTENSOES,
+  LIMITE_BYTES,
+  MAX_ARQUIVOS,
+  avaliar,
+} from "@/lib/anexos";
+import {
   CHAT_ESFORCOS,
   CHAT_MODELOS,
   gravarEsforco,
@@ -38,16 +45,21 @@ export interface Anexo {
   nome: string;
   tamanho: number;
   mime: string;
-  /** Blob URL local; só existe para imagem. Nada sobe para servidor algum. */
+  /** Blob URL local, para a prévia. Some quando o anexo sai da lista. */
   url: string | null;
+  /**
+   * O arquivo em si, guardado até o envio. Sem ele o chip existia e o conteúdo
+   * ficava no navegador — o anexo aparecia na tela e o agente respondia que não
+   * tinha recebido nada.
+   */
+  arquivo?: File;
 }
 
-const MAX_ARQUIVOS = 5;
-const MAX_MB = 10;
-const TIPOS_OK = /^(image\/(png|jpeg|webp)|application\/(pdf|json)|text\/.*)$/;
-const EXT_OK = /\.(png|jpe?g|webp|pdf|md|txt|csv|ya?ml|json)$/i;
-const ACCEPT =
-  "image/png,image/jpeg,image/webp,application/pdf,.md,.txt,.csv,.yaml,.yml,.json";
+/**
+ * As regras vêm de `lib/anexos`, compartilhadas com a rota. A lista daqui
+ * anunciava PNG, JPEG, WebP e PDF — formatos que nada no caminho sabia ler, e
+ * que faziam a pessoa anexar um PDF para ouvir do agente que não chegou nada.
+ */
 
 const SUGESTOES = [
   "Resuma a fila por pilar",
@@ -290,14 +302,9 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
           recusados.push(`${f.name} — limite de ${MAX_ARQUIVOS} arquivos`);
           continue;
         }
-        if (!TIPOS_OK.test(f.type) && !EXT_OK.test(f.name)) {
-          recusados.push(`${f.name} — tipo não aceito`);
-          continue;
-        }
-        if (f.size > MAX_MB * 1048576) {
-          recusados.push(
-            `${f.name} — ${tamanhoLegivel(f.size)}, acima de ${MAX_MB} MB`,
-          );
+        const recusa = avaliar(f);
+        if (recusa) {
+          recusados.push(`${recusa.nome} — ${recusa.motivo}`);
           continue;
         }
         if (proximo.some((a) => a.nome === f.name && a.tamanho === f.size)) {
@@ -309,7 +316,8 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
           nome: f.name,
           tamanho: f.size,
           mime: f.type || "",
-          url: /^image\//.test(f.type) ? URL.createObjectURL(f) : null,
+          url: null,
+          arquivo: f,
         });
       }
       return proximo;
@@ -524,11 +532,41 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
       mensagens: [...c.mensagens, mensagem],
     }));
 
+    const paraSubir = anexos;
     setAnexos([]);
     setErroAnexo(null);
     setEntrada("");
     if (entradaRef.current) entradaRef.current.style.height = "";
-    void responder(conversa.id, texto);
+
+    /**
+     * Os anexos sobem **antes** da pergunta.
+     *
+     * O agente lê o arquivo por ferramenta, e a ferramenta consulta a conversa:
+     * se a pergunta chegasse primeiro, ele olharia uma conversa ainda sem o
+     * anexo e responderia que não recebeu nada — que é exatamente o que
+     * acontecia quando o arquivo não subia nunca.
+     */
+    void (async () => {
+      for (const anexo of paraSubir) {
+        if (!anexo.arquivo) continue;
+        const form = new FormData();
+        form.append("conversaId", conversa.id);
+        form.append("arquivo", anexo.arquivo);
+        const r = await fetch("/api/anexos", {
+          method: "POST",
+          body: form,
+        }).catch(() => null);
+        if (!r?.ok) {
+          const corpo = await r?.json().catch(() => null);
+          toast({
+            tone: "danger",
+            title: `Anexo não subiu · ${anexo.nome}`,
+            detail: corpo?.error ?? "o agente não vai encontrá-lo",
+          });
+        }
+      }
+      await responder(conversa.id, texto);
+    })();
   }
 
   /* ── teclado e cliques fora ───────────────────────────────────────────── */
@@ -804,7 +842,7 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
                     ? "Espere a resposta terminar."
                     : anexos.length >= MAX_ARQUIVOS
                       ? `Limite de ${MAX_ARQUIVOS} arquivos já atingido.`
-                      : `Até ${MAX_ARQUIVOS} arquivos, ${MAX_MB} MB cada. Arrastar para a conversa também funciona.`}
+                      : `Texto até ${Math.round(LIMITE_BYTES / 1000)} KB — ${EXTENSOES.join(", ")}. Arrastar também funciona.`}
                 </span>
               </button>
               <hr className="menu-sep" />
@@ -975,7 +1013,7 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
           <p className="field-help">
             {pendente
               ? "O agente está respondendo — Parar ou Esc interrompe. O que já chegou fica na conversa."
-              : "Enter envia · Shift+Enter quebra linha. O anexo ainda fica só no navegador: a mensagem vai para o agente, o arquivo não."}
+              : "Enter envia · Shift+Enter quebra linha. Anexo de texto sobe com a mensagem — o agente lê quando precisar."}
           </p>
         </form>
       </section>

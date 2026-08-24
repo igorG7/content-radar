@@ -32,7 +32,7 @@ function inline(texto: string, keyBase: string): ReactNode[] {
 }
 
 function blocos(texto: string, keyBase: string): ReactNode[] {
-  return texto.split("\n\n").flatMap((bloco, bi) => {
+  return texto.split("\n\n").flatMap((bloco, bi): ReactNode[] => {
     const linhas = bloco.split("\n").filter((l) => l.trim());
     if (linhas.length === 0) return [];
     const key = `${keyBase}-${bi}`;

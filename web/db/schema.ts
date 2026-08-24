@@ -711,3 +711,48 @@ export const consumo = pgTable(
     index("consumo_scan_idx").on(t.ambienteId, t.scanId),
   ],
 );
+
+/**
+ * Arquivo que a pessoa anexa a uma conversa do chat.
+ *
+ * O conteúdo mora aqui como **texto**, não em disco. Só formatos textuais são
+ * aceitos por enquanto, e guardar no banco faz o RLS cobrir o anexo pela mesma
+ * porta que cobre o resto — sem caminho a construir, sem travessia de diretório
+ * a defender, sem arquivo órfão quando a linha some. O dia em que entrar
+ * binário, entra uma coluna de caminho ao lado, não no lugar.
+ *
+ * Sem purga própria: o anexo pertence à conversa e cai junto com ela (`on
+ * delete cascade`). Apagá-lo antes deixaria a mensagem "anexou notas.txt" sem
+ * nada atrás, e uma releitura pelo agente falharia no meio da conversa. Ao
+ * contrário da mídia de brief, aqui não há segunda cópia: o que segura o
+ * crescimento é o limite de tamanho, não o expurgo.
+ */
+export const anexo = pgTable(
+  "anexo",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ambienteId: uuid("ambiente_id")
+      .notNull()
+      .references(() => ambiente.id, { onDelete: "cascade" }),
+    conversaId: uuid("conversa_id").notNull(),
+    nome: text("nome").notNull(),
+    mime: text("mime").notNull(),
+    /** Tamanho original em bytes — o que a tela mostra e o limite compara. */
+    bytes: bigint("bytes", { mode: "number" }).notNull(),
+    conteudo: text("conteudo").notNull(),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    politicaAmbiente(t.ambienteId),
+    // Composta com o ambiente, como o resto: sem isso um anexo poderia apontar
+    // para conversa de outro cliente e o banco aceitaria.
+    foreignKey({
+      columns: [t.ambienteId, t.conversaId],
+      foreignColumns: [conversa.ambienteId, conversa.id],
+      name: "anexo_conversa_fk",
+    }).onDelete("cascade"),
+    index("anexo_conversa_idx").on(t.ambienteId, t.conversaId, t.criadoEm),
+  ],
+);
