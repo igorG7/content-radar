@@ -2018,6 +2018,40 @@ a.counter-card:hover {
 .prosa .prosa-titulo {
   margin-top: 24px;
 }
+/*
+ * Tabela na prosa — vale na leitura do vault e dentro da bolha do chat, por
+ * isso sem prefixo de contexto: a mesma gramática rende a mesma aparência nos
+ * dois lugares.
+ */
+.prosa-tabela-rolagem {
+  /* A rolagem é da tabela. Coluna larga não empurra a conversa para o lado. */
+  overflow-x: auto;
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.prosa-tabela {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--fs-xs);
+}
+.prosa-tabela th,
+.prosa-tabela td {
+  padding: 7px 11px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.prosa-tabela thead th {
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  background: var(--surface-2, transparent);
+}
+.prosa-tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .prosa .prosa-lista {
   display: grid;
   gap: 7px;

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { celulas, ehTabela } from "@/lib/view/tabela-markdown";
 
 /**
  * Markdown enxuto — o suficiente para a prosa dos blocos do vault e para as
@@ -44,6 +45,43 @@ function blocos(texto: string, keyBase: string): ReactNode[] {
         ...(linhas.length > 1
           ? blocos(linhas.slice(1).join("\n"), `${key}-r`)
           : []),
+      ];
+    }
+    /**
+     * Tabela — o agente responde com ela sempre que a pergunta é "quais são",
+     * e sem isto o bloco caía no ramo de parágrafo: a pessoa via os pipes
+     * crus, uma linha embaixo da outra, e tinha de ler a grade de cabeça.
+     *
+     * O reconhecimento exige a linha separadora (`|---|---|`), não só pipes:
+     * prosa com barra vertical no meio não vira tabela por acidente.
+     */
+    if (ehTabela(linhas)) {
+      const [cabecalho, , ...corpo] = linhas;
+      return [
+        // A rolagem é da tabela, não da página: coluna larga não pode empurrar
+        // a conversa inteira para o lado.
+        <div className="prosa-tabela-rolagem" key={`${key}-w`}>
+          <table className="prosa-tabela">
+            <thead>
+              <tr>
+                {celulas(cabecalho).map((c, ci) => (
+                  <th key={`${key}-h${ci}`}>{inline(c, `${key}-h${ci}`)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {corpo.map((linha, li) => (
+                <tr key={`${key}-r${li}`}>
+                  {celulas(linha).map((c, ci) => (
+                    <td key={`${key}-r${li}c${ci}`}>
+                      {inline(c, `${key}-r${li}c${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
       ];
     }
     if (linhas.every((l) => /^- /.test(l))) {
