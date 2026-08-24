@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { IconAlert, IconX } from "@/components/ui/icons";
-import { HANDLE_OK, gravarHandle, useHandle } from "@/lib/session";
 import { fmtScore } from "@/lib/format";
 import { componentLabel } from "@/lib/view/brief-view";
 
@@ -66,9 +65,6 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
   const [gravando, setGravando] = useState(false);
 
   // O @ vem do navegador; enquanto ninguém edita, o campo mostra o gravado.
-  const handleSalvo = useHandle();
-  const [handleEditado, setHandleEditado] = useState<string | null>(null);
-  const handle = handleEditado ?? handleSalvo;
 
   const soma = Object.values(draft.weights).reduce((a, b) => a + b, 0);
   const somaOk = Math.abs(soma - 1) < 0.0005;
@@ -102,12 +98,8 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
           `O grupo "${escopo.key}" repete fontes: ${[...new Set(repetidas)].join(", ")}.`,
         );
     }
-    if (!HANDLE_OK.test(handle))
-      out.push(
-        "O @ do Instagram aceita até 30 caracteres entre letras, números, ponto e underscore — sem o “@” e sem espaços.",
-      );
     return out;
-  }, [draft, handle, soma, somaOk]);
+  }, [draft, soma, somaOk]);
 
   const edits = useMemo(() => {
     const lista: {
@@ -210,7 +202,6 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
       });
       return;
     }
-    gravarHandle(handle);
 
     if (edits.length === 0) {
       toast({
@@ -305,51 +296,6 @@ export function ConfigClient({ inicial }: { inicial: ConfigInicial }) {
                   Alvo de geração, não cadência de publicação. A varredura não
                   para ao atingir.
                 </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="panel">
-            <div className="panel-head">
-              <h2 className="h3">Perfil que publica</h2>
-              <span className="meta">fica só neste navegador</span>
-            </div>
-            <div className="panel-body">
-              <div
-                className={`field ${HANDLE_OK.test(handle) ? "" : "field-invalid"}`}
-                style={{ maxWidth: 320 }}
-              >
-                <label htmlFor="handle">@ do Instagram</label>
-                <div className="input-prefixed">
-                  <span aria-hidden="true">@</span>
-                  <input
-                    className="input"
-                    id="handle"
-                    value={handle}
-                    autoComplete="off"
-                    spellCheck={false}
-                    maxLength={30}
-                    onChange={(event) =>
-                      setHandleEditado(
-                        event.target.value
-                          .trim()
-                          .replace(/^@+/, "")
-                          .toLowerCase(),
-                      )
-                    }
-                  />
-                </div>
-                {HANDLE_OK.test(handle) ? (
-                  <p className="field-help">
-                    Usado no cabeçalho e na legenda da prévia do post, em todas
-                    as telas. Fica no navegador, não na conta.
-                  </p>
-                ) : (
-                  <p className="field-error">
-                    Letras, números, ponto e underscore — até 30 caracteres, sem
-                    o “@”.
-                  </p>
-                )}
               </div>
             </div>
           </section>

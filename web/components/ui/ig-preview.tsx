@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useHandle } from "@/lib/session";
 import { IconBubble, IconHeart, IconImage, IconSend } from "./icons";
 
 /** Onde o Instagram corta a legenda no feed. */
+/** Quando o cliente ainda não disse o @ dele. */
+export const HANDLE_PADRAO = "suamarca";
+
 export const IG_CUT = 125;
 
 /**
@@ -30,13 +32,19 @@ export function IgPreview({
   hashtags,
   aspectRatio,
   legenda,
+  handle,
 }: {
   caption: string;
   hashtags: string[];
   aspectRatio: string;
   legenda?: string;
+  /**
+   * O @ da empresa, vindo do servidor. Saía do `localStorage`, então cada
+   * navegador via um valor diferente e o de quem nunca configurou era
+   * "suamarca" — na prévia do feed de um cliente real.
+   */
+  handle: string;
 }) {
-  const handle = useHandle();
   const [aberta, setAberta] = useState(false);
 
   const flat = (caption || "—").replace(/\n+/g, " ");

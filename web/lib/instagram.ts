@@ -18,3 +18,12 @@ export const URL_DE_POST =
 export function ehUrlDePost(valor: string): boolean {
   return URL_DE_POST.test(valor.trim());
 }
+
+/**
+ * O @ de um perfil, sem a arroba.
+ *
+ * Mesma regra do Instagram: letras, números, ponto e sublinhado, até 30. Fica
+ * aqui, ao lado da URL de post, porque as duas coisas são "o que o Instagram
+ * aceita" — e porque a validação precisa valer na tela e na ação do servidor.
+ */
+export const HANDLE_OK = /^[a-z0-9._]{1,30}$/;

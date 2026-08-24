@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BriefEditorClient } from "@/components/brief-editor-client";
+import { HANDLE_PADRAO } from "@/components/ui/ig-preview";
 import { EmptyState } from "@/components/ui/pieces";
 import type { BriefState } from "@/lib/manifest";
 import { radarStore } from "@/lib/store";
@@ -44,13 +45,17 @@ export default async function EditarBrief({
   }
 
   const store = await radarStore();
-  const [manifest, encontrado] = await Promise.all([
+  const [manifest, encontrado, contato] = await Promise.all([
     store.manifest(),
     store.buscarBrief(slug, state).catch(() => null),
+    store.contato(),
   ]);
   if (!encontrado) notFound();
 
   return (
-    <BriefEditorClient brief={toBriefView(encontrado, scoringOf(manifest))} />
+    <BriefEditorClient
+      handle={contato?.instagram ?? HANDLE_PADRAO}
+      brief={toBriefView(encontrado, scoringOf(manifest))}
+    />
   );
 }

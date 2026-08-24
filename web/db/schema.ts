@@ -270,6 +270,14 @@ export const marca = pgTable(
       .primaryKey()
       .references(() => ambiente.id, { onDelete: "cascade" }),
     canalPrincipal: text("canal_principal").notNull(),
+    /**
+     * O @ do Instagram da empresa — sem arroba, como o Instagram guarda.
+     *
+     * Estava no `localStorage`, de onde alimentava a prévia do feed: cada
+     * navegador via um valor diferente, e num produto de um cliente só isso
+     * passava. Com dois, o @ é dado do cliente como o telefone ao lado.
+     */
+    instagram: text("instagram"),
     telefoneExibicao: text("telefone_exibicao"),
     telefoneE164: text("telefone_e164"),
     telefoneSecundarioE164: text("telefone_secundario_e164"),

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { radarStore } from "@/lib/store";
+import { HANDLE_OK } from "@/lib/instagram";
 
 export interface EstadoGravacao {
   erro?: string;
@@ -68,8 +69,19 @@ export async function gravarContatoAcao(
   const canal = String(dados.get("canalPrincipal") ?? "").trim();
   const principal = String(dados.get("telefoneE164") ?? "").trim();
   const secundario = String(dados.get("telefoneSecundarioE164") ?? "").trim();
+  // Sem arroba e em minúsculas, como o Instagram guarda. Quem digita costuma
+  // colar o @ junto, e guardá-lo faria a prévia mostrar "@@marca".
+  const instagram = String(dados.get("instagram") ?? "")
+    .trim()
+    .replace(/^@+/, "")
+    .toLowerCase();
 
   if (!canal) return { erro: "escolha o canal principal" };
+  if (instagram && !HANDLE_OK.test(instagram)) {
+    return {
+      erro: "o @ do Instagram aceita letras, números, ponto e sublinhado",
+    };
+  }
   if (!E164.test(principal)) {
     return {
       erro: "o número principal precisa estar em formato internacional",
@@ -83,6 +95,7 @@ export async function gravarContatoAcao(
     const store = await radarStore();
     await store.gravarContato({
       canalPrincipal: canal,
+      instagram: instagram || null,
       telefoneE164: principal,
       telefoneExibicao: exibicaoDe(principal),
       telefoneSecundarioE164: secundario || null,

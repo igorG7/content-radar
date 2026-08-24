@@ -1,5 +1,7 @@
 "use client";
 
+import { HANDLE_OK } from "@/lib/instagram";
+
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Crumb } from "@/components/ui/pieces";
@@ -19,6 +21,7 @@ import {
 
 export interface Contato {
   canalPrincipal: string;
+  instagram: string | null;
   telefoneExibicao: string | null;
   telefoneE164: string | null;
   telefoneSecundarioE164: string | null;
@@ -44,6 +47,7 @@ export function CampoContato({ atual }: { atual: Contato | null }) {
   );
 
   const [canal, setCanal] = useState(atual?.canalPrincipal ?? "WhatsApp");
+  const [instagram, setInstagram] = useState(atual?.instagram ?? "");
   const [principal, setPrincipal] = useState(atual?.telefoneE164 ?? "");
   const [secundario, setSecundario] = useState(
     atual?.telefoneSecundarioE164 ?? "",
@@ -97,6 +101,27 @@ export function CampoContato({ atual }: { atual: Contato | null }) {
               <p className="field-help">
                 Para onde todo CTA aponta. Trocar aqui muda o destino de todo
                 post gerado a partir do próximo scan.
+              </p>
+            </div>
+
+            <div
+              className={`field ${instagram && !HANDLE_OK.test(instagram) ? "field-invalid" : ""}`}
+            >
+              <label htmlFor="instagram">@ do Instagram</label>
+              <input
+                className="input"
+                id="instagram"
+                name="instagram"
+                placeholder="avanzimoveis"
+                spellCheck={false}
+                value={instagram}
+                onChange={(e) =>
+                  setInstagram(e.target.value.replace(/^@+/, "").toLowerCase())
+                }
+              />
+              <p className="field-help">
+                Sem arroba. Aparece na prévia do feed, imitando o perfil da
+                empresa — antes ficava no navegador, então cada máquina via um.
               </p>
             </div>
 

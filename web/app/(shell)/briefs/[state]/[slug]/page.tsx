@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BriefActions } from "@/components/brief-actions";
-import { IgPreview, IG_CUT } from "@/components/ui/ig-preview";
+import { IgPreview, IG_CUT, HANDLE_PADRAO } from "@/components/ui/ig-preview";
 import { MediaTile } from "@/components/ui/media";
 import { ScoreBar } from "@/components/ui/score-bar";
 import { Counter, Crumb, LIMITES, StatePill } from "@/components/ui/pieces";
@@ -60,9 +60,10 @@ export default async function DetalheDoBrief({
   if (!isBriefState(state)) notFound();
 
   const store = await radarStore();
-  const [manifest, ledger] = await Promise.all([
+  const [manifest, ledger, contato] = await Promise.all([
     store.manifest(),
     store.lerLedger(),
+    store.contato(),
   ]);
   const scoring = scoringOf(manifest);
 
@@ -588,6 +589,7 @@ export default async function DetalheDoBrief({
               style={{ display: "grid", justifyItems: "center" }}
             >
               <IgPreview
+                handle={contato?.instagram ?? HANDLE_PADRAO}
                 caption={brief.caption}
                 hashtags={brief.hashtags}
                 aspectRatio={brief.visualBrief.aspectRatio}

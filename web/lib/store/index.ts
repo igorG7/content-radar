@@ -99,6 +99,8 @@ export interface Configuracao {
 
 export interface Contato {
   canalPrincipal: string;
+  /** O @ do Instagram da empresa, sem arroba. Alimenta a prévia do feed. */
+  instagram: string | null;
   telefoneExibicao: string | null;
   telefoneE164: string | null;
   telefoneSecundarioE164: string | null;
@@ -728,6 +730,7 @@ function backendArquivo(ambiente: AmbienteId): RadarStore {
       return f
         ? {
             canalPrincipal: f.main_channel ?? "WhatsApp",
+            instagram: f.instagram ?? null,
             telefoneExibicao: f.phone_display ?? null,
             telefoneE164: f.phone_e164 ?? null,
             telefoneSecundarioE164: f.phone_secondary_e164 ?? null,

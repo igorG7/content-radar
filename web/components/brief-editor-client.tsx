@@ -124,7 +124,14 @@ function ListEditor({
   );
 }
 
-export function BriefEditorClient({ brief }: { brief: BriefView }) {
+export function BriefEditorClient({
+  brief,
+  handle,
+}: {
+  brief: BriefView;
+  /** O @ da empresa, do servidor — a prévia imita o perfil dela. */
+  handle: string;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft>(() => draftDe(brief));
@@ -583,6 +590,7 @@ export function BriefEditorClient({ brief }: { brief: BriefView }) {
               style={{ display: "grid", justifyItems: "center" }}
             >
               <IgPreview
+                handle={handle}
                 caption={draft.caption}
                 hashtags={draft.hashtags}
                 aspectRatio={draft.aspectRatio}

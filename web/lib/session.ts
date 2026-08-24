@@ -2,7 +2,6 @@
 
 import { setLocal, useLocal } from "./use-local";
 
-const HANDLE_KEY = "radar-ig-handle";
 const NOME_KEY = "radar-perfil-nome";
 const MODELO_KEY = "radar-chat-modelo";
 const ESFORCO_KEY = "radar-chat-esforco";
@@ -16,9 +15,9 @@ const ESFORCO_KEY = "radar-chat-esforco";
  * ser — há cookie assinado, argon2 e 401 nas rotas —, mas a tela continuou
  * exibindo o e-mail fictício para quem tinha acabado de entrar com o seu.
  *
- * O que sobra aqui é preferência de máquina: modelo e esforço do chat. O nome
- * de exibição e o @ do Instagram estão de passagem — o primeiro pertence ao
- * usuário, o segundo ao ambiente.
+ * O que sobra aqui é preferência de máquina: modelo e esforço do chat. O nome de
+ * exibição está de passagem: pertence ao usuário. O @ do Instagram já saiu —
+ * mora em `marca`, ao lado do telefone.
  */
 
 /**
@@ -40,16 +39,6 @@ export function gravarNome(nome: string): void {
 }
 
 /** O @ que aparece no cabeçalho da prévia do post. O manifest não guarda isso. */
-export const HANDLE_PADRAO = "suamarca";
-export const HANDLE_OK = /^[a-z0-9._]{1,30}$/;
-
-export function useHandle(): string {
-  return useLocal<string>(HANDLE_KEY, HANDLE_PADRAO);
-}
-
-export function gravarHandle(handle: string): void {
-  setLocal(HANDLE_KEY, handle);
-}
 
 /**
  * Modelo e esforço do chat. Ficam aqui porque o chat escolhe e o perfil

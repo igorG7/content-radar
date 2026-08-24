@@ -914,6 +914,7 @@ export function backendPostgres(
         return linha
           ? {
               canalPrincipal: linha.canalPrincipal,
+              instagram: linha.instagram,
               telefoneExibicao: linha.telefoneExibicao,
               telefoneE164: linha.telefoneE164,
               telefoneSecundarioE164: linha.telefoneSecundarioE164,
