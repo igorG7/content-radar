@@ -23,7 +23,7 @@ import {
   EXTENSOES,
   LIMITE_BYTES,
   MAX_ARQUIVOS,
-  avaliar,
+  acrescentar,
 } from "@/lib/anexos";
 import {
   CHAT_ESFORCOS,
@@ -293,38 +293,20 @@ export function ChatClient({ agoraIso }: { agoraIso: string }) {
   );
 
   /* ── anexos ───────────────────────────────────────────────────────────── */
-  const adicionar = useCallback((arquivos: FileList | File[]) => {
-    const recusados: string[] = [];
-    setAnexos((atual) => {
-      const proximo = [...atual];
-      for (const f of Array.from(arquivos)) {
-        if (proximo.length >= MAX_ARQUIVOS) {
-          recusados.push(`${f.name} — limite de ${MAX_ARQUIVOS} arquivos`);
-          continue;
-        }
-        const recusa = avaliar(f);
-        if (recusa) {
-          recusados.push(`${recusa.nome} — ${recusa.motivo}`);
-          continue;
-        }
-        if (proximo.some((a) => a.nome === f.name && a.tamanho === f.size)) {
-          recusados.push(`${f.name} — já anexado`);
-          continue;
-        }
-        proximo.push({
-          id: `${f.name}-${f.size}-${proximo.length}`,
-          nome: f.name,
-          tamanho: f.size,
-          mime: f.type || "",
-          url: null,
-          arquivo: f,
-        });
-      }
-      return proximo;
-    });
-    // Recusa nomeia arquivo e motivo: "não deu" não diz o que corrigir.
-    setErroAnexo(recusados.length ? recusados.join(" · ") : null);
-  }, []);
+  const adicionar = useCallback(
+    (arquivos: FileList | File[]) => {
+      // A decisão vive em `lib/anexos`, fora do componente: aqui ela era tomada
+      // dentro do updater do estado e lida fora dele, e as recusas nunca chegavam
+      // à tela.
+      const { anexos: proximos, recusados } = acrescentar(
+        anexos,
+        Array.from(arquivos),
+      );
+      setAnexos(proximos);
+      setErroAnexo(recusados.length ? recusados.join(" · ") : null);
+    },
+    [anexos],
+  );
 
   /* ── enviar, responder, interromper ───────────────────────────────────── */
 

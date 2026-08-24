@@ -44,7 +44,10 @@ export type Recusa = { nome: string; motivo: string };
  * `application/octet-stream` ou vazio. A extensão é o critério, e o tipo entra
  * só como reforço quando existe.
  */
-export function avaliar(arquivo: { name: string; size: number }): Recusa | null {
+export function avaliar(arquivo: {
+  name: string;
+  size: number;
+}): Recusa | null {
   const nome = arquivo.name.toLowerCase();
   if (!EXTENSOES.some((e) => nome.endsWith(e))) {
     return {
@@ -62,4 +65,59 @@ export function avaliar(arquivo: { name: string; size: number }): Recusa | null 
     return { nome: arquivo.name, motivo: "arquivo vazio" };
   }
   return null;
+}
+
+/** O anexo enquanto ainda está no navegador, antes de subir. */
+export interface AnexoLocal {
+  id: string;
+  nome: string;
+  tamanho: number;
+  mime: string;
+  url: string | null;
+  arquivo?: File;
+}
+
+/**
+ * Decide o que entra na lista e o que é recusado, de uma vez.
+ *
+ * Ficava dentro do componente, com as recusas sendo colhidas **dentro** do
+ * updater do `setState` e lidas **fora** dele — e o React só roda o updater
+ * depois. A lista de recusas estava sempre vazia na hora de exibir, então
+ * arquivo rejeitado sumia sem chip e sem motivo: a tela não dizia nada, e
+ * "não anexou" era tudo que dava para saber.
+ *
+ * Função pura resolve a ordem e, de quebra, fica testável sem navegador.
+ */
+export function acrescentar(
+  atual: AnexoLocal[],
+  arquivos: File[],
+): { anexos: AnexoLocal[]; recusados: string[] } {
+  const anexos = [...atual];
+  const recusados: string[] = [];
+
+  for (const f of arquivos) {
+    if (anexos.length >= MAX_ARQUIVOS) {
+      recusados.push(`${f.name} — limite de ${MAX_ARQUIVOS} arquivos`);
+      continue;
+    }
+    const recusa = avaliar(f);
+    if (recusa) {
+      recusados.push(`${recusa.nome} — ${recusa.motivo}`);
+      continue;
+    }
+    if (anexos.some((a) => a.nome === f.name && a.tamanho === f.size)) {
+      recusados.push(`${f.name} — já anexado`);
+      continue;
+    }
+    anexos.push({
+      id: `${f.name}-${f.size}-${anexos.length}`,
+      nome: f.name,
+      tamanho: f.size,
+      mime: f.type || "",
+      url: null,
+      arquivo: f,
+    });
+  }
+
+  return { anexos, recusados };
 }
