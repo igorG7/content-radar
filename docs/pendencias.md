@@ -172,6 +172,18 @@ de execução.
 
 ## Soltas
 
+- **O trabalhador não recarrega código.** Roda sob pm2 com `tsx`, então
+  correção em `db/**` só passa a valer depois de `pm2 restart
+  radar-trabalhador`. Já custou duas vezes: uma varredura rodou sem a
+  telemetria recém-escrita, outra sem as correções de ingestão.
+
+  A definição dos subagentes **não** tem esse problema — o workspace é
+  materializado a cada execução, então `.claude/agents/` vale na hora. Saber
+  qual das duas metades mudou é o que decide se precisa reiniciar.
+
+  Vale um aviso automático: comparar o commit do processo com o HEAD antes de
+  enfileirar. Enquanto não existir, é lembrar.
+
 - **`positioning.md` do vault da Avanz** cita `brand.json#/target_audience`
   como fonte de quatro perfis de ICP; o arquivo tem três. Fora deste
   repositório, e **não vamos alterar** — é espaço de trabalho do cliente. A
