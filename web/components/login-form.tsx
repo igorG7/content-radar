@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useActionState, useState } from "react";
 import { entrarAcao, type EstadoLogin } from "@/app/login/acoes";
 
-function Form() {
+function Form({ aberto }: { aberto: boolean }) {
   const params = useSearchParams();
   const destino = params.get("next") ?? "/";
 
@@ -102,16 +102,24 @@ function Form() {
       </div>
 
       <p className="auth-foot meta">
-        Ainda não tem conta? <Link href="/cadastro">Criar uma</Link>
+        {aberto ? (
+          <>
+            Ainda não tem conta? <Link href="/cadastro">Criar uma</Link>
+          </>
+        ) : (
+          // Sem link para uma tela que responde 404. O convite explica como se
+          // entra sem prometer um caminho que não existe.
+          "content-radar · acesso por convite"
+        )}
       </p>
     </div>
   );
 }
 
-export function LoginForm() {
+export function LoginForm({ cadastroAberto }: { cadastroAberto: boolean }) {
   return (
     <Suspense>
-      <Form />
+      <Form aberto={cadastroAberto} />
     </Suspense>
   );
 }

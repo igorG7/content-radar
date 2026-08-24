@@ -3,6 +3,16 @@
 import { redirect } from "next/navigation";
 import { cadastrar } from "@/lib/cadastro";
 import { autenticar } from "@/lib/sessao";
+import { cadastroAberto } from "@/lib/cadastro-aberto";
+import { headers } from "next/headers";
+import { tentar } from "@/lib/limite";
+
+/**
+ * Bem mais apertado que o login: criar conta é operação rara, e cada uma custa
+ * um argon2 mais um ambiente inteiro no banco — vault, config, o conjunto todo.
+ * Três por hora por origem é generoso para quem erra o formulário.
+ */
+const POR_ORIGEM = { max: 3, janelaMs: 3_600_000 };
 
 export interface EstadoCadastro {
   erro?: string;
@@ -12,6 +22,23 @@ export async function cadastrarAcao(
   _anterior: EstadoCadastro,
   dados: FormData,
 ): Promise<EstadoCadastro> {
+  /**
+   * Conferido aqui também. Esconder a página não fecha o cadastro: ação de
+   * servidor é endereçável por conta própria, e proteger só a tela protege
+   * apenas quem passa por ela.
+   */
+  if (!cadastroAberto()) return { erro: "o cadastro está fechado" };
+
+  const h = await headers();
+  const origem =
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip") ||
+    "desconhecida";
+  const permitido = tentar(`cadastro:${origem}`, POR_ORIGEM);
+  if (!permitido.ok) {
+    return { erro: "muitas contas criadas daqui — tente mais tarde" };
+  }
+
   const r = await cadastrar({
     nome: String(dados.get("nome") ?? ""),
     email: String(dados.get("email") ?? ""),
