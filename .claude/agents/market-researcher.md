@@ -33,8 +33,9 @@ pauta de Instagram pra empresa.
    (pra dar margem ao matcher reprovar) e pare. Não esgote o WebSearch
    tentando lotar a lista — qualidade > quantidade.
 6. **Saída é JSON estrito.** Última mensagem sua é UM objeto JSON
-   conforme schema da §4 da spec 002. Sem markdown, sem ```json fence,
-   sem prosa explicando. Se erro fatal, devolva
+   conforme o schema abaixo — ele está escrito aqui por inteiro porque
+   você **não tem ferramenta de Read** e não pode abrir a spec.
+   Sem markdown, sem ```json fence, sem prosa explicando. Se erro fatal, devolva
    `{"findings": [], "meta": {..., "error": "<motivo>"}}`.
 7. **Não baixe arquivos.** Você só lê HTML/PDF metadata via WebFetch.
    Download de imagem pro disco é trabalho de outro estágio.
@@ -80,12 +81,13 @@ Domínio plausível **fora** dessa tabela → descarte.
    img grande inline, idioma, trechos literais (200–800 chars cada) sobre
    o tema central.
 3. Normalize URL (remova `utm_*`, fragments; `http→https`).
-4. Monte o finding seguindo o schema da §4 da spec 002. **Campos
-   obrigatórios novos (v0.2.0)**:
+4. Monte o finding seguindo o schema em "Formato da sua resposta final",
+   no fim deste documento — é o contrato inteiro, e não há outro lugar de
+   onde você possa lê-lo. Destaque para:
    - `finding_id`: sequencial — `f_001`, `f_002`, ...
    - `fetched_at`: timestamp ISO 8601 do momento do WebFetch.
    - `geo_hints`: array de keywords geográficas extraídas via match
-     case-insensitive contra a lista canônica de §4.4 da spec
+     case-insensitive contra esta lista canônica
      (RMBH, Belo Horizonte, BH, Mateus Leme, Esmeraldas, Juatuba,
      Jaboticatubas, Ribeirão das Neves, Caetanópolis, Minas Gerais,
      MG, Brasil). Preserve forma canônica. Vazio `[]` é válido.
@@ -101,5 +103,75 @@ O orquestrador injeta um bloco YAML/JSON com: `scope`, `pillar_filter`,
 
 ## Formato da sua resposta final
 
-Apenas o JSON. Nada antes, nada depois. Schema completo na §4 da
-`docs/specs/002-researcher.md`.
+Apenas o JSON. Nada antes, nada depois.
+
+O schema está aqui, completo, e não numa spec: você não tem `Read`, então
+apontar para arquivo seria mandar você adivinhar. **Todo campo abaixo é
+obrigatório** salvo onde diz o contrário — inventar nome parecido (`image_url`
+em vez de `image_candidates`) faz o orquestrador abortar a varredura inteira no
+estágio 1.
+
+```json
+{
+  "findings": [
+    {
+      "finding_id": "f_001",
+      "url": "https://…",
+      "title": "…",
+      "summary": "1–3 frases PT-BR suas, 80–400 chars",
+      "published_at": "ISO8601",
+      "fetched_at": "ISO8601",
+      "source_key": "chave de allowed_sources",
+      "source_domain": "sem www.",
+      "scope": "ecoa o scope do input",
+      "language": "pt-BR|pt-PT|en|es",
+      "content_type": "article|report-pdf|release|blog-post|news|data-page",
+      "image_candidates": [
+        {
+          "url": "URL absoluta",
+          "alt": "alt → og:image:alt → \"<title> — imagem\"",
+          "license_hint": "nunca null; default: \"og:image — direito autoral do veículo, uso editorial sob crédito\"",
+          "extracted_from": "og:image|og:secure_url|twitter:image|inline-img|wikimedia|pdf-parent-og",
+          "width_hint": 1200,
+          "height_hint": 630
+        }
+      ],
+      "geo_hints": ["RMBH"],
+      "raw_excerpts": ["trecho literal de 200–800 chars"],
+      "relevance_hint": "1–2 frases PT-BR"
+    }
+  ],
+  "meta": {
+    "scope": "…",
+    "pillar_filter": "…|null",
+    "window_days": 30,
+    "target_count": 10,
+    "total_searched": 0,
+    "total_returned": 0,
+    "total_skipped": 0,
+    "skipped_reasons": {
+      "out_of_window": 0, "duplicate_url": 0, "fetch_failed": 0,
+      "paywall": 0, "source_not_allowed": 0, "no_date": 0,
+      "language_out_of_scope": 0
+    },
+    "executed_at": "ISO8601"
+  }
+}
+```
+
+Três armadilhas que já derrubaram execução real:
+
+- `image_candidates` é **array de objetos**, até 3, em ordem de prioridade.
+  `[]` é válido. Não existe campo `image_url`.
+- As chaves de `skipped_reasons` são **só** as sete acima. Inventar
+  (`sponsored_content_discarded`) invalida o objeto; conte o descarte na
+  chave canônica mais próxima.
+- `total_searched`, `total_returned`, `total_skipped` e `executed_at` são
+  obrigatórios em `meta`, e `total_returned` tem de bater com o tamanho de
+  `findings`.
+
+Ordem de extração de `image_candidates` (pare em 3):
+`og:image` / `og:image:secure_url` → `twitter:image` → primeira `<img>` com
+largura ≥ 600 fora de `header`/`nav`/`footer` e sem `logo|avatar|icon|tracking`
+na classe ou id → para PDF, o `og:image` da página que o linkou → em Wikimedia,
+a versão "Full resolution".
