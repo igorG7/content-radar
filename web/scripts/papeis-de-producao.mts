@@ -184,8 +184,10 @@ CLOUDINARY_FOLDER=content-radar/avanz
     `\nEscritos, os dois em 600:\n` +
       `  ${SQL}   (senhas — apague depois de rodar)\n` +
       `  ${ENV}\n\n` +
-      `1. Provisione os papéis:\n\n` +
-      `     sudo -u postgres psql -v ON_ERROR_STOP=1 -f ${SQL}\n\n` +
+      `1. Provisione os papéis. Por stdin, e não com -f: o arquivo é 600 e seu,\n` +
+      `   e o psql roda como postgres — quem lê é o seu shell, e o segredo não\n` +
+      `   precisa ficar legível para outra conta:\n\n` +
+      `     sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL}\n\n` +
       `2. Migre — dev primeiro, que é onde um erro é barato, depois o teste:\n\n` +
       `     node --env-file=.env.local    node_modules/.bin/tsx scripts/migrar.mts\n` +
       `     node --env-file=.env.producao node_modules/.bin/tsx scripts/migrar.mts\n` +
