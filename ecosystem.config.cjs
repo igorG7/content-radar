@@ -6,10 +6,15 @@
  *   pm2 logs radar-trabalhador
  *   pm2 save            # grava a lista para o serviço restaurar no boot
  *
- * Só o trabalhador está aqui. O app web ainda roda em `next dev`, que é modo de
- * desenvolvimento — recompila a cada requisição e não serve usuário real. Pô-lo
- * de pé exige `next build` + `next start` atrás de nginx, que é a conversa de
- * deploy, ainda sem decisão.
+ * Os dois processos servem **produção**, contra `radar_prod`. Desenvolvimento
+ * roda fora do pm2: `npm run dev` para a app, e o trabalhador à mão quando for
+ * preciso testar uma varredura —
+ *
+ *   node --env-file=web/.env.local --conditions=react-server \
+ *     web/node_modules/.bin/tsx web/scripts/trabalhador.mts
+ *
+ * Um trabalhador só de cada vez, de propósito: dois processos disputariam a
+ * mesma credencial da Anthropic, e uma varredura custa de US$ 5 a 7.
  */
 
 module.exports = {
@@ -33,7 +38,12 @@ module.exports = {
        * resolve para um módulo vazio. Sem a flag o processo morre na primeira
        * importação — e o pm2 o reiniciaria em laço.
        */
-      interpreter_args: "--conditions=react-server --env-file=web/.env.local",
+      /**
+       * `--env-file` e não o `env` abaixo: as credenciais de produção ficam no
+       * arquivo 600, fora do git e fora da listagem do `pm2 show`, que imprime
+       * o `env` inteiro para quem tiver acesso ao pm2.
+       */
+      interpreter_args: "--conditions=react-server --env-file=web/.env.producao",
 
       /**
        * O `cwd` é a raiz do radar, mas o app calcula `RADAR_ROOT` como o pai do
@@ -68,6 +78,42 @@ module.exports = {
       max_restarts: 5,
       min_uptime: "60s",
       restart_delay: 10_000,
+    },
+
+    {
+      name: "radar-web",
+      /**
+       * Exige `npx next build` antes — `next start` serve o que está em
+       * `.next/` e recusa subir sem build. Não é `next dev`: aquele recompila a
+       * cada requisição, o que é ótimo para editar e não serve usuário.
+       */
+      script: "node_modules/next/dist/bin/next",
+      args: "start -p 5200 -H 127.0.0.1",
+      cwd: "/srv/apps/content-radar/web",
+      exec_mode: "fork",
+
+      /**
+       * `-H 127.0.0.1` acima: a app escuta só no loopback. Quem expõe é o
+       * nginx. Sem isso ela atende direto na rede, na porta 5200, sem TLS e
+       * sem nada na frente.
+       *
+       * O `--env-file` é o que faz a app falar com `radar_prod`. O Next carrega
+       * `.env.local` sozinho, inclusive em produção; a ordem dele põe
+       * `process.env` em primeiro lugar, e é por ali que o `--env-file` entra.
+       * Sem esta linha, a app de produção sobe contra o banco de
+       * desenvolvimento — sem erro nenhum, servindo os dados errados.
+       */
+      interpreter_args: "--env-file=.env.producao",
+
+      instances: 1,
+      autorestart: true,
+
+      /** Requisição HTTP é curta; não há trabalho longo a preservar aqui. */
+      kill_timeout: 10_000,
+
+      max_restarts: 10,
+      min_uptime: "30s",
+      restart_delay: 5_000,
     },
   ],
 };
