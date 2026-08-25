@@ -659,7 +659,7 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 | K | Manter `briefs/rejeitado/` | ✅ Sim; sem mídia |
 | L | `store/media/` no git | ✅ **Gitignored + integração Cloudinary** — Cloudinary fonte da verdade após upload; local é cache |
 | M | Estratégia de integração com Open Design | ✅ **Opção 1** (package handoff) no 1º slice; **Opção 2** vira spec 010; **Opção 3** vira spec 012 (com endpoint `/api/chat` mapeado em `INTEGRACAO-OPEN-DESIGN.md`) |
-| N | Conta Cloudinary | ✅ Conta nova dedicada Avanz — owner provisiona, repassa credenciais via `.local/cloudinary.env` |
+| N | Conta Cloudinary | ✅ Conta nova dedicada Avanz — owner provisiona, repassa credenciais — **superado em 2026-08-25**: as chaves vivem no `.env` de cada instalação |
 | O | `metadata.baseDir` do projeto Avanz no Open Design (`00da0d59-836a-432f-8d78-23aa75b44115`) | ✅ **Deferido pra spec 010** — mantém como está (não setado → cwd cai em `PROJECTS_DIR/<id>/`). Não bloqueia o 1º slice (opção 1 = package handoff manual). Decisão final entra junto da spec 010, quando o contexto da skill custom `avanz-instagram-post` estiver concreto. |
 | P | **Agregadores nas allowlists** (ex: `portas.com.br` republicando release ABRAINC) | ✅ **Aceitar secundárias**, mas priorizar primárias via `source_key` canônico + marcar repasses no `relevance_hint`. Researcher (spec 002) marca como repasse quando consegue inferir a fonte original; matcher (spec 003) usa `source_key` canônico para dedup intra-batch e dá menor peso a republicações. |
 | Q | `handoff_at` ausente no `radar-mark-published` ([spec 008](./008-mark-published.md#21-por-que-handoff_at--null-é-só-warning-e-não-erro)) | ✅ **Warning + prossegue** (não bloqueia) — publicação é asserção humana, prevalece sobre instrumentação interna. Resolvido 2026-06-10. |
@@ -692,8 +692,11 @@ _(nenhuma — A–P resolvidas em 2026-05-27; Q–U em 2026-06-10 junto das spec
    [link](./007-handoff.md)) — fecha a última peça do 1º slice;
    inclui `--placeholder-mode` pra rodar sem credenciais Cloudinary.
 7. **Owner provisiona conta Cloudinary** dedicada Avanz + repassa credenciais
-   pra `.local/cloudinary.env` (resposta N) — **não bloqueia mais a
-   implementação** (modo placeholder destrava); destrava upload real.
+   (resposta N) — **não bloqueia mais a implementação** (modo placeholder
+   destrava); destrava upload real.
+   > Feito. E o destino das chaves mudou em 2026-08-25: elas vivem no `.env` de
+   > cada instalação, não em `.local/cloudinary.env`. O que separa dev de
+   > produção na mesma conta é `CLOUDINARY_FOLDER`, que prefixa o `public_id`.
 8. **Implementação do 1º slice** contra specs 002–005 + 007 (pode começar
    já em modo placeholder).
 9. **Critério §10 atendido** → specs 006 (review), 008 (mark-published),

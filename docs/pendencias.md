@@ -1,7 +1,6 @@
 # Pendências
 
-> Estado em 2026-08-23, com o histórico até `68042e7`. Ordenado por quem destrava
-> quem, não por tamanho.
+> Estado em 2026-08-25. Ordenado por quem destrava quem, não por tamanho.
 
 ## O que falta
 
@@ -16,13 +15,15 @@
 - **Retenção de conversas** — nada apaga conversa antiga, e ninguém decidiu por
   quanto tempo ficam.
 
-- **Deploy.** O roteiro do banco está em
-  `web/scripts/preparar-banco-de-producao.mts` — ensaia por padrão, executa com
-  `--executar`, e recusa se `radar_prod` já tiver tabelas. O que falta é isto,
-  e nada disso é script:
+- **Deploy.** Cinco dos sete itens abaixo foram feitos em 2026-08-25. Sobram a
+  credencial da Anthropic e a montagem da VPS. O roteiro do banco virou dois
+  scripts — `papeis-de-producao.mts` (papéis, segredos e conferência) e
+  `migrar.mts` (migrações, mostrando o erro que o `drizzle-kit` engole):
 
-  1. `sudo -u postgres psql -c 'CREATE DATABASE radar_prod OWNER radar_owner'`
-     — exige superusuário, e por isso é seu.
+  1. ~~**Criar o banco**~~ — feito. `radar_prod` existe com 15 migrações, 19
+     tabelas com RLS + FORCE, e papéis próprios: `radar_app_prod` e
+     `radar_owner_prod`, os únicos que conectam nele. Os dados da Avanz estão
+     lá — 34 briefs, 10 blocos de vault, 6 pilares, 22 fontes, 135 temas.
   2. ~~**Backup**~~ — feito. `web/scripts/backup-producao.sh` roda como
      `postgres`, grava em `/srv/backups/content-radar` (disco separado do
      banco), confere linha a linha o dump contra a base e guarda como
@@ -42,8 +43,9 @@
      `web/.env.producao` (600, fora do git) com `SESSION_SECRET` novo, papéis
      próprios do Postgres — `radar_app_prod` e `radar_owner_prod`, e só eles
      conectam em `radar_prod` — e o prefixo do Cloudinary. As chaves do
-     Cloudinary continuam em `.local/cloudinary.env`, que é da conta e vale para
-     as duas instalações.
+     Cloudinary passaram para o `.env` de cada instalação — o arquivo à parte
+     era um terceiro lugar guardando o mesmo segredo, e um mecanismo a mais para
+     quem fosse fazer deploy descobrir. `.local/` ficou vazio.
 
      Duas coisas vieram junto porque a separação não funcionaria sem elas.
      Os privilégios de aplicação passaram a morar no grupo `radar_apps`: as
@@ -56,23 +58,76 @@
      `overwrite`, uma varredura em dev trocaria a imagem publicada do mesmo
      brief, e uma purga a apagaria.
 
-  4. **Apontar a app e o trabalhador** para `radar_prod`. Enquanto o
-     `.env.producao` não estiver em uso, é um banco cheio esperando.
-  5. **Onde a app roda em produção** — pode ser este servidor, já que ela vive
-     aqui; falta decidir porta, proxy e TLS.
-  6. **A conta da Anthropic é pessoal.** Não existe `ANTHROPIC_API_KEY` em lugar
-     nenhum: o SDK autentica pelo `~/.claude/.credentials.json` do usuário que
-     roda o pm2. Funciona, e não sustenta produto — a capacidade de rodar
-     varredura fica presa a uma pessoa, o token renova e pode expirar sem aviso
-     (a falha apareceria como varredura vazia, não como erro de autenticação), e
-     o custo dos scans dos clientes cai na assinatura pessoal em vez de numa
-     conta da empresa, o que atravessa a telemetria de consumo.
+  4. ~~**Apontar a app e o trabalhador**~~ — feito, e verificado. Os dois
+     rodam sob pm2 contra `radar_prod`, e dizem isso na primeira linha do log:
+     não havia como descobrir de fora, porque `--env-file` popula o ambiente
+     por dentro e o pool é preguiçoso.
 
-     Não bloqueia o deploy de hoje. Precisa estar resolvido antes de haver
-     cliente pagante. A troca é para chave de API, que separa faturamento — e
-     passa a cobrar por token em vez da assinatura, o que dado o custo medido
-     (US$ 15,54 em três varreduras) pode sair mais caro. É decisão de negócio,
-     não técnica.
+     O que carrega a garantia é a flag: o Next carrega `.env.local` sozinho,
+     inclusive em produção, e sem `--env-file` a app de produção sobe contra o
+     banco de desenvolvimento **sem erro nenhum**. Verificado nos dois sentidos.
+
+  5. ~~**Onde a app roda**~~ — decidido, e o inverso do que se supunha aqui.
+     Esta máquina é **desenvolvimento**; produção vai para a `vps-ivandias`,
+     por clone do repositório. É o que impede dev de tocar produção sem passar
+     por um push.
+
+     Enquanto a VPS não existe, a app de produção roda aqui em
+     `127.0.0.1:5200`, sob pm2, **sem acesso externo** — nenhum site nginx
+     aponta para ela e nenhum ingress do túnel a menciona. Ela é mantida porque
+     este `radar_prod` é a fonte da migração e o único lugar onde dá para
+     exercitar o fluxo autenticado antes da VPS.
+  6. **A credencial da Anthropic — o que sobrou, e virou bloqueio.**
+
+     As varreduras autenticam pela sessão do Claude Code de quem roda o
+     processo (`~/.claude/.credentials.json`). Funciona nesta máquina, onde
+     alguém fez login, e **não existe** num servidor. Com produção indo para a
+     VPS, isso deixou de ser pendência adiada.
+
+     O que já está pronto para receber a chave: `ANTHROPIC_API_KEY` documentada
+     no `.env.example` e no `.env.producao` — **comentada, não vazia**, porque
+     uma chave vazia pode ofuscar a sessão do CLI em vez de cair nela. O SDK
+     repassa `process.env` ao processo filho, então preencher basta.
+
+     E o executor **recusa começar** sem credencial, antes de montar workspace e
+     antes de registrar `scan-started`: sem isso a varredura não estoura, ela
+     termina vazia depois de vinte minutos com o registro dizendo que deu certo.
+     O trabalhador também anuncia a origem na partida, porque o intervalo entre
+     um servidor subir e alguém pedir o primeiro scan é onde isso se esconderia.
+
+     **O que a chave não resolve:** o SDK não traz o modelo nem o executável —
+     ele spawna o binário nativo do Claude Code, que o `npm install` não
+     instala. Na VPS ele precisa existir no home de quem roda o pm2, junto com
+     `curl`, que é como o briefer baixa as imagens. Binário ausente falha alto,
+     com mensagem clara; era a credencial que falhava em silêncio.
+
+     Três lugares usam o SDK, não um: o executor, o **chat** (que roda no
+     processo web) e o ensaio. Sem binário, a VPS serve tudo menos essas três
+     coisas — e o chat estoura 500 em vez de degradar como o Cloudinary ausente.
+
+     Continua valendo o que já estava escrito: chave da conta da empresa, não
+     pessoal. O custo dos scans dos clientes precisa cair onde a telemetria de
+     consumo consegue prestar contas.
+
+  7. **Montar a VPS**, que é o trabalho que sobrou. Roteiro levantado, nada
+     executado:
+
+     clonar o repositório; Postgres com os papéis (`papeis-de-producao.mts`
+     imprime o SQL de superusuário); restaurar o dump do backup — que é feito
+     como superusuário e conferido linha a linha, e por isso serve de veículo
+     da migração; gerar o `.env.producao` **lá**, com senhas de lá; instalar o
+     binário do Claude Code e preencher a chave; subir app e trabalhador; e a
+     camada de entrada, que na VPS pode ser nginx com certbot de verdade, já que
+     ela tem IP público.
+
+     O que **não** vai no clone e precisa existir na VPS: o `.env.producao`, o
+     binário do Claude Code, e as chaves do Cloudinary. Tudo o que a app lê em
+     execução está versionado — `manifest.yaml`, o vault, `docs/specs/` e os
+     quatro arquivos de `.claude/`.
+
+     Uma consequência a não esquecer: o que for feito neste `radar_prod` entre
+     hoje e a virada **não viaja sozinho**. O dump tem de ser tirado no momento
+     da virada, não antes.
 
   Já resolvidos e fora da lista: cadastro fechado por padrão
   (`CADASTRO_ABERTO`), limite de tentativas no login e no cadastro, e
