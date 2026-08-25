@@ -22,7 +22,6 @@ import {
   loadManifest,
   MANIFEST_PATH,
   escreverAtomico,
-  RADAR_ROOT,
   resolvePaths,
   type BriefState,
   type Manifest,

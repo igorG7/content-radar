@@ -15,6 +15,7 @@ import "server-only";
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { eq } from "drizzle-orm";
+import { credencialAnthropic } from "../lib/credencial-anthropic";
 import { comAmbiente } from "./cliente";
 import * as t from "./schema";
 import { materializar, descartar, type Workspace } from "./workspace";
@@ -212,6 +213,17 @@ export async function executar(
   }
 
   try {
+    /**
+     * Antes de montar workspace ou registrar `scan-started`: sem credencial a
+     * execução do SDK não estoura, ela termina vazia — e o desfecho fica
+     * indistinguível de uma varredura que não achou nada. Vinte e cinco minutos
+     * para descobrir, e o registro mentindo.
+     *
+     * O `throw` aqui cai no mesmo caminho de `scan-aborted` do vault vazio.
+     */
+    const credencial = credencialAnthropic();
+    if (!credencial.ok) throw new Error(credencial.motivo);
+
     ws = await materializar(ambienteId);
 
     await comAmbiente(ambienteId, async (tx) => {

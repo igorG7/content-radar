@@ -24,6 +24,7 @@
 
 import { girar } from "../db/fila";
 import { encerrarPool } from "../db/cliente";
+import { credencialAnthropic } from "../lib/credencial-anthropic";
 
 /**
  * Intervalo entre perguntas quando a fila está vazia. Cinco segundos: a pessoa
@@ -74,6 +75,21 @@ console.log(
     (alvo
       ? `banco ${alvo.pathname.slice(1)} como ${alvo.username}`
       : "sem DATABASE_URL: backend de arquivo"),
+);
+
+/**
+ * Avisa na partida, não na primeira varredura.
+ *
+ * O executor recusa começar sem credencial, mas isso só aparece quando alguém
+ * pede um scan — e num servidor recém-instalado o intervalo entre subir o
+ * trabalhador e alguém pedir a primeira varredura é justamente onde o problema
+ * fica escondido.
+ */
+const cred = credencialAnthropic();
+console.log(
+  cred.ok
+    ? `[trabalhador] Anthropic: ${cred.origem}`
+    : `[trabalhador] ATENÇÃO — ${cred.motivo}`,
 );
 
 while (!parando) {

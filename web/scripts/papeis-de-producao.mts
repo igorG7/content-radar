@@ -2,7 +2,7 @@
  * Cria os segredos de produção e o SQL que provisiona os papéis do Postgres.
  *
  *   npx tsx scripts/papeis-de-producao.mts
- *   sudo -u postgres psql -f ../.local/papeis-producao.sql
+ *   sudo -u postgres psql -v ON_ERROR_STOP=1 < ../.local/papeis-producao.sql
  *   npx tsx --env-file=.env.producao scripts/papeis-de-producao.mts --conferir
  *
  * ## Por que papéis próprios
@@ -54,7 +54,7 @@ if (!process.argv.includes("--conferir")) {
     `-- Gerado por scripts/papeis-de-producao.mts. Contém senhas.
 -- Rode como superusuário e **apague depois**:
 --
---   sudo -u postgres psql -f ${SQL}
+--   sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL}
 --   shred -u ${SQL}
 
 -- Papéis são do cluster, não do banco: criar só se ainda não existirem.
@@ -175,9 +175,28 @@ CADASTRO_ABERTO=0
 RADAR_ROOT=${RAIZ}
 NODE_ENV=production
 
-# Mesma conta do Cloudinary; as chaves continuam saindo de .local/cloudinary.env,
-# que é da conta. O que muda é o prefixo do public_id — produção fica com a pasta
-# canônica do manifest, e desenvolvimento com a sua, em .env.local.
+# Quem autentica as varreduras. Vazia aqui porque esta máquina tem sessão do
+# Claude Code; **num servidor é obrigatória** — sem login interativo o SDK não
+# encontra credencial, e a varredura termina vazia depois de vinte minutos em
+# vez de falhar. O trabalhador confere na partida e recusa começar sem ela.
+#
+# Chave da conta da empresa, não pessoal: o custo dos scans dos clientes precisa
+# cair onde a telemetria de consumo consegue prestar contas.
+#
+# Comentada, e não vazia: um ANTHROPIC_API_KEY= define a variável como string
+# vazia, e chave vazia pode ofuscar a sessão do Claude Code em vez de cair nela.
+# Descomente ao preencher.
+# ANTHROPIC_API_KEY=
+
+# Cloudinary. A conta é a mesma das duas instalações; o que as separa é o
+# FOLDER, que prefixa o public_id — sem ele o identificador é
+# <ambiente>/<brief>, igual nos dois bancos, e o envio usa overwrite.
+#
+# As três chaves nascem vazias: numa instalação nova elas precisam ser copiadas
+# da conta. Faltando qualquer uma, o app segue inteiro e só não publica mídia.
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 #
 # Sem isso os dois escrevem no mesmo objeto: os bancos saíram da mesma cópia e
 # têm os mesmos slugs, e o envio usa overwrite. Subir um brief em dev trocaria a
