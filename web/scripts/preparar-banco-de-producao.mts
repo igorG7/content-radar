@@ -119,18 +119,39 @@ const { rows: tabelas } = await prod.query<{ n: number }>(
   "select count(*)::int as n from information_schema.tables where table_schema='public'",
 );
 
+/**
+ * O que sobrou de uma tentativa anterior — em **qualquer** esquema.
+ *
+ * Olhar só o `public` já enganou uma vez: apagar `public` deixa o `drizzle` de
+ * pé, o dump traz o próprio `CREATE SCHEMA drizzle`, e o restore para na
+ * primeira linha com ON_ERROR_STOP. O banco parecia limpo e não estava.
+ */
+const { rows: esquemas } = await prod.query<{ nome: string }>(
+  `select nspname as nome from pg_namespace
+   where nspname not like 'pg_%' and nspname not in ('information_schema','public')`,
+);
+const sujo = tabelas[0].n > 0 || esquemas.length > 0;
+
 if (!conferir) {
   await prod.end();
   console.log(`\nNa origem (${ORIGEM}), ${MANTER} tem:`);
   for (const [t, n] of Object.entries(naOrigem)) console.log(`  ${t}: ${n}`);
 
-  if (tabelas[0].n > 0) {
+  if (sujo) {
     console.log(
       // Pelo superusuário e sem a URL: imprimir a de dono poria a senha no
       // terminal e no histórico do shell.
-      `\n⚠ ${BANCO} já tem ${tabelas[0].n} tabelas. Se vieram de uma tentativa\n` +
+      `\n⚠ ${BANCO} não está limpo: ${tabelas[0].n} tabelas em public` +
+        (esquemas.length
+          ? `, e os esquemas ${esquemas.map((e) => e.nome).join(", ")}`
+          : "") +
+        `.\n` +
+        `  Se vieram de uma tentativa\n` +
         `  incompleta, esvazie antes — copiar por cima mistura os dois:\n\n` +
-        `  sudo -u postgres psql -d ${BANCO} -c 'drop schema public cascade; create schema public;'\n`,
+        // `drizzle` junto: ele guarda o registro das migrações e sobrevive ao
+        // drop do `public`. O dump traz o próprio `CREATE SCHEMA drizzle`, que
+        // falha se ele já existir — e com ON_ERROR_STOP o restore para ali.
+        `  sudo -u postgres psql -d ${BANCO} -c 'drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;'\n`,
     );
   }
 
