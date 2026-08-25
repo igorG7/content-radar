@@ -16,6 +16,11 @@ const Body = z.object({
 });
 
 export const PATCH = rota(async (request: Request) => {
+  // Sessão antes do corpo, pelo mesmo motivo de `/api/anexos`: quem não está
+  // autenticado não deve conseguir nem descobrir o formato esperado, muito
+  // menos fazer o servidor decodificar o que mandou.
+  const store = await radarStore();
+
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json(
@@ -23,8 +28,6 @@ export const PATCH = rota(async (request: Request) => {
       { status: 400 },
     );
   }
-
-  const store = await radarStore();
 
   // Valida antes de gravar em qualquer lugar: uma edição correta sozinha ainda
   // pode quebrar invariante que atravessa campos (pesos somando 1,0,
