@@ -19,6 +19,11 @@
 
 set -euo pipefail
 
+# O arquivo sai 600. Um dump deste banco carrega o conteúdo dos clientes e os
+# hashes de senha; num servidor compartilhado, o padrão 644 o deixa legível por
+# qualquer conta. É a diferença entre guardar e publicar.
+umask 077
+
 BANCO="${BANCO:-radar_prod}"
 DESTINO="${DESTINO:-/srv/backups/content-radar}"
 # Quantas cópias diárias manter. Trinta dias cobrem o tempo entre um estrago
@@ -96,4 +101,7 @@ fi
 # como trocar a única cópia por uma que ninguém olhou.
 apagados="$(find "$DESTINO" -name "${BANCO}_*.sql.gz" -type f -mtime "+${MANTER_DIAS}" -print -delete | wc -l)"
 
-echo "[backup] ok · $(du -h "$arquivo" | cut -f1) · ${apagados} cópia(s) antiga(s) removida(s)"
+# Reforça o modo mesmo se o umask do ambiente tiver sido afrouxado por fora.
+chmod 600 "$arquivo"
+
+echo "[backup] ok · $(du -h "$arquivo" | cut -f1) · modo $(stat -c %a "$arquivo") · ${apagados} cópia(s) antiga(s) removida(s)"
