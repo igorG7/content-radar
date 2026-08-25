@@ -38,14 +38,41 @@
      tamanho plausível; e o arquivo nasce legível por qualquer conta do
      servidor se ninguém apertar o modo — ele carrega conteúdo de cliente e
      hash de senha.
-  3. **Segredos.** `SESSION_SECRET`, credenciais do Postgres e do Cloudinary
-     precisam vir de fora do `.env.local` de uma máquina de desenvolvimento.
-     O servidor já tem um diretório de credenciais compartilhadas, administrado
-     por root, que serve de precedente.
-  4. **Apontar a app e o trabalhador** para `radar_prod`. Enquanto o `.env` de
-     produção não existir, é um banco cheio esperando.
+  3. ~~**Segredos**~~ — gerados. `scripts/papeis-de-producao.mts` escreve
+     `web/.env.producao` (600, fora do git) com `SESSION_SECRET` novo, papéis
+     próprios do Postgres — `radar_app_prod` e `radar_owner_prod`, e só eles
+     conectam em `radar_prod` — e o prefixo do Cloudinary. As chaves do
+     Cloudinary continuam em `.local/cloudinary.env`, que é da conta e vale para
+     as duas instalações.
+
+     Duas coisas vieram junto porque a separação não funcionaria sem elas.
+     Os privilégios de aplicação passaram a morar no grupo `radar_apps`: as
+     migrações revogavam `UPDATE`/`DELETE` de `evento` e `consumo` citando
+     `radar_app` pelo nome, e um papel novo nasceria com esses privilégios
+     intactos — append-only é a garantia cuja quebra não aparece, o ledger
+     continua gravando e só deixa de valer como registro. E o prefixo do
+     Cloudinary passou a existir de fato: o `public_id` era
+     `<ambiente>/<brief>`, igual nos dois bancos, que saíram da mesma cópia; com
+     `overwrite`, uma varredura em dev trocaria a imagem publicada do mesmo
+     brief, e uma purga a apagaria.
+
+  4. **Apontar a app e o trabalhador** para `radar_prod`. Enquanto o
+     `.env.producao` não estiver em uso, é um banco cheio esperando.
   5. **Onde a app roda em produção** — pode ser este servidor, já que ela vive
      aqui; falta decidir porta, proxy e TLS.
+  6. **A conta da Anthropic é pessoal.** Não existe `ANTHROPIC_API_KEY` em lugar
+     nenhum: o SDK autentica pelo `~/.claude/.credentials.json` do usuário que
+     roda o pm2. Funciona, e não sustenta produto — a capacidade de rodar
+     varredura fica presa a uma pessoa, o token renova e pode expirar sem aviso
+     (a falha apareceria como varredura vazia, não como erro de autenticação), e
+     o custo dos scans dos clientes cai na assinatura pessoal em vez de numa
+     conta da empresa, o que atravessa a telemetria de consumo.
+
+     Não bloqueia o deploy de hoje. Precisa estar resolvido antes de haver
+     cliente pagante. A troca é para chave de API, que separa faturamento — e
+     passa a cobrar por token em vez da assinatura, o que dado o custo medido
+     (US$ 15,54 em três varreduras) pode sair mais caro. É decisão de negócio,
+     não técnica.
 
   Já resolvidos e fora da lista: cadastro fechado por padrão
   (`CADASTRO_ABERTO`), limite de tentativas no login e no cadastro, e
