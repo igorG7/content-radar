@@ -105,6 +105,14 @@ BEGIN
     WHERE n.nspname IN ('public', 'drizzle')
       AND c.relkind IN ('r', 'S', 'v', 'm', 'p')
       AND pg_get_userbyid(c.relowner) = '${DONO_DEV}'
+      -- Sequência de bigserial ou identity não é objeto independente: ela
+      -- pertence à coluna, e o Postgres **recusa** trocar o dono dela em
+      -- separado em vez de ignorar o pedido. Trocar o dono da tabela já leva a
+      -- sequência junto, então basta não pedir.
+      AND NOT (c.relkind = 'S' AND EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid
+          AND d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i')))
   LOOP
     EXECUTE format('ALTER TABLE %s OWNER TO ${DONO}', alvo.obj);
   END LOOP;
