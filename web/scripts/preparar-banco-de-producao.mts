@@ -148,10 +148,14 @@ if (!conferir) {
         `.\n` +
         `  Se vieram de uma tentativa\n` +
         `  incompleta, esvazie antes — copiar por cima mistura os dois:\n\n` +
-        // `drizzle` junto: ele guarda o registro das migrações e sobrevive ao
-        // drop do `public`. O dump traz o próprio `CREATE SCHEMA drizzle`, que
-        // falha se ele já existir — e com ON_ERROR_STOP o restore para ali.
-        `  sudo -u postgres psql -d ${BANCO} -c 'drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;'\n`,
+        // Duas armadilhas numa linha só. `drizzle` guarda o registro das
+        // migrações e sobrevive ao drop do `public`; o dump traz o próprio
+        // `CREATE SCHEMA drizzle`, que falha se ele já existe, e com
+        // ON_ERROR_STOP o restore para ali. E o `authorization` não é enfeite:
+        // recriado pelo `postgres` sem ele, o esquema fica dele, e o
+        // `radar_owner` perde acesso às próprias tabelas — que existem, com o
+        // nome certo, e respondem "relation does not exist".
+        `  sudo -u postgres psql -d ${BANCO} -c 'drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public authorization radar_owner;'\n`,
     );
   }
 
@@ -171,6 +175,28 @@ if (!conferir) {
 if (tabelas[0].n === 0) {
   console.error(
     `${BANCO} está vazio — a cópia não rodou. Veja o comando acima.`,
+  );
+  process.exit(1);
+}
+
+/**
+ * O `radar_owner` alcança o próprio esquema?
+ *
+ * Depois de um restore feito pelo `postgres`, o `public` pode ter ficado dele —
+ * e aí as tabelas existem, pertencem ao `radar_owner`, e mesmo assim toda
+ * consulta responde "relation does not exist". A mensagem crua manda procurar
+ * no lugar errado.
+ */
+const { rows: acesso } = await prod.query<{ pode: boolean; dono: string }>(
+  `select has_schema_privilege('${new URL(donoProd).username}','public','USAGE') as pode,
+          pg_get_userbyid(nspowner) as dono
+   from pg_namespace where nspname='public'`,
+);
+if (!acesso[0]?.pode) {
+  console.error(
+    `\nO esquema public pertence a ${acesso[0]?.dono} e ${new URL(donoProd).username} não tem USAGE nele.\n` +
+      `As tabelas existem e ficam inalcançáveis. Devolva o esquema:\n\n` +
+      `  sudo -u postgres psql -d ${BANCO} -c 'alter schema public owner to ${new URL(donoProd).username};'\n`,
   );
   process.exit(1);
 }
