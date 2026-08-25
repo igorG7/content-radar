@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { assinar, credenciais, enviador } from "./cloudinary";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 
 const CRED = { cloudName: "c", apiKey: "k", apiSecret: "s" };
 
@@ -29,7 +26,12 @@ function fingirCloudinary() {
   return visto;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  // `unstubEnvs` é falso por default no vitest: sem isto, o CLOUDINARY_API_SECRET
+  // que um teste apaga continua apagado no próximo.
+  vi.unstubAllEnvs();
+});
 
 describe("o prefixo do Cloudinary", () => {
   it("entra no public_id, e não no parâmetro folder", async () => {
@@ -80,36 +82,25 @@ describe("o prefixo do Cloudinary", () => {
     expect(visto[0].campos.public_id).toBe("a/b");
   });
 
-  it("o ambiente vence o arquivo da conta", async () => {
+  it("sem credencial completa, devolve null em vez de lançar", () => {
     /**
-     * As credenciais são da conta e valem para as duas instalações; a pasta é
-     * da instalação. Se o arquivo mandasse, produção herdaria a pasta de
-     * desenvolvimento e a separação existiria só no .env.
+     * Sem Cloudinary o sistema ainda gera pacote — só não publica mídia, e o
+     * pacote diz na cara que não tem. Lançar aqui trocaria uma limitação por
+     * uma pane na exportação inteira.
      */
-    const raiz = await mkdtemp(path.join(tmpdir(), "radar-"));
-    await mkdir(path.join(raiz, ".local"));
-    await writeFile(
-      path.join(raiz, ".local", "cloudinary.env"),
-      "CLOUDINARY_CLOUD_NAME=c\nCLOUDINARY_API_KEY=k\nCLOUDINARY_API_SECRET=s\nCLOUDINARY_FOLDER=do-arquivo\n",
-    );
-
-    // O vitest carrega o .env.local, que tem a pasta de desenvolvimento — sem
-    // limpar, este teste leria a configuração da máquina em vez do arquivo.
-    vi.stubEnv("CLOUDINARY_FOLDER", undefined);
-    expect((await credenciais(raiz))?.folder).toBe("do-arquivo");
-
-    vi.stubEnv("CLOUDINARY_FOLDER", "do-ambiente");
-    expect((await credenciais(raiz))?.folder).toBe("do-ambiente");
+    vi.stubEnv("CLOUDINARY_CLOUD_NAME", "c");
+    vi.stubEnv("CLOUDINARY_API_KEY", "k");
+    vi.stubEnv("CLOUDINARY_API_SECRET", undefined);
+    expect(credenciais()).toBeNull();
   });
 
-  it("barra sobrando não vira pasta vazia", async () => {
+  it("barra sobrando não vira pasta vazia", () => {
     // "content-radar/prod/" produziria "…/prod//avanz-imoveis/…", que o
     // Cloudinary aceita como um nível a mais — e a purga não acharia de volta.
-    const raiz = await mkdtemp(path.join(tmpdir(), "radar-"));
     vi.stubEnv("CLOUDINARY_CLOUD_NAME", "c");
     vi.stubEnv("CLOUDINARY_API_KEY", "k");
     vi.stubEnv("CLOUDINARY_API_SECRET", "s");
     vi.stubEnv("CLOUDINARY_FOLDER", "/content-radar/prod/");
-    expect((await credenciais(raiz))?.folder).toBe("content-radar/prod");
+    expect(credenciais()?.folder).toBe("content-radar/prod");
   });
 });

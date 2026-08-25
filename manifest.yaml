@@ -141,7 +141,7 @@ cloudinary:
   status: ativo # conta provisionada; primeiro upload real em 2026-06-23 (W26-008)
   cloud_name: daunh8p25 # conta dedicada Avanz
   folder: content-radar/avanz # estrutura em uso
-  credentials_env: ./.local/cloudinary.env # gitignored: CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+  credentials_env: web/.env # CLOUDINARY_* vivem no .env da instalação (600, fora do git)
   upload_preset: null # signed upload (SHA-1), sem upload preset
   purge_local_after_days: 30 # cache local de publicado/ é purgado após N dias
 

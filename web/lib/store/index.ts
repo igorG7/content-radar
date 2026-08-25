@@ -838,7 +838,7 @@ export async function radarStore(): Promise<RadarStore> {
 
   // Sem credencial o app continua inteiro: a escolha da arte é gravada, e o
   // que falta é só a cópia remota — que o pacote diz na cara que não tem.
-  const cred = await credenciais(RADAR_ROOT);
+  const cred = credenciais();
   return backendPostgres(sessao.ambienteId, {
     enviarParaNuvem: cred ? enviador(cred) : null,
     apagarDaNuvem: cred ? destruidor(cred) : null,

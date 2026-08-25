@@ -14,7 +14,7 @@ import "server-only";
  */
 
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+
 import path from "node:path";
 
 export interface Credenciais {
@@ -60,43 +60,25 @@ export function assinar(
 }
 
 /**
- * Lê as credenciais do ambiente, caindo para `.local/cloudinary.env` quando não
- * estiverem exportadas.
+ * Lê as credenciais do ambiente.
  *
- * O arquivo é a convenção que já existia aqui (`manifest.cloudinary
- * .credentials_env`), gitignored e em modo 600. Copiar os valores para o
- * `.env.local` criaria um segundo lugar com o mesmo segredo — e dois lugares
- * com segredo é um a mais para vazar.
+ * Antes elas vinham de `.local/cloudinary.env`, herança da skill de handoff, que
+ * não existe mais. Com o `.env` por instalação — um de desenvolvimento e um de
+ * produção, ambos 600 e fora do git — o arquivo à parte passou a ser um terceiro
+ * lugar guardando o mesmo segredo, e um mecanismo a mais para quem for fazer
+ * deploy descobrir.
+ *
+ * Devolve `null` quando falta credencial, e não lança: sem Cloudinary o sistema
+ * ainda gera pacote, só não publica mídia. Quebrar a exportação inteira por
+ * causa disso trocaria uma limitação por uma pane.
  */
-export async function credenciais(raiz: string): Promise<Credenciais | null> {
-  let {
+export function credenciais(): Credenciais | null {
+  const {
     CLOUDINARY_CLOUD_NAME,
     CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET,
     CLOUDINARY_FOLDER,
   } = process.env;
-
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-    const texto = await readFile(
-      path.join(raiz, ".local", "cloudinary.env"),
-      "utf8",
-    ).catch(() => null);
-    if (!texto) return null;
-
-    const lidos = new Map<string, string>();
-    for (const linha of texto.split("\n")) {
-      const limpa = linha.trim();
-      if (!limpa || limpa.startsWith("#")) continue;
-      const i = limpa.indexOf("=");
-      if (i > 0) lidos.set(limpa.slice(0, i).trim(), limpa.slice(i + 1).trim());
-    }
-    CLOUDINARY_CLOUD_NAME ??= lidos.get("CLOUDINARY_CLOUD_NAME");
-    CLOUDINARY_API_KEY ??= lidos.get("CLOUDINARY_API_KEY");
-    CLOUDINARY_API_SECRET ??= lidos.get("CLOUDINARY_API_SECRET");
-    // `??=`: quem exportou a variável manda. O arquivo é da conta, e a pasta é
-    // da instalação — produção lê as mesmas credenciais e outro prefixo.
-    CLOUDINARY_FOLDER ??= lidos.get("CLOUDINARY_FOLDER");
-  }
 
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
     return null;
@@ -119,19 +101,6 @@ export type Enviador = (entrada: {
   nomeArquivo: string;
 }) => Promise<Enviado>;
 
-/**
- * Sobe os bytes com um `public_id` estável.
- *
- * Estável de propósito: reescolher a arte sobrescreve o **mesmo** objeto em vez
- * de criar outro. Fica um asset por brief, sem órfão pago na conta quando a
- * pessoa clica em três candidatas antes de decidir — e a purga futura sabe
- * exatamente o que apagar.
- *
- * A URL carrega a versão, que muda quando o **conteúdo** muda — subir os mesmos
- * bytes devolve a mesma URL (verificado contra a conta real). Trocar de
- * candidata troca os bytes, então quem chama precisa regravar o que recebeu em
- * vez de supor que a URL antiga continua apontando para a foto certa.
- */
 /**
  * Apaga o objeto remoto.
  *
@@ -169,6 +138,19 @@ export function destruidor(cred: Credenciais): Destruidor {
   };
 }
 
+/**
+ * Sobe os bytes com um `public_id` estável.
+ *
+ * Estável de propósito: reescolher a arte sobrescreve o **mesmo** objeto em vez
+ * de criar outro. Fica um asset por brief, sem órfão pago na conta quando a
+ * pessoa clica em três candidatas antes de decidir — e a purga futura sabe
+ * exatamente o que apagar.
+ *
+ * A URL carrega a versão, que muda quando o **conteúdo** muda — subir os mesmos
+ * bytes devolve a mesma URL (verificado contra a conta real). Trocar de
+ * candidata troca os bytes, então quem chama precisa regravar o que recebeu em
+ * vez de supor que a URL antiga continua apontando para a foto certa.
+ */
 export function enviador(cred: Credenciais): Enviador {
   return async ({ bytes, publicId, nomeArquivo }) => {
     const timestamp = String(Math.floor(Date.now() / 1000));
