@@ -23,16 +23,21 @@
 
   1. `sudo -u postgres psql -c 'CREATE DATABASE radar_prod OWNER radar_owner'`
      — exige superusuário, e por isso é seu.
-  2. **Backup.** O script está em `web/scripts/backup-producao.sh` — roda como
-     superusuário, confere linha a linha o que entrou no dump contra o banco, e
-     guarda o arquivo como `.SUSPEITO` se divergir em vez de apagá-lo. Falta a
-     entrada no cron do root:
+  2. ~~**Backup**~~ — feito. `web/scripts/backup-producao.sh` roda como
+     `postgres`, grava em `/srv/backups/content-radar` (disco separado do
+     banco), confere linha a linha o dump contra a base e guarda como
+     `.SUSPEITO` o que divergir. Primeira cópia validada: 34 briefs, 225
+     eventos, 10 blocos.
+
+     Falta só agendar, no cron do root:
 
      `0 3 * * * su postgres -c /srv/apps/content-radar/web/scripts/backup-producao.sh`
 
-     A conferência não é zelo: um `pg_dump` como `radar_owner` sai vazio por
-     causa do FORCE RLS, e o arquivo fica com tamanho plausível. Sem contar as
-     linhas, guarda-se nada por meses.
+     Duas coisas que a conferência existe para pegar, e que já morderam: um
+     `pg_dump` como `radar_owner` sai **vazio** por causa do FORCE RLS, com
+     tamanho plausível; e o arquivo nasce legível por qualquer conta do
+     servidor se ninguém apertar o modo — ele carrega conteúdo de cliente e
+     hash de senha.
   3. **Segredos.** `SESSION_SECRET`, credenciais do Postgres e do Cloudinary
      precisam vir de fora do `.env.local` de uma máquina de desenvolvimento.
      O servidor já tem um diretório de credenciais compartilhadas, administrado
