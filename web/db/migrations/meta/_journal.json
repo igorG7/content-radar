@@ -99,6 +99,13 @@
       "when": 1787604888372,
       "tag": "0013_nome_do_usuario",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787604948372,
+      "tag": "0014_papel_de_aplicacao_por_grupo",
+      "breakpoints": true
     }
   ]
 }

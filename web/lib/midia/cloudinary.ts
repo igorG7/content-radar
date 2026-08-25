@@ -21,6 +21,17 @@ export interface Credenciais {
   cloudName: string;
   apiKey: string;
   apiSecret: string;
+  /**
+   * Prefixo de todo `public_id` enviado — o que separa uma instalação da outra
+   * dentro da mesma conta.
+   *
+   * Sem ele, o identificador é `<ambiente>/<brief>`, igual em desenvolvimento e
+   * em produção: os dois bancos saíram da mesma cópia e carregam os mesmos
+   * slugs. O envio usa `overwrite: true`, então subir um brief em dev troca a
+   * imagem publicada do mesmo brief em produção, e purgá-lo em dev apaga a de
+   * lá. Nada nos dois sistemas reclamaria — a foto simplesmente muda.
+   */
+  folder?: string;
 }
 
 export interface Enviado {
@@ -58,8 +69,12 @@ export function assinar(
  * com segredo é um a mais para vazar.
  */
 export async function credenciais(raiz: string): Promise<Credenciais | null> {
-  let { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } =
-    process.env;
+  let {
+    CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET,
+    CLOUDINARY_FOLDER,
+  } = process.env;
 
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
     const texto = await readFile(
@@ -78,6 +93,9 @@ export async function credenciais(raiz: string): Promise<Credenciais | null> {
     CLOUDINARY_CLOUD_NAME ??= lidos.get("CLOUDINARY_CLOUD_NAME");
     CLOUDINARY_API_KEY ??= lidos.get("CLOUDINARY_API_KEY");
     CLOUDINARY_API_SECRET ??= lidos.get("CLOUDINARY_API_SECRET");
+    // `??=`: quem exportou a variável manda. O arquivo é da conta, e a pasta é
+    // da instalação — produção lê as mesmas credenciais e outro prefixo.
+    CLOUDINARY_FOLDER ??= lidos.get("CLOUDINARY_FOLDER");
   }
 
   if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
@@ -87,6 +105,7 @@ export async function credenciais(raiz: string): Promise<Credenciais | null> {
     cloudName: CLOUDINARY_CLOUD_NAME,
     apiKey: CLOUDINARY_API_KEY,
     apiSecret: CLOUDINARY_API_SECRET,
+    folder: CLOUDINARY_FOLDER?.replace(/^\/+|\/+$/g, "") || undefined,
   };
 }
 
@@ -153,8 +172,17 @@ export function destruidor(cred: Credenciais): Destruidor {
 export function enviador(cred: Credenciais): Enviador {
   return async ({ bytes, publicId, nomeArquivo }) => {
     const timestamp = String(Math.floor(Date.now() / 1000));
+    /**
+     * O prefixo entra no `public_id`, não no parâmetro `folder` da API.
+     *
+     * São coisas diferentes: `folder` organiza a biblioteca e deixa o
+     * identificador igual, que é justamente o que precisa mudar. Quem apaga usa
+     * o `cloudinary_public_id` guardado no banco, então prefixar aqui mantém
+     * envio e purga falando do mesmo objeto.
+     */
+    const alvo = cred.folder ? `${cred.folder}/${publicId}` : publicId;
     const parametros: Record<string, string> = {
-      public_id: publicId,
+      public_id: alvo,
       timestamp,
       overwrite: "true",
       invalidate: "true",

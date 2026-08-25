@@ -68,7 +68,10 @@ await pool.end();
 
 console.log(`permissões de ${papelApp} concedidas em ${BANCO}`);
 
-execFileSync("npx", ["drizzle-kit", "migrate"], {
+// Pelo migrar.mts, e não pelo `drizzle-kit migrate`: aquele sai com código 1
+// sem dizer o que quebrou, e aqui o erro típico é de permissão — o tipo de
+// coisa que se resolve em dez segundos com a mensagem e em meia hora sem ela.
+execFileSync("npx", ["tsx", "scripts/migrar.mts"], {
   stdio: "inherit",
   env: { ...process.env, DATABASE_URL_MIGRATIONS: donoTeste },
 });
