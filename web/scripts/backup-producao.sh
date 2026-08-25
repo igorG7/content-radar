@@ -32,7 +32,20 @@ declare -a CONFERIR=(brief evento consumo vault_bloco)
 carimbo="$(date +%Y-%m-%d_%H%M%S)"
 arquivo="${DESTINO}/${BANCO}_${carimbo}.sql.gz"
 
-mkdir -p "$DESTINO"
+# O diretório é criado uma vez, por quem pode escrever em /srv — não por este
+# script. Rodando como postgres, um `mkdir` ali falha, e "Permission denied" no
+# meio de um cron às 3h da manhã é uma mensagem que ninguém vai ler.
+if [ ! -w "$DESTINO" ]; then
+  echo "[backup] não consigo escrever em ${DESTINO}." >&2
+  echo "[backup] crie-o uma vez, com dono postgres:" >&2
+  echo "" >&2
+  echo "  sudo mkdir -p ${DESTINO}" >&2
+  echo "  sudo chown postgres:postgres ${DESTINO}" >&2
+  echo "" >&2
+  echo "[backup] os outros backups do servidor são de root; este é de postgres" >&2
+  echo "[backup] porque só o superusuário do Postgres enxerga o banco sob RLS." >&2
+  exit 1
+fi
 
 echo "[backup] ${BANCO} → ${arquivo}"
 
