@@ -17,18 +17,29 @@
  * mesma credencial da Anthropic, e uma varredura custa de US$ 5 a 7.
  */
 
+/**
+ * A raiz é derivada deste arquivo, e não escrita à mão.
+ *
+ * Com o caminho fixo, um clone de desenvolvimento carregaria uma cópia deste
+ * arquivo apontando para `/srv/apps/content-radar`: rodar `pm2 start` de lá
+ * comandaria os processos de **produção**, achando que mexia nos próprios. Com
+ * `__dirname`, cada árvore só alcança a si mesma — e a de desenvolvimento
+ * falha ao não achar `.env.producao`, que é o erro certo.
+ */
+const raiz = __dirname;
+
 module.exports = {
   apps: [
     {
       name: "radar-trabalhador",
       script: "web/scripts/trabalhador.mts",
-      cwd: "/srv/apps/content-radar",
+      cwd: raiz,
       /**
        * Caminho absoluto e modo `fork`: em `cluster` o pm2 usa o módulo
        * `cluster` do Node, que não sabe lidar com interpretador próprio — o
        * processo nem chega a escrever log, e o gerenciador o reinicia em laço.
        */
-      interpreter: "/srv/apps/content-radar/web/node_modules/.bin/tsx",
+      interpreter: `${raiz}/web/node_modules/.bin/tsx`,
       exec_mode: "fork",
 
       /**
@@ -51,7 +62,7 @@ module.exports = {
        * `web/`. Declarar explicitamente evita depender de onde o pm2 foi
        * invocado.
        */
-      env: { RADAR_ROOT: "/srv/apps/content-radar", NODE_ENV: "production" },
+      env: { RADAR_ROOT: raiz, NODE_ENV: "production" },
 
       /**
        * Uma instância só. O teto de scans simultâneos é global e vive no banco
@@ -89,7 +100,7 @@ module.exports = {
        */
       script: "node_modules/next/dist/bin/next",
       args: "start -p 5200 -H 127.0.0.1",
-      cwd: "/srv/apps/content-radar/web",
+      cwd: `${raiz}/web`,
       exec_mode: "fork",
 
       /**
