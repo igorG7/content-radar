@@ -58,7 +58,23 @@ for (const sinal of ["SIGINT", "SIGTERM"] as const) {
 const espera = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-console.log(`[trabalhador] de pé · ocioso a cada ${OCIOSO_MS}ms`);
+/**
+ * Diz em que banco ele vai mexer, na primeira linha do log.
+ *
+ * O trabalhador é lançado com `--env-file`, e errar o arquivo não dá erro
+ * nenhum: ele sobe, consome a fila do banco errado e escreve lá. Sem esta
+ * linha, a única forma de descobrir é ir ao Postgres perguntar — e não há
+ * conexão aberta para olhar enquanto a fila está vazia.
+ */
+const alvo = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : null;
+console.log(
+  `[trabalhador] de pé · ocioso a cada ${OCIOSO_MS}ms · ` +
+    (alvo
+      ? `banco ${alvo.pathname.slice(1)} como ${alvo.username}`
+      : "sem DATABASE_URL: backend de arquivo"),
+);
 
 while (!parando) {
   try {
