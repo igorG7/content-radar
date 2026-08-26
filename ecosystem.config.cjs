@@ -108,11 +108,16 @@ module.exports = {
        * levaram de 21 a 26 minutos — matar no meio perde tudo o que a execução
        * fez, e durante a pesquisa isso é quase tudo.
        *
-       * Trinta minutos cobre o observado com folga. Não é política definitiva:
-       * o desenho adiou isso à espera de medição por estágio, que agora existe
-       * (design-execucao-scan §9.2).
+       * Setenta e não trinta: os 30 cobriam só o medido, mas o trabalhador
+       * registra execuções de até 63 minutos. Uma dessas seria morta aos 30 de
+       * 63, perdendo o scan inteiro. O prazo só corre quando alguém manda
+       * parar, então o custo de errar é assimétrico — esperar alguns minutos a
+       * mais num deploy é mais barato que perder um scan de US$ 5 a 7.
+       *
+       * Não é política definitiva: o desenho adiou isso à espera de medição por
+       * estágio, que agora existe (design-execucao-scan §9.2).
        */
-      kill_timeout: 30 * 60 * 1000,
+      kill_timeout: 70 * 60 * 1000,
 
       /** Reinício em laço é sintoma, não solução: pare e mostre nos logs. */
       max_restarts: 5,
