@@ -198,6 +198,27 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Tipos também. O laço acima olha \`pg_class\`, que não os inclui: um enum
+-- continua pertencendo a quem o criou, e o dump o carrega como
+-- \`ALTER TYPE ... OWNER TO <papel de dev>\` — que aborta o restore numa
+-- máquina onde esse papel não existe. Foi assim que a primeira tentativa na
+-- VPS parou.
+DO $$
+DECLARE alvo record;
+BEGIN
+  FOR alvo IN
+    SELECT t.oid::regtype AS obj
+    FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname IN ('public', 'drizzle')
+      AND t.typtype IN ('e', 'c', 'd')
+      AND pg_get_userbyid(t.typowner) <> '${DONO}'
+      -- O tipo-linha que toda tabela tem segue a tabela; pedir em separado é erro.
+      AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.reltype = t.oid)
+  LOOP
+    EXECUTE format('ALTER TYPE %s OWNER TO ${DONO}', alvo.obj);
+  END LOOP;
+END $$;
+
 ALTER SCHEMA public OWNER TO ${DONO};
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'drizzle') THEN
@@ -212,6 +233,11 @@ ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${GRUPO};
 ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
   GRANT SELECT, USAGE ON SEQUENCES TO ${GRUPO};
+
+-- E o que sobrou do papel de aplicação de desenvolvimento: sem CONNECT ele já
+-- não alcança o banco, mas privilégio que ninguém revogou é privilégio que
+-- volta a valer no dia em que alguém devolver o CONNECT sem pensar.
+${seExistir(APP_DEV, `EXECUTE 'REVOKE ALL ON SCHEMA public FROM ${APP_DEV}';`)}
 
 -- E o default antigo de desenvolvimento, onde ele existir, sai de cena.
 ${seExistir(
@@ -362,19 +388,57 @@ for (const papel of [APP_DEV, DONO_DEV]) {
   conta(!rows[0].pode, `${papel} não conecta em ${BANCO}`);
 }
 
-const { rows: alheias } = await dono.query<{ n: number; quem: string | null }>(
-  `select count(*)::int as n, min(pg_get_userbyid(c.relowner)) as quem
-   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname in ('public','drizzle') and c.relkind in ('r','S','v','m','p')
-     and pg_get_userbyid(c.relowner) <> $1`,
+/**
+ * A posse, em **todas** as classes de objeto — não só tabelas.
+ *
+ * A primeira versão olhava só `pg_class` e disse "toda a posse é de
+ * radar_owner_prod" com um enum ainda pertencendo ao papel de desenvolvimento.
+ * O dump saiu com `ALTER TYPE ... OWNER TO radar_owner`, e o restore na VPS
+ * abortou — numa máquina onde esse papel não existe. A conferência tinha o
+ * mesmo ponto cego que o SQL que ela deveria conferir.
+ */
+const { rows: alheias } = await dono.query<{ tipo: string; nome: string; quem: string }>(
+  `select 'relação' as tipo, c.relname as nome, pg_get_userbyid(c.relowner) as quem
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname in ('public','drizzle') and c.relkind in ('r','S','v','m','p')
+      and pg_get_userbyid(c.relowner) <> $1
+   union all
+   select 'tipo', t.typname, pg_get_userbyid(t.typowner)
+     from pg_type t join pg_namespace n on n.oid = t.typnamespace
+    where n.nspname in ('public','drizzle') and t.typtype in ('e','c','d')
+      and pg_get_userbyid(t.typowner) <> $1
+      and not exists (select 1 from pg_class c where c.reltype = t.oid)
+   union all
+   select 'função', p.proname, pg_get_userbyid(p.proowner)
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public','drizzle') and pg_get_userbyid(p.proowner) <> $1
+   union all
+   select 'schema', nspname, pg_get_userbyid(nspowner)
+     from pg_namespace where nspname in ('public','drizzle')
+      and pg_get_userbyid(nspowner) <> $1`,
   [DONO],
 );
 conta(
-  alheias[0].n === 0,
-  alheias[0].n === 0
-    ? `toda a posse é de ${DONO}`
-    : `${alheias[0].n} objeto(s) ainda de ${alheias[0].quem}`,
+  alheias.length === 0,
+  alheias.length === 0
+    ? `toda a posse é de ${DONO}, em tabelas, tipos, funções e schemas`
+    : `${alheias.length} objeto(s) de outro dono: ` +
+      alheias
+        .slice(0, 4)
+        .map((a) => `${a.tipo} ${a.nome} → ${a.quem}`)
+        .join("; "),
 );
+
+/**
+ * Resíduo do papel de aplicação de desenvolvimento. Sem CONNECT ele não
+ * alcança o banco, então isto não é brecha hoje — é a brecha de amanhã, se
+ * alguém devolver o CONNECT achando que o resto já estava limpo.
+ */
+const { rows: residuo } = await dono.query<{ tem: boolean }>(
+  `select has_schema_privilege($1,'public','USAGE') as tem`,
+  [APP_DEV],
+).catch(() => ({ rows: [{ tem: false }] }));
+conta(!residuo[0].tem, `${APP_DEV} não tem privilégio no schema`);
 
 /** A verificação que já enganou uma vez: contar sem satisfazer a política. */
 const cliente = await app.connect();
