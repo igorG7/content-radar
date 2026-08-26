@@ -198,6 +198,27 @@ BEGIN
   END LOOP;
 END $$;
 
+-- Tipos também. O laço acima olha \`pg_class\`, que não os inclui: um enum
+-- continua pertencendo a quem o criou, e o dump o carrega como
+-- \`ALTER TYPE ... OWNER TO <papel de dev>\` — que aborta o restore numa
+-- máquina onde esse papel não existe. Foi assim que a primeira tentativa na
+-- VPS parou.
+DO $$
+DECLARE alvo record;
+BEGIN
+  FOR alvo IN
+    SELECT t.oid::regtype AS obj
+    FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname IN ('public', 'drizzle')
+      AND t.typtype IN ('e', 'c', 'd')
+      AND pg_get_userbyid(t.typowner) <> '${DONO}'
+      -- O tipo-linha que toda tabela tem segue a tabela; pedir em separado é erro.
+      AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.reltype = t.oid)
+  LOOP
+    EXECUTE format('ALTER TYPE %s OWNER TO ${DONO}', alvo.obj);
+  END LOOP;
+END $$;
+
 ALTER SCHEMA public OWNER TO ${DONO};
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'drizzle') THEN
@@ -212,6 +233,11 @@ ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${GRUPO};
 ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
   GRANT SELECT, USAGE ON SEQUENCES TO ${GRUPO};
+
+-- E o que sobrou do papel de aplicação de desenvolvimento: sem CONNECT ele já
+-- não alcança o banco, mas privilégio que ninguém revogou é privilégio que
+-- volta a valer no dia em que alguém devolver o CONNECT sem pensar.
+${seExistir(APP_DEV, `EXECUTE 'REVOKE ALL ON SCHEMA public FROM ${APP_DEV}';`)}
 
 -- E o default antigo de desenvolvimento, onde ele existir, sai de cena.
 ${seExistir(
@@ -353,27 +379,95 @@ for (const tabela of ["evento", "consumo"]) {
   conta(leitura[0].pode, `${APP} ainda grava em ${tabela}`);
 }
 
-/** Os papéis de desenvolvimento não alcançam este banco. */
+/**
+ * Os papéis de desenvolvimento não alcançam este banco — e podem simplesmente
+ * não existir.
+ *
+ * `has_database_privilege` **lança** para papel inexistente em vez de devolver
+ * falso, e o mesmo vale para o cast `::regrole` mais abaixo. Escrito nesta
+ * máquina, onde os dois papéis sempre existiram, o script morria na primeira
+ * instalação limpa — que é exatamente onde a verificação mais importa.
+ *
+ * `to_regrole` devolve NULL em vez de erro, e papel ausente é a forma mais
+ * forte de não alcançar o banco.
+ */
 for (const papel of [APP_DEV, DONO_DEV]) {
-  const { rows } = await app.query<{ pode: boolean }>(
-    `select has_database_privilege($1, $2, 'CONNECT') as pode`,
+  const { rows } = await app.query<{ existe: boolean; pode: boolean }>(
+    `select to_regrole($1) is not null as existe,
+            coalesce(has_database_privilege(to_regrole($1)::oid, $2, 'CONNECT'), false) as pode`,
     [papel, BANCO],
   );
-  conta(!rows[0].pode, `${papel} não conecta em ${BANCO}`);
+  conta(
+    !rows[0].pode,
+    rows[0].existe
+      ? `${papel} não conecta em ${BANCO}`
+      : `${papel} nem existe nesta instalação`,
+  );
 }
 
-const { rows: alheias } = await dono.query<{ n: number; quem: string | null }>(
-  `select count(*)::int as n, min(pg_get_userbyid(c.relowner)) as quem
-   from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname in ('public','drizzle') and c.relkind in ('r','S','v','m','p')
-     and pg_get_userbyid(c.relowner) <> $1`,
+/**
+ * A posse, em **todas** as classes de objeto — não só tabelas.
+ *
+ * A primeira versão olhava só `pg_class` e disse "toda a posse é de
+ * radar_owner_prod" com um enum ainda pertencendo ao papel de desenvolvimento.
+ * O dump saiu com `ALTER TYPE ... OWNER TO radar_owner`, e o restore na VPS
+ * abortou — numa máquina onde esse papel não existe. A conferência tinha o
+ * mesmo ponto cego que o SQL que ela deveria conferir.
+ */
+const { rows: alheias } = await dono.query<{ tipo: string; nome: string; quem: string }>(
+  `select 'relação' as tipo, c.relname as nome, pg_get_userbyid(c.relowner) as quem
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname in ('public','drizzle') and c.relkind in ('r','S','v','m','p')
+      and pg_get_userbyid(c.relowner) <> $1
+   union all
+   select 'tipo', t.typname, pg_get_userbyid(t.typowner)
+     from pg_type t join pg_namespace n on n.oid = t.typnamespace
+    where n.nspname in ('public','drizzle') and t.typtype in ('e','c','d')
+      and pg_get_userbyid(t.typowner) <> $1
+      and not exists (select 1 from pg_class c where c.reltype = t.oid)
+   union all
+   select 'função', p.proname, pg_get_userbyid(p.proowner)
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public','drizzle') and pg_get_userbyid(p.proowner) <> $1
+   union all
+   select 'schema', nspname, pg_get_userbyid(nspowner)
+     from pg_namespace where nspname in ('public','drizzle')
+      and pg_get_userbyid(nspowner) <> $1`,
   [DONO],
 );
 conta(
-  alheias[0].n === 0,
-  alheias[0].n === 0
-    ? `toda a posse é de ${DONO}`
-    : `${alheias[0].n} objeto(s) ainda de ${alheias[0].quem}`,
+  alheias.length === 0,
+  alheias.length === 0
+    ? `toda a posse é de ${DONO}, em tabelas, tipos, funções e schemas`
+    : `${alheias.length} objeto(s) de outro dono: ` +
+      alheias
+        .slice(0, 4)
+        .map((a) => `${a.tipo} ${a.nome} → ${a.quem}`)
+        .join("; "),
+);
+
+/**
+ * Concessão **direta** ao papel de aplicação de desenvolvimento — não o
+ * privilégio efetivo.
+ *
+ * `has_schema_privilege` responderia `true` de qualquer jeito: `radar_app` é
+ * membro de `radar_apps`, e herdar do grupo é o desenho. Ela também responde
+ * `true` para um superusuário. A primeira versão desta checagem perguntava
+ * isso, e por isso nunca passaria — uma verificação que sempre falha é pior do
+ * que nenhuma, porque ensina a ignorá-la.
+ *
+ * O que importa é o que sobreviveria a tirar o papel do grupo: uma linha na
+ * ACL com o nome dele.
+ */
+const { rows: direto } = await dono.query<{ n: number }>(
+  `select count(*)::int as n
+     from pg_namespace n, aclexplode(n.nspacl) a
+    where n.nspname = 'public' and a.grantee = to_regrole($1)::oid`,
+  [APP_DEV],
+).catch(() => ({ rows: [{ n: 0 }] }));
+conta(
+  direto[0].n === 0,
+  `${APP_DEV} não tem concessão própria no schema (só o que herda do grupo)`,
 );
 
 /** A verificação que já enganou uma vez: contar sem satisfazer a política. */
