@@ -70,10 +70,27 @@ module.exports = {
        * Sem isto o log sai em UTC enquanto o banco responde em -03, e às 22h
        * de um dia os dois discordam até da data.
        */
+      /**
+       * `CLAUDE_CONFIG_DIR` apontado para dentro da instalação. O SDK aceita,
+       * como última opção, a sessão interativa em `~/.claude/.credentials.json`
+       * — e na VPS esse arquivo existe, no home do root, porque a máquina é
+       * operada pelo CLI. Sem esta linha o trabalhador encontra essa sessão e
+       * anuncia "Anthropic: sessão do Claude Code" mesmo sem chave nenhuma
+       * configurada: o aviso de partida, que existe justamente para uma
+       * varredura não terminar vazia em silêncio, passa a mentir.
+       *
+       * Vale também depois de a chave chegar: enquanto as duas credenciais
+       * coexistem quem decide entre elas é o SDK, e o custo dos scans deve cair
+       * na conta da empresa, não na assinatura pessoal de quem administra o
+       * servidor.
+       *
+       * Fica em `var/`, que o .gitignore já exclui: é estado da instalação.
+       */
       env: {
         RADAR_ROOT: raiz,
         NODE_ENV: "production",
         TZ: "America/Sao_Paulo",
+        CLAUDE_CONFIG_DIR: `${raiz}/var/claude-config`,
       },
 
       /**
@@ -128,8 +145,21 @@ module.exports = {
        */
       interpreter_args: "--env-file=.env.producao",
 
-      /** Mesmo motivo do trabalhador: o fuso do sistema não é nosso para mudar. */
-      env: { TZ: "America/Sao_Paulo" },
+      /**
+       * `TZ` pelo mesmo motivo do trabalhador: o fuso do sistema não é nosso
+       * para mudar.
+       *
+       * `CLAUDE_CONFIG_DIR` também pelo mesmo motivo, e não por simetria: o
+       * chat usa o SDK dentro **deste** processo, não no do trabalhador
+       * (pendencias.md item 6 — são três lugares que autenticam, e cada um
+       * precisa do seu ensaio). Sem a linha aqui, este processo acharia a
+       * sessão do Claude Code do operador em `~/.claude/.credentials.json` e
+       * gastaria na assinatura pessoal dele.
+       */
+      env: {
+        TZ: "America/Sao_Paulo",
+        CLAUDE_CONFIG_DIR: `${raiz}/var/claude-config`,
+      },
 
       instances: 1,
       autorestart: true,
