@@ -32,10 +32,14 @@ argument-hint: |
 
 ## Antes de começar
 
+> **Tudo é relativo ao diretório de trabalho.** A execução acontece num
+> workspace do ambiente, montado a partir do banco — não no repositório. Caminho
+> absoluto aqui faria a skill ler a configuração e o vault de outro cliente.
+
 Carregue (via Read):
-1. `/srv/apps/content-radar/manifest.yaml` (para `target_company`, `search_scopes`, `anti_repetition`,
+1. `./manifest.yaml` (para `target_company`, `search_scopes`, `anti_repetition`,
    `storage`, `funnel`)
-2. Arquivos em `target_company.always_load` (lista de paths absolutos do vault Avanz) — extraia
+2. Arquivos em `target_company.always_load` (caminhos relativos ao workspace) — extraia
    trechos curtos pra injetar no researcher (stateless, spec 002 §3).
 3. Liste `store/briefs/{pendente-aprovacao,pendente-publicacao,publicado,rejeitado}/` (frontmatters)
    só pra contar `NNN` e pra opcionalmente exibir contexto pro humano. **Não precisa ler conteúdo**;
@@ -53,17 +57,42 @@ Carregue (via Read):
 
 Segue spec 005 §5 (passo 0 + 10 passos). Após cada passo:
 
-- **Passo 0 (housekeeping, piggyback)**: após validar args e antes de preparar contexto, invocar a skill
-  `radar-housekeeping` (best-effort) pra purgar cache local expirado de `media/publicado/`. Falha **não
-  aborta** o scan (loga warning e segue). Em `--dry-run`, invocar `radar-housekeeping --dry-run` (nada
-  apagado). O sweep grava seu próprio `housekeeping-finished` no ledger (`trigger: "piggyback-radar-scan"`).
+- **Passo 0 (housekeeping)**: não é mais sua responsabilidade. A purga do cache
+  local virou código no executor, que a roda antes de montar o workspace e grava
+  `media-purged` no ledger.
+
+  > A skill fazia isso dentro do workspace — que é uma cópia descartável sem
+  > arquivo de mídia nenhum. Ela rodava, gravava `housekeeping-finished` e não
+  > purgava nada, porque não havia o que purgar ali.
   Detalhes: spec 009 §8 + spec 005 §5.1.1.
 - **Estágio 1**: `Task(subagent_type='market-researcher', prompt=<bloco com scope, pillar_filter, window_days,
   target_count, max_per_source, allowed_sources, vault_paths>)`. Validar JSON (§5.5).
-- **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], paths absolutos
+- **Estágio 2**: `Task(subagent_type='avanz-matcher', prompt=<bloco com scan_id, findings[], caminhos relativos
   do vault e dos 4 dirs de briefs>)`. Validar JSON (§5.7).
-- **Estágio 4**: pra cada `promote-to-brief`, `Task(subagent_type='instagram-briefer', prompt=<bloco
-  spec 004 §3>)`. Validar JSON (§5.8). Materializar `.md` + ledger.
+- **Estágio 4**: pra cada `promote-to-brief` **e cada `promote-borderline`**,
+  `Task(subagent_type='instagram-briefer', prompt=<bloco spec 004 §3>)`. Validar JSON (§5.8).
+
+  **Materializar como `.json`, não como `.md`.** Grave o objeto `brief` que o briefer
+  devolveu, **exatamente como veio**, em
+  `store/briefs/pendente-aprovacao/<slug>.json`. Sem reformatar, sem redistribuir campos,
+  sem transformar em prosa. Um `.md` para leitura humana é opcional e ignorado pela
+  ingestão.
+
+  > Por quê: duas execuções reais gravaram formatos diferentes de `.md`. Numa, `hook`,
+  > `cta`, `hashtags` e `visual_brief` foram para o frontmatter; na outra, para o corpo
+  > do markdown. A ingestão lê os campos declarados, então metade do brief se perdeu sem
+  > erro nenhum — o texto existia no arquivo e não chegou ao banco. Renderizar prosa é
+  > decisão de formatação, e formatação instável não serve como contrato.
+
+  - **Tier borderline (calibração §11.V / manifest `anti_repetition.borderline_min`)**: quando o
+    matcher devolveu `decision: promote-borderline`, após o briefer retornar `create-brief`,
+    acrescente ao objeto gravado: `borderline: true` e
+    `borderline_reason: <decision_reason do matcher>`. Para `promote-to-brief` pleno, escreva
+    `borderline: false`. O flag sinaliza ao editor humano que foi um match marginal (0.48–0.55) —
+    ele é o portão de qualidade (§11.H). Nenhum outro campo muda; borderline **vira brief normal**
+    em `pendente-aprovacao/`.
+  - Se o briefer devolver `skip-redundant` (checagem definitiva headline-based), respeite — vale
+    para borderline também.
 
 ## Saída
 
@@ -72,9 +101,30 @@ roda no session principal, output é pro humano.
 
 ## Ledger
 
+**O `ts` vem do relógio, nunca da sua cabeça.** Toda linha do ledger usa:
+
+```bash
+TS=$(TZ=America/Sao_Paulo date -Iseconds)
+```
+
+Não é detalhe de estilo. Numa execução real você escreveu `"2026-08-24T12:50:00-03:00"`
+à mão — minutos redondos, segundos zerados — para um evento que aconteceu às
+11:50 UTC. O carimbo caiu **quatro horas no futuro**, depois de eventos que de
+fato vieram depois. Ordenação, janela de anti-repetição e duração por estágio
+saem todas erradas a partir daí, e nada avisa.
+
+A máquina roda em **UTC**; o `TZ=America/Sao_Paulo` é o que faz o `-03:00` que a
+spec pede ser verdadeiro em vez de decorativo. Carimbar `-03:00` num horário UTC
+adianta tudo em três horas.
+
 Append `store/ledger.jsonl` (JSONL append-only). Eventos: `scan-started`, `scan-aborted`,
 `scan-finished`, `brief-created`, `skip-redundant`, `skip-validation-failed`, `skip-low-score`,
 `skip-out-of-scope`, `brief-schema-invalid`. Schema canônico em spec 005 §18.
+
+- **Borderline (calibração §11.V)**: `promote-borderline` gera um `brief-created` normal, com
+  `extra.borderline: true` (e `extra.match_score` + `extra.borderline_reason`) — assim a métrica
+  de aprovação humana pode separar borderline de promote pleno nos 2 ciclos de medição
+  (docs/calibracao-matcher.md §5). `promote-to-brief` grava `extra.borderline: false`.
 
 ## NÃO faça
 

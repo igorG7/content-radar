@@ -1,0 +1,1712 @@
+{
+  "id": "6d4f737f-517c-4c6f-a01c-a40f098fc9ca",
+  "prevId": "e96f04b1-a215-4731-bf85-ae4c8ae3f7aa",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.ambiente": {
+      "name": "ambiente",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prefixo_midia": {
+          "name": "prefixo_midia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ambiente_slug_unique": {
+          "name": "ambiente_slug_unique",
+          "columns": ["slug"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.brief": {
+      "name": "brief",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brief_id": {
+          "name": "brief_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "brief_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pilar_slug": {
+          "name": "pilar_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publico_slug": {
+          "name": "publico_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "match_score": {
+          "name": "match_score",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "borderline": {
+          "name": "borderline",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "borderline_motivo": {
+          "name": "borderline_motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "topic_hash": {
+          "name": "topic_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "headline": {
+          "name": "headline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hook": {
+          "name": "hook",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caption_draft": {
+          "name": "caption_draft",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cta": {
+          "name": "cta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hashtags": {
+          "name": "hashtags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score_detalhe": {
+          "name": "score_detalhe",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "evidencias": {
+          "name": "evidencias",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origem": {
+          "name": "origem",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "visual_brief": {
+          "name": "visual_brief",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destino_od": {
+          "name": "destino_od",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hero_indice": {
+          "name": "hero_indice",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hero_decidido_em": {
+          "name": "hero_decidido_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hero_decidido_por": {
+          "name": "hero_decidido_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scan_id": {
+          "name": "scan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_notes": {
+          "name": "review_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "handoff_em": {
+          "name": "handoff_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publicado_em": {
+          "name": "publicado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ig_post_url": {
+          "name": "ig_post_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "brief_estado_idx": {
+          "name": "brief_estado_idx",
+          "columns": [
+            {
+              "expression": "ambiente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "brief_hash_idx": {
+          "name": "brief_hash_idx",
+          "columns": [
+            {
+              "expression": "ambiente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "topic_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "brief_pilar_publico_idx": {
+          "name": "brief_pilar_publico_idx",
+          "columns": [
+            {
+              "expression": "ambiente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pilar_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "publico_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "brief_ambiente_id_ambiente_id_fk": {
+          "name": "brief_ambiente_id_ambiente_id_fk",
+          "tableFrom": "brief",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "brief_hero_decidido_por_usuario_id_fk": {
+          "name": "brief_hero_decidido_por_usuario_id_fk",
+          "tableFrom": "brief",
+          "columnsFrom": ["hero_decidido_por"],
+          "tableTo": "usuario",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "brief_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk": {
+          "name": "brief_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk",
+          "tableFrom": "brief",
+          "columnsFrom": ["ambiente_id", "pilar_slug"],
+          "tableTo": "pilar",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "brief_ambiente_id_publico_slug_publico_ambiente_id_slug_fk": {
+          "name": "brief_ambiente_id_publico_slug_publico_ambiente_id_slug_fk",
+          "tableFrom": "brief",
+          "columnsFrom": ["ambiente_id", "publico_slug"],
+          "tableTo": "publico",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "brief_ambiente_id_scan_id_scan_ambiente_id_id_fk": {
+          "name": "brief_ambiente_id_scan_id_scan_ambiente_id_id_fk",
+          "tableFrom": "brief",
+          "columnsFrom": ["ambiente_id", "scan_id"],
+          "tableTo": "scan",
+          "columnsTo": ["ambiente_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "brief_ref_uk": {
+          "name": "brief_ref_uk",
+          "columns": ["ambiente_id", "brief_id"],
+          "nullsNotDistinct": false
+        },
+        "brief_ambiente_id_uk": {
+          "name": "brief_ambiente_id_uk",
+          "columns": ["ambiente_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"brief\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"brief\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.brief_candidata": {
+      "name": "brief_candidata",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brief_id": {
+          "name": "brief_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indice": {
+          "name": "indice",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "objeto_path": {
+          "name": "objeto_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cloud_url": {
+          "name": "cloud_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cloudinary_public_id": {
+          "name": "cloudinary_public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alt": {
+          "name": "alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "license_hint": {
+          "name": "license_hint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "licensable": {
+          "name": "licensable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "brief_candidata_ambiente_id_brief_id_brief_ambiente_id_id_fk": {
+          "name": "brief_candidata_ambiente_id_brief_id_brief_ambiente_id_id_fk",
+          "tableFrom": "brief_candidata",
+          "columnsFrom": ["ambiente_id", "brief_id"],
+          "tableTo": "brief",
+          "columnsTo": ["ambiente_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "brief_candidata_brief_id_indice_pk": {
+          "name": "brief_candidata_brief_id_indice_pk",
+          "columns": ["brief_id", "indice"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"brief_candidata\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"brief_candidata\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.config": {
+      "name": "config",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "pesos": {
+          "name": "pesos",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caps": {
+          "name": "caps",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "janelas": {
+          "name": "janelas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume": {
+          "name": "volume",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visual_base": {
+          "name": "visual_base",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "config_ambiente_id_ambiente_id_fk": {
+          "name": "config_ambiente_id_ambiente_id_fk",
+          "tableFrom": "config",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"config\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"config\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.escopo_busca": {
+      "name": "escopo_busca",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "escopo_busca_ambiente_id_ambiente_id_fk": {
+          "name": "escopo_busca_ambiente_id_ambiente_id_fk",
+          "tableFrom": "escopo_busca",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "escopo_busca_ambiente_id_slug_pk": {
+          "name": "escopo_busca_ambiente_id_slug_pk",
+          "columns": ["ambiente_id", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"escopo_busca\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"escopo_busca\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.escopo_pilar": {
+      "name": "escopo_pilar",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "escopo_slug": {
+          "name": "escopo_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pilar_slug": {
+          "name": "pilar_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "escopo_pilar_ambiente_id_escopo_slug_escopo_busca_ambiente_id_slug_fk": {
+          "name": "escopo_pilar_ambiente_id_escopo_slug_escopo_busca_ambiente_id_slug_fk",
+          "tableFrom": "escopo_pilar",
+          "columnsFrom": ["ambiente_id", "escopo_slug"],
+          "tableTo": "escopo_busca",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "escopo_pilar_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk": {
+          "name": "escopo_pilar_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk",
+          "tableFrom": "escopo_pilar",
+          "columnsFrom": ["ambiente_id", "pilar_slug"],
+          "tableTo": "pilar",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "escopo_pilar_ambiente_id_escopo_slug_pilar_slug_pk": {
+          "name": "escopo_pilar_ambiente_id_escopo_slug_pilar_slug_pk",
+          "columns": ["ambiente_id", "escopo_slug", "pilar_slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"escopo_pilar\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"escopo_pilar\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.evento": {
+      "name": "evento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ts": {
+          "name": "ts",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ator": {
+          "name": "ator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brief_id": {
+          "name": "brief_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scan_id": {
+          "name": "scan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "de_estado": {
+          "name": "de_estado",
+          "type": "brief_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "para_estado": {
+          "name": "para_estado",
+          "type": "brief_estado",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "extra": {
+          "name": "extra",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        }
+      },
+      "indexes": {
+        "evento_ts_idx": {
+          "name": "evento_ts_idx",
+          "columns": [
+            {
+              "expression": "ambiente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "evento_brief_idx": {
+          "name": "evento_brief_idx",
+          "columns": [
+            {
+              "expression": "ambiente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "brief_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ts",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "evento_ambiente_id_ambiente_id_fk": {
+          "name": "evento_ambiente_id_ambiente_id_fk",
+          "tableFrom": "evento",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "evento_usuario_id_usuario_id_fk": {
+          "name": "evento_usuario_id_usuario_id_fk",
+          "tableFrom": "evento",
+          "columnsFrom": ["usuario_id"],
+          "tableTo": "usuario",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "evento_ambiente_id_brief_id_brief_ambiente_id_id_fk": {
+          "name": "evento_ambiente_id_brief_id_brief_ambiente_id_id_fk",
+          "tableFrom": "evento",
+          "columnsFrom": ["ambiente_id", "brief_id"],
+          "tableTo": "brief",
+          "columnsTo": ["ambiente_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "evento_ambiente_id_scan_id_scan_ambiente_id_id_fk": {
+          "name": "evento_ambiente_id_scan_id_scan_ambiente_id_id_fk",
+          "tableFrom": "evento",
+          "columnsFrom": ["ambiente_id", "scan_id"],
+          "tableTo": "scan",
+          "columnsTo": ["ambiente_id", "id"],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"evento\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"evento\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fonte": {
+      "name": "fonte",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "escopo_slug": {
+          "name": "escopo_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nota": {
+          "name": "nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "fonte_ambiente_id_escopo_slug_escopo_busca_ambiente_id_slug_fk": {
+          "name": "fonte_ambiente_id_escopo_slug_escopo_busca_ambiente_id_slug_fk",
+          "tableFrom": "fonte",
+          "columnsFrom": ["ambiente_id", "escopo_slug"],
+          "tableTo": "escopo_busca",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fonte_ambiente_id_escopo_slug_slug_pk": {
+          "name": "fonte_ambiente_id_escopo_slug_slug_pk",
+          "columns": ["ambiente_id", "escopo_slug", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"fonte\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"fonte\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.guardrail": {
+      "name": "guardrail",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corpo": {
+          "name": "corpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "guardrail_ambiente_id_ambiente_id_fk": {
+          "name": "guardrail_ambiente_id_ambiente_id_fk",
+          "tableFrom": "guardrail",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "guardrail_ambiente_id_slug_pk": {
+          "name": "guardrail_ambiente_id_slug_pk",
+          "columns": ["ambiente_id", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"guardrail\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"guardrail\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.marca": {
+      "name": "marca",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "canal_principal": {
+          "name": "canal_principal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefone_exibicao": {
+          "name": "telefone_exibicao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefone_e164": {
+          "name": "telefone_e164",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefone_secundario_e164": {
+          "name": "telefone_secundario_e164",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "marca_ambiente_id_ambiente_id_fk": {
+          "name": "marca_ambiente_id_ambiente_id_fk",
+          "tableFrom": "marca",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"marca\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"marca\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pilar": {
+      "name": "pilar",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corpo": {
+          "name": "corpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "no_radar": {
+          "name": "no_radar",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "template": {
+          "name": "template",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pilar_ambiente_id_ambiente_id_fk": {
+          "name": "pilar_ambiente_id_ambiente_id_fk",
+          "tableFrom": "pilar",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pilar_ambiente_id_slug_pk": {
+          "name": "pilar_ambiente_id_slug_pk",
+          "columns": ["ambiente_id", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"pilar\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"pilar\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.publico": {
+      "name": "publico",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corpo": {
+          "name": "corpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "padrao": {
+          "name": "padrao",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "publico_ambiente_id_ambiente_id_fk": {
+          "name": "publico_ambiente_id_ambiente_id_fk",
+          "tableFrom": "publico",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "publico_ambiente_id_slug_pk": {
+          "name": "publico_ambiente_id_slug_pk",
+          "columns": ["ambiente_id", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"publico\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"publico\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.scan": {
+      "name": "scan",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scan_ref": {
+          "name": "scan_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "escopo": {
+          "name": "escopo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pilar_filtro": {
+          "name": "pilar_filtro",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "alvo_qtd": {
+          "name": "alvo_qtd",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vault_versao": {
+          "name": "vault_versao",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "iniciado_em": {
+          "name": "iniciado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "encerrado_em": {
+          "name": "encerrado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "scan_ambiente_id_ambiente_id_fk": {
+          "name": "scan_ambiente_id_ambiente_id_fk",
+          "tableFrom": "scan",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "scan_ref_uk": {
+          "name": "scan_ref_uk",
+          "columns": ["ambiente_id", "scan_ref"],
+          "nullsNotDistinct": false
+        },
+        "scan_ambiente_id_uk": {
+          "name": "scan_ambiente_id_uk",
+          "columns": ["ambiente_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"scan\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"scan\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tema": {
+      "name": "tema",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pilar_slug": {
+          "name": "pilar_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "angulo": {
+          "name": "angulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esgotado_em": {
+          "name": "esgotado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usado_em": {
+          "name": "usado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tema_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk": {
+          "name": "tema_ambiente_id_pilar_slug_pilar_ambiente_id_slug_fk",
+          "tableFrom": "tema",
+          "columnsFrom": ["ambiente_id", "pilar_slug"],
+          "tableTo": "pilar",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tema_ambiente_id_pilar_slug_codigo_pk": {
+          "name": "tema_ambiente_id_pilar_slug_codigo_pk",
+          "columns": ["ambiente_id", "pilar_slug", "codigo"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"tema\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"tema\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.usuario": {
+      "name": "usuario",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "senha_hash": {
+          "name": "senha_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "usuario_ambiente_id_ambiente_id_fk": {
+          "name": "usuario_ambiente_id_ambiente_id_fk",
+          "tableFrom": "usuario",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuario_email_unique": {
+          "name": "usuario_email_unique",
+          "columns": ["email"],
+          "nullsNotDistinct": false
+        },
+        "usuario_ambiente_id_uk": {
+          "name": "usuario_ambiente_id_uk",
+          "columns": ["ambiente_id", "id"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vault_bloco": {
+      "name": "vault_bloco",
+      "schema": "",
+      "columns": {
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "titulo": {
+          "name": "titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corpo": {
+          "name": "corpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "escopo": {
+          "name": "escopo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contrato": {
+          "name": "contrato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "versao": {
+          "name": "versao",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vault_bloco_ambiente_id_ambiente_id_fk": {
+          "name": "vault_bloco_ambiente_id_ambiente_id_fk",
+          "tableFrom": "vault_bloco",
+          "columnsFrom": ["ambiente_id"],
+          "tableTo": "ambiente",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "vault_bloco_ambiente_id_slug_pk": {
+          "name": "vault_bloco_ambiente_id_slug_pk",
+          "columns": ["ambiente_id", "slug"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"vault_bloco\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"vault_bloco\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vault_bloco_versao": {
+      "name": "vault_bloco_versao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ambiente_id": {
+          "name": "ambiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "versao": {
+          "name": "versao",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corpo": {
+          "name": "corpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "vault_bloco_versao_autor_id_usuario_id_fk": {
+          "name": "vault_bloco_versao_autor_id_usuario_id_fk",
+          "tableFrom": "vault_bloco_versao",
+          "columnsFrom": ["autor_id"],
+          "tableTo": "usuario",
+          "columnsTo": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "vault_bloco_versao_ambiente_id_slug_vault_bloco_ambiente_id_slug_fk": {
+          "name": "vault_bloco_versao_ambiente_id_slug_vault_bloco_ambiente_id_slug_fk",
+          "tableFrom": "vault_bloco_versao",
+          "columnsFrom": ["ambiente_id", "slug"],
+          "tableTo": "vault_bloco",
+          "columnsTo": ["ambiente_id", "slug"],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "vault_bloco_versao_uk": {
+          "name": "vault_bloco_versao_uk",
+          "columns": ["ambiente_id", "slug", "versao"],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "isolamento": {
+          "name": "isolamento",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": ["public"],
+          "using": "\"vault_bloco_versao\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid",
+          "withCheck": "\"vault_bloco_versao\".\"ambiente_id\" = current_setting('app.ambiente', true)::uuid"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.brief_estado": {
+      "name": "brief_estado",
+      "schema": "public",
+      "values": [
+        "pendente-aprovacao",
+        "pendente-publicacao",
+        "publicado",
+        "rejeitado"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

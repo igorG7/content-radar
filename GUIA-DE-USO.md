@@ -7,6 +7,16 @@ fim, comando por comando. Inclui o modo **sem Cloudinary** (placeholder).
 > [`docs/specs/001-foundation.md`](./docs/specs/001-foundation.md). Este guia é
 > só o *como*.
 
+> [!WARNING]
+> **Descreve o pipeline por linha de comando**, anterior à app web. Os comandos
+> e o arquivo `.local/cloudinary.env` deste guia não valem mais: as credenciais
+> vivem no `.env` de cada instalação, e a operação é pela interface.
+>
+> Continua útil pelo *o que o radar faz e não faz*, pelas regras editoriais e
+> pelo modo placeholder. Para o *como* de hoje, veja
+> [`docs/pendencias.md`](./docs/pendencias.md) e
+> [`web/.env.example`](./web/.env.example).
+
 ---
 
 ## 1. O que o content-radar faz (e o que NÃO faz)

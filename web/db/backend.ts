@@ -1,0 +1,1941 @@
+import "server-only";
+
+/**
+ * Backend de Postgres da `RadarStore`. Irmão de `backendArquivo`, atrás da
+ * mesma interface — é o que permite a troca sem tocar em página nenhuma.
+ *
+ * Toda operação passa por `comAmbiente()`, que abre transação e declara
+ * `app.ambiente`. Não há caminho que escape disso: sem a declaração o banco
+ * devolve zero linhas, e é assim que o isolamento deixa de depender de
+ * disciplina de quem escreve consulta.
+ *
+ * Duas coisas continuam em arquivo, de propósito:
+ *
+ * - **mídia**, que é binário e nunca foi para o banco (esquema §1);
+ * - **`manifest()`**, que ainda lê `manifest.yaml`. A configuração por ambiente
+ *   já existe na tabela `config`, mas a tela que a edita escreve no YAML — a
+ *   troca é fatia própria, e fazer meia aqui deixaria leitura e edição
+ *   discordando.
+ */
+
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { comAmbiente, type Tx } from "./cliente";
+import * as t from "./schema";
+import { proporcaoEfetiva } from "../lib/view/proporcao";
+import { projetarConfig } from "../lib/config/projecao";
+import {
+  loadManifest,
+  MANIFEST_PATH,
+  escreverAtomico,
+  RADAR_ROOT,
+  resolvePaths,
+  type BriefState,
+} from "../lib/manifest";
+import type { Brief, HeroCandidate, StateListing } from "../lib/store/briefs";
+import type { LedgerEvent, LedgerReadResult } from "../lib/store/ledger";
+import type { TransitionPlan, TransitionResult } from "../lib/transitions/mv";
+import { TransitionError } from "../lib/transitions/mv";
+import type {
+  AmbienteId,
+  EdicaoBrief,
+  Estagio,
+  RadarStore,
+  Varredura,
+  TransicaoEntrada,
+} from "../lib/store";
+import { JaRodando, StoreError } from "../lib/store";
+import type { Destruidor, Enviador } from "../lib/midia/cloudinary";
+import { readFile, rm, stat } from "node:fs/promises";
+import path from "node:path";
+
+type LinhaBrief = typeof t.brief.$inferSelect;
+type LinhaCandidata = typeof t.briefCandidata.$inferSelect;
+
+/**
+ * Quando cada brief foi aprovado. Não é coluna: a aprovação é um evento, e
+ * duplicá-la numa coluna criaria duas versões do mesmo fato.
+ *
+ * Precisa existir porque o diálogo de publicação recusa data anterior à
+ * aprovação — sem isto a validação não falha, ela simplesmente não acontece.
+ */
+async function aprovacoes(
+  tx: Tx,
+  briefIds: string[],
+): Promise<Map<string, string>> {
+  if (briefIds.length === 0) return new Map();
+  const linhas = await tx
+    .select({ briefId: t.evento.briefId, em: t.evento.ts })
+    .from(t.evento)
+    .where(
+      and(
+        eq(t.evento.paraEstado, "pendente-publicacao"),
+        inArray(t.evento.briefId, briefIds),
+      ),
+    )
+    .orderBy(desc(t.evento.ts));
+
+  const mapa = new Map<string, string>();
+  // Ordenado do mais recente para o mais antigo, e só a primeira ocorrência
+  // conta: um brief devolvido e reaprovado tem a aprovação que vale sendo a
+  // última.
+  for (const l of linhas) {
+    if (l.briefId && !mapa.has(l.briefId))
+      mapa.set(l.briefId, l.em.toISOString());
+  }
+  return mapa;
+}
+
+/**
+ * Onde o cache local guarda a mídia deste ambiente.
+ *
+ * Fora do `store/`, que é a fotografia congelada da importação, e **debaixo do
+ * prefixo do ambiente**. Antes era um diretório só para todos: dois clientes
+ * com arquivo de mesmo nome se sobrescreviam, e o nome é adivinhável porque sai
+ * do `brief_ref`, que cada ambiente numera do 1.
+ */
+function caminhoDaMidia(prefixo: string, estado: string, arquivo: string) {
+  return path.join(RADAR_ROOT, "var", prefixo, estado, path.basename(arquivo));
+}
+
+/**
+ * O caminho antigo, compartilhado. Só para **leitura**: a mídia dos briefs
+ * importados está lá, e mover arquivo do diretório congelado seria mexer no que
+ * o relatório de reconciliação compara. Nada novo é escrito aqui.
+ */
+async function caminhoLegado(estado: string, arquivo: string) {
+  const p = resolvePaths(await loadManifest());
+  return path.join(p.mediaDir[estado as BriefState], path.basename(arquivo));
+}
+
+async function lerArquivo(
+  caminho: string,
+): Promise<Uint8Array<ArrayBuffer> | null> {
+  try {
+    return Uint8Array.from(await readFile(caminho));
+  } catch (erro) {
+    if ((erro as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw erro;
+  }
+}
+
+/**
+ * A legenda já contém este trecho?
+ *
+ * Comparação frouxa de propósito: aspas curvas contra retas, espaço duplo e
+ * reticências tipográficas fariam duas cópias do mesmo texto parecerem
+ * diferentes.
+ */
+function contem(legenda: string | null, trecho: string | null): boolean {
+  if (!legenda || !trecho) return false;
+  const limpar = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  return limpar(legenda).includes(limpar(trecho));
+}
+
+/** `undefined` some do update (preserva); `null` chega e limpa. */
+function manter<T>(valor: T | null | undefined): T | null | undefined {
+  return valor === undefined ? undefined : valor;
+}
+
+/**
+ * O primeiro **parágrafo**, não a primeira linha.
+ *
+ * A prosa do vault é quebrada em ~76 colunas, então a primeira linha física
+ * termina onde a largura acabou, não onde a frase acabou. O pacote saiu com
+ * "quem está em Mateus Leme, Esmeraldas ou Juatuba lê notícia local. A" — corte
+ * no meio, entregue ao cliente.
+ *
+ * É a terceira vez que largura de linha é confundida com fim de conteúdo neste
+ * repositório: já aconteceu com os guardrails na importação.
+ */
+function primeiroParagrafo(texto: string): string {
+  return (texto.split(/\n\s*\n/)[0] ?? "").replace(/\s*\n\s*/g, " ").trim();
+}
+
+/** Tira marcação de um trecho que vai ser embutido noutra frase formatada. */
+function semMarcacao(texto: string): string {
+  return texto
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^[#>\s-]+/, "")
+    .trim();
+}
+
+/**
+ * A direção de arte, do jsonb para o vocabulário do app.
+ *
+ * O banco guarda as chaves como o pipeline as escreve — `must_have`,
+ * `avoid_visual` — e o app fala `mustHave`, `avoidVisual`. Aqui havia um cast
+ * cru: os tipos batiam para o compilador e a tela recebia chaves que não sabia
+ * ler, então mostrava direção de arte vazia com o dado inteiro no banco.
+ * Cast não converte nada; só cala o compilador.
+ */
+function paraVisualBrief(valor: unknown): Brief["visualBrief"] {
+  const v = (valor ?? {}) as Record<string, unknown>;
+  const texto = (x: unknown) => (typeof x === "string" ? x : undefined);
+  const lista = (x: unknown) =>
+    Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : [];
+
+  return {
+    baseTemplate: texto(v.base_template) ?? texto(v.baseTemplate),
+    compositionNotes: texto(v.composition_notes) ?? texto(v.compositionNotes),
+    mustHave: lista(v.must_have ?? v.mustHave),
+    avoidVisual: lista(v.avoid_visual ?? v.avoidVisual),
+    aspectRatio: texto(v.aspect_ratio) ?? texto(v.aspectRatio),
+  };
+}
+
+/** O app fala o vocabulário do tipo `Brief`; o banco, o das colunas. */
+function paraBrief(
+  linha: LinhaBrief,
+  candidatas: LinhaCandidata[],
+  aprovadoEm?: string,
+): Brief {
+  const origem = (linha.origem ?? {}) as Record<string, unknown>;
+  const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  const arr = (v: unknown) =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
+  return {
+    slug: linha.slug,
+    briefId: linha.briefId,
+    state: linha.estado,
+    // Não há arquivo: o campo existe no tipo por herança do backend anterior.
+    filePath: "",
+    headline: linha.headline,
+    hook: linha.hook ?? undefined,
+    pillar: linha.pilarSlug,
+    icp: linha.publicoSlug,
+    scope: str(origem.scope),
+    scanId: linha.scanId ?? undefined,
+    createdAt: linha.criadoEm.toISOString(),
+    updatedAt: linha.atualizadoEm.toISOString(),
+    matchScore:
+      linha.matchScore === null ? undefined : Number(linha.matchScore),
+    matchScoreBreakdown: (linha.scoreDetalhe ?? undefined) as
+      Record<string, number> | undefined,
+    borderline: linha.borderline,
+    borderlineReason: linha.borderlineMotivo ?? undefined,
+    whyMatch: str(origem.why_match),
+    topicHash: linha.topicHash,
+    sourceUrls: arr(origem.source_urls),
+    // A ambiguidade do arquivo não existe aqui: o carimbo diz se houve decisão.
+    heroChoice: linha.heroDecididoEm ? linha.heroIndice : undefined,
+    heroChoiceDeclared: linha.heroDecididoEm !== null,
+    candidates: candidatas
+      .sort((a, b) => a.indice - b.indice)
+      .map((c): HeroCandidate => ({
+        index: c.indice,
+        fileName: c.objetoPath,
+        exists: c.objetoPath !== null,
+        imageUrl: c.imageUrl ?? undefined,
+        alt: c.alt ?? undefined,
+        licenseHint: c.licenseHint ?? undefined,
+        licensable: c.licensable ?? undefined,
+        cloudUrl: c.cloudUrl,
+      })),
+    warnings: [],
+    captionDraft: linha.captionDraft ?? undefined,
+    hashtags: linha.hashtags ?? [],
+    cta: linha.cta ?? undefined,
+    suggestedSlot: str(destino.suggested_slot),
+    format: str(destino.format),
+    odSkillRef: str(destino.od_skill_ref),
+    odSkillAlternatives: arr(destino.alternativas),
+    sourceExcerpts: arr(origem.source_excerpts),
+    reviewNotes: linha.reviewNotes ?? undefined,
+    visualBrief: paraVisualBrief(linha.visualBrief),
+    relevanceHints: (linha.evidencias ?? []) as Brief["relevanceHints"],
+    origin: str(origem.origin),
+    approvedAt: aprovadoEm,
+    handoffAt: linha.handoffEm?.toISOString(),
+    publishedAt: linha.publicadoEm?.toISOString(),
+    igPostUrl: linha.igPostUrl ?? undefined,
+  };
+}
+
+async function listar(tx: Tx, estado: BriefState): Promise<StateListing> {
+  const linhas = await tx
+    .select()
+    .from(t.brief)
+    .where(eq(t.brief.estado, estado))
+    .orderBy(desc(t.brief.criadoEm));
+
+  const candidatas = linhas.length
+    ? await tx.select().from(t.briefCandidata)
+    : [];
+  const porBrief = new Map<string, LinhaCandidata[]>();
+  for (const c of candidatas) {
+    porBrief.set(c.briefId, [...(porBrief.get(c.briefId) ?? []), c]);
+  }
+
+  const aprovado = await aprovacoes(
+    tx,
+    linhas.map((l) => l.id),
+  );
+
+  return {
+    state: estado,
+    briefs: linhas.map((l) =>
+      paraBrief(l, porBrief.get(l.id) ?? [], aprovado.get(l.id)),
+    ),
+    // Falha de leitura era um conceito de arquivo malformado; no banco, ou a
+    // linha existe e é válida, ou não existe.
+    failures: [],
+  };
+}
+
+async function buscarLinha(tx: Tx, slug: string): Promise<LinhaBrief> {
+  const [linha] = await tx.select().from(t.brief).where(eq(t.brief.slug, slug));
+  if (!linha)
+    throw new StoreError("nao_encontrado", `brief não encontrado: ${slug}`);
+  return linha;
+}
+
+/**
+ * Traduz o caminho que a tela usa (o do manifest.yaml) para o grupo da tabela
+ * `config`. Caminho desconhecido é recusado em vez de ignorado: gravar metade
+ * da edição é pior que não gravar.
+ */
+function grupoDe(
+  caminho: (string | number)[],
+): { grupo: "pesos" | "caps" | "janelas" | "volume"; chave: string } | null {
+  const [raiz, meio, folha] = caminho.map(String);
+  if (raiz === "funnel") return { grupo: "volume", chave: meio };
+  if (raiz !== "anti_repetition") return null;
+  if (meio === "match_score_weights") return { grupo: "pesos", chave: folha };
+  if (meio === "match_score_caps") return { grupo: "caps", chave: folha };
+  if (meio === "windows") return { grupo: "janelas", chave: folha };
+  return { grupo: "caps", chave: meio };
+}
+
+const PROXIMO_ESTADO = {
+  approve: "pendente-publicacao",
+  reject: "rejeitado",
+} as const;
+
+/**
+ * @param enviarParaNuvem substituível para que o teste não toque na rede. Em
+ * produção sai de `enviador(credenciais(...))`; sem credencial, é `null` e a
+ * escolha da arte segue funcionando sem URL remota.
+ */
+export function backendPostgres(
+  ambiente: AmbienteId,
+  opcoes: {
+    enviarParaNuvem?: Enviador | null;
+    apagarDaNuvem?: Destruidor | null;
+  } = {},
+): RadarStore {
+  const dentro = <T>(trabalho: (tx: Tx) => Promise<T>) =>
+    comAmbiente(ambiente, trabalho);
+
+  /** O prefixo de mídia deste ambiente, que separa o cache no disco. */
+  async function prefixoDoAmbiente(tx: Tx): Promise<string> {
+    const [linha] = await tx
+      .select({ prefixo: t.ambiente.prefixoMidia })
+      .from(t.ambiente)
+      .where(eq(t.ambiente.id, ambiente));
+    return linha?.prefixo ?? `midia/${ambiente}`;
+  }
+
+  /** Plano e execução compartilham a leitura para não divergirem. */
+  async function planejar(
+    tx: Tx,
+    entrada: TransicaoEntrada,
+  ): Promise<TransitionPlan> {
+    const linha = await buscarLinha(tx, entrada.slug);
+    if (linha.estado !== "pendente-aprovacao") {
+      throw new TransitionError(
+        "wrong_state",
+        `brief está em ${linha.estado}, não na fila`,
+      );
+    }
+    // A regra que o arquivo não conseguia expressar: sem carimbo de decisão,
+    // não há escolha humana — e aprovar sem escolha é o erro que a fila existe
+    // para impedir.
+    if (entrada.direcao === "approve" && linha.heroDecididoEm === null) {
+      throw new TransitionError(
+        "hero_choice_missing",
+        "a arte ainda não foi escolhida nesta sessão",
+      );
+    }
+
+    const candidatas = await tx
+      .select()
+      .from(t.briefCandidata)
+      .where(eq(t.briefCandidata.briefId, linha.id));
+
+    const escolhida = candidatas.find((c) => c.indice === linha.heroIndice);
+    if (
+      entrada.direcao === "approve" &&
+      linha.heroIndice !== null &&
+      !escolhida
+    ) {
+      throw new TransitionError(
+        "hero_choice_out_of_range",
+        `não existe candidata ${linha.heroIndice}`,
+      );
+    }
+
+    const mantida =
+      entrada.direcao === "approve" ? (escolhida?.objetoPath ?? null) : null;
+    return {
+      slug: linha.slug,
+      briefId: linha.briefId,
+      direction: entrada.direcao,
+      from: linha.estado,
+      to: PROXIMO_ESTADO[entrada.direcao],
+      heroChoice: linha.heroIndice,
+      mediaKept: mantida,
+      mediaDeleted: candidatas
+        .map((c) => c.objetoPath)
+        .filter((p): p is string => p !== null && p !== mantida),
+      warnings:
+        entrada.direcao === "approve" && linha.heroIndice === null
+          ? ["aprovado sem foto — o Smart Design gera a arte"]
+          : [],
+    };
+  }
+
+  return {
+    ambiente,
+
+    /**
+     * O manifest do disco **com a configuração deste ambiente por cima**.
+     *
+     * Era `loadManifest` puro, e por isso a meta editada na tela de
+     * configuração ficava só no banco: o painel lia o arquivo e anunciava o
+     * valor antigo. Ver `lib/config/projecao.ts`.
+     */
+    manifest: () =>
+      dentro(async (tx) => {
+        const base = await loadManifest();
+        const [linha] = await tx.select().from(t.config);
+        if (!linha) return base;
+        return projetarConfig(base, {
+          pesos: linha.pesos as Record<string, unknown>,
+          caps: linha.caps as Record<string, unknown>,
+          janelas: linha.janelas as Record<string, unknown>,
+          volume: linha.volume as Record<string, unknown>,
+        });
+      }),
+
+    async lerManifestBruto() {
+      return readFile(MANIFEST_PATH, "utf8");
+    },
+
+    async gravarManifestBruto(texto) {
+      await escreverAtomico(MANIFEST_PATH, texto);
+    },
+
+    listarEstado: (estado) => dentro((tx) => listar(tx, estado)),
+    listarFila: () => dentro((tx) => listar(tx, "pendente-aprovacao")),
+
+    listarTodos: () =>
+      dentro(async (tx) => {
+        const estados: BriefState[] = [
+          "pendente-aprovacao",
+          "pendente-publicacao",
+          "publicado",
+          "rejeitado",
+        ];
+        const saida: StateListing[] = [];
+        for (const estado of estados) saida.push(await listar(tx, estado));
+        return saida;
+      }),
+
+    buscarBrief: (slug) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        const candidatas = await tx
+          .select()
+          .from(t.briefCandidata)
+          .where(eq(t.briefCandidata.briefId, linha.id));
+        const aprovado = await aprovacoes(tx, [linha.id]);
+        const brief = paraBrief(linha, candidatas, aprovado.get(linha.id));
+
+        /**
+         * A tela mostra a proporção **efetiva**, não a sobreposição.
+         *
+         * O brief guarda `aspect_ratio` só quando alguém o editou — a ingestão
+         * descarta o que o briefer inventa. Sem preencher aqui, o detalhe
+         * exibia o rótulo seguido de nada, a prévia do feed recebia vazio, e o
+         * seletor da edição não casava com opção nenhuma: a pessoa via em
+         * branco enquanto o pacote já levava 3:4 ao Smart Design.
+         */
+        const [pilar] = await tx
+          .select({ template: t.pilar.template })
+          .from(t.pilar)
+          .where(eq(t.pilar.slug, linha.pilarSlug));
+        const formato = ((pilar?.template ?? {}) as Record<string, unknown>)
+          .formato as Record<string, unknown> | undefined;
+
+        if (brief.visualBrief) {
+          brief.visualBrief.aspectRatio = proporcaoEfetiva(
+            brief.visualBrief.aspectRatio,
+            formato?.proporcao as string | undefined,
+          );
+        }
+        return brief;
+      }),
+
+    planejarTransicao: (entrada) => dentro((tx) => planejar(tx, entrada)),
+
+    /**
+     * Mover, remanejar mídia e registrar no ledger numa transação só. No
+     * backend de arquivo essa sequência não era atômica: falhar no meio deixava
+     * o brief movido e o ledger sem o evento.
+     */
+    aplicarTransicao: async (entrada) => {
+      /**
+       * O que apagar depois que a transição estiver gravada. Fora da transação
+       * porque arquivo e objeto remoto não voltam se ela falhar.
+       */
+      const descartadas: { objetoPath: string; publicId: string | null }[] = [];
+
+      const resultado = await dentro(async (tx): Promise<TransitionResult> => {
+        const linha = await buscarLinha(tx, entrada.slug);
+        const plano = await planejar(tx, entrada);
+
+        await tx
+          .update(t.brief)
+          .set({
+            estado: plano.to,
+            atualizadoEm: new Date(),
+            reviewNotes: entrada.motivo ?? undefined,
+          })
+          .where(eq(t.brief.id, linha.id));
+
+        /**
+         * As candidatas descartadas somem do registro — e os arquivos vão
+         * junto, **depois** do commit.
+         *
+         * O comentário anterior dizia que os arquivos sumiam e isso nunca foi
+         * verdade: a linha saía do banco e o `.jpg` ficava no disco para sempre.
+         * Apagar dentro da transação seria pior — arquivo não volta se ela
+         * falhar, e aí perderíamos mídia de um brief que continuou existindo.
+         */
+        for (const descartada of plano.mediaDeleted) {
+          const [linhaCand] = await tx
+            .select({
+              objetoPath: t.briefCandidata.objetoPath,
+              publicId: t.briefCandidata.cloudinaryPublicId,
+            })
+            .from(t.briefCandidata)
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.objetoPath, descartada),
+              ),
+            );
+          // Candidata sem arquivo não tem o que apagar no disco, mas pode ter
+          // subido para a nuvem antes de o caminho local sumir.
+          if (linhaCand?.objetoPath)
+            descartadas.push({
+              objetoPath: linhaCand.objetoPath,
+              publicId: linhaCand.publicId,
+            });
+
+          await tx
+            .delete(t.briefCandidata)
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.objetoPath, descartada),
+              ),
+            );
+        }
+
+        const [evento] = await tx
+          .insert(t.evento)
+          .values({
+            ambienteId: ambiente,
+            tipo: entrada.direcao === "approve" ? "mv-approved" : "mv-rejected",
+            ator: entrada.ator ?? "app:radar-web",
+            briefId: linha.id,
+            deEstado: plano.from,
+            paraEstado: plano.to,
+            extra: {
+              hero_choice: plano.heroChoice,
+              media_kept: plano.mediaKept ?? "none",
+              media_deleted: plano.mediaDeleted,
+              reason: entrada.motivo ?? null,
+            },
+          })
+          .returning();
+
+        return {
+          ...plano,
+          applied: true,
+          ledgerEvent: {
+            ts: evento.ts.toISOString(),
+            event: evento.tipo,
+            actor: evento.ator,
+            brief_id: plano.briefId,
+            extra: evento.extra as Record<string, unknown>,
+          },
+        };
+      });
+
+      /**
+       * A limpeza acontece depois do commit e **não derruba a transição**: o
+       * brief já mudou de estado, e falhar aqui só significa mídia sobrando —
+       * problema de custo e disco, que a housekeeping varre. Lançar faria a
+       * pessoa ver "erro ao aprovar" num brief que foi aprovado.
+       */
+      /**
+       * O `public_id` é estável por brief, então várias candidatas descartadas
+       * apontam para o mesmo objeto. Sem deduplicar, a purga pediria a mesma
+       * remoção várias vezes — inofensivo, porque "not found" conta como
+       * sucesso, mas é requisição paga à toa.
+       */
+      const jaApagados = new Set<string>();
+
+      for (const d of descartadas) {
+        try {
+          const prefixo = await dentro(prefixoDoAmbiente);
+          await rm(caminhoDaMidia(prefixo, resultado.from, d.objetoPath), {
+            force: true,
+          });
+        } catch (erro) {
+          console.warn(
+            `[store] não consegui apagar ${d.objetoPath}: ${(erro as Error).message}`,
+          );
+        }
+        if (d.publicId && opcoes.apagarDaNuvem && !jaApagados.has(d.publicId)) {
+          jaApagados.add(d.publicId);
+          try {
+            await opcoes.apagarDaNuvem(d.publicId);
+          } catch (erro) {
+            console.warn(
+              `[store] não consegui apagar ${d.publicId} do Cloudinary: ${(erro as Error).message}`,
+            );
+          }
+        }
+      }
+
+      return resultado;
+    },
+
+    gravarEscolhaHero: (slug, indice) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        if (linha.estado !== "pendente-aprovacao") {
+          throw new StoreError(
+            "nao_encontrado",
+            "brief não está em pendente-aprovacao",
+          );
+        }
+        if (indice !== null) {
+          const [candidata] = await tx
+            .select()
+            .from(t.briefCandidata)
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.indice, indice),
+              ),
+            );
+          if (!candidata) {
+            throw new StoreError(
+              "candidata_invalida",
+              `não existe candidata com índice ${indice}`,
+            );
+          }
+        }
+        // O carimbo é o dado que faltava no arquivo: registra que houve decisão,
+        // inclusive quando a decisão foi "sem foto".
+        await tx
+          .update(t.brief)
+          .set({
+            heroIndice: indice,
+            heroDecididoEm: new Date(),
+            atualizadoEm: new Date(),
+          })
+          .where(eq(t.brief.id, linha.id));
+
+        if (indice === null) return;
+
+        /**
+         * A foto escolhida sobe agora. É o instante em que ela deixa de ser
+         * cache local e vira artefato externo: depois disto o export só precisa
+         * citar a URL, e aprovar já apaga as candidatas que ficaram para trás.
+         *
+         * Falha de upload **não desfaz a escolha**. A decisão é da pessoa e já
+         * é válida; o que fica pendente é a cópia remota, e o export diz na
+         * cara quando ela falta. Derrubar a transação aqui faria uma
+         * indisponibilidade do Cloudinary bloquear a revisão da fila.
+         */
+        const enviar = opcoes.enviarParaNuvem;
+        if (!enviar) return;
+
+        const [candidata] = await tx
+          .select()
+          .from(t.briefCandidata)
+          .where(
+            and(
+              eq(t.briefCandidata.briefId, linha.id),
+              eq(t.briefCandidata.indice, indice),
+            ),
+          );
+        if (!candidata?.objetoPath) return;
+
+        const prefixo = await prefixoDoAmbiente(tx);
+        // A candidata já foi verificada como deste ambiente logo acima, então
+        // o legado pode ser lido sem nova checagem — é a foto de um brief
+        // importado, cujo arquivo nunca migrou do diretório antigo.
+        const bytes =
+          (await lerArquivo(
+            caminhoDaMidia(prefixo, linha.estado, candidata.objetoPath),
+          )) ??
+          (await lerArquivo(
+            await caminhoLegado(linha.estado, candidata.objetoPath),
+          ));
+        if (!bytes) return;
+
+        try {
+          // Prefixo do ambiente no caminho: é o que impede a mídia de dois
+          // clientes de colidir numa pasta só, como acontece no cache local.
+          const enviado = await enviar({
+            bytes,
+            publicId: `${prefixo}/${linha.slug}`,
+            nomeArquivo: candidata.objetoPath,
+          });
+
+          await tx
+            .update(t.briefCandidata)
+            .set({
+              cloudUrl: enviado.url,
+              cloudinaryPublicId: enviado.publicId,
+            })
+            .where(
+              and(
+                eq(t.briefCandidata.briefId, linha.id),
+                eq(t.briefCandidata.indice, indice),
+              ),
+            );
+
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "cloudinary-uploaded",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: { indice, public_id: enviado.publicId },
+          });
+        } catch (erro) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "cloudinary-falhou",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: { indice, erro: (erro as Error).message },
+          });
+        }
+      }),
+
+    editarBrief: (estado, slug, campos: EdicaoBrief) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        if (linha.estado !== estado) {
+          throw new StoreError(
+            "nao_encontrado",
+            "brief não encontrado neste estado",
+          );
+        }
+        /**
+         * O que o humano reescreveu, antes de sobrescrever.
+         *
+         * Sem isto a edição some: o ledger registrava a transição de estado e
+         * não a mudança de conteúdo, então o texto que foi ao Instagram podia
+         * diferir do que o pipeline escreveu sem nada dizer. Aconteceu no
+         * `2026-W35-001` — o CTA saiu quebrado, foi corrigido à mão, e o
+         * histórico não tem uma linha sobre isso.
+         *
+         * Guardar o valor anterior é o que responde a pergunta que importa
+         * depois: o agente escreveu isto, ou fomos nós? Também é o insumo para
+         * julgar a qualidade do briefer sem depender de memória.
+         */
+        const antes: Record<string, unknown> = {};
+        const comparar = <T>(campo: string, novo: T, velho: T) => {
+          if (
+            novo !== undefined &&
+            JSON.stringify(novo) !== JSON.stringify(velho)
+          ) {
+            antes[campo] = velho;
+          }
+        };
+        comparar("headline", campos.headline, linha.headline);
+        comparar("hook", campos.hook, linha.hook);
+        comparar("caption_draft", campos.caption_draft, linha.captionDraft);
+        comparar("cta", campos.cta, linha.cta);
+        comparar("hashtags", campos.hashtags, linha.hashtags);
+        comparar("review_notes", campos.review_notes, linha.reviewNotes);
+
+        /**
+         * Corrigir o CTA corrige também a cópia dele dentro da legenda.
+         *
+         * O briefer escreve o CTA duas vezes: como campo e como último
+         * parágrafo da legenda. Editar só o campo deixava as duas versões
+         * discordando, e o pacote saía com as duas — a errada dentro do bloco
+         * que a pessoa cola no Instagram, a certa num bloco separado logo
+         * abaixo. Foi o que aconteceu com o `2026-W35-001`.
+         *
+         * A troca é literal e só acontece quando a legenda terminava
+         * **exatamente** com o CTA anterior: aí não é reescrever texto alheio,
+         * é propagar a mesma correção para a segunda cópia da mesma frase.
+         */
+        let legenda = campos.caption_draft;
+        const ctaNovo = campos.cta ?? null;
+        const ctaVelho = linha.cta;
+        const legendaBase = legenda ?? linha.captionDraft;
+        let legendaSincronizada = false;
+
+        if (
+          ctaNovo &&
+          ctaVelho &&
+          ctaNovo !== ctaVelho &&
+          legendaBase &&
+          legendaBase.trimEnd().endsWith(ctaVelho.trim())
+        ) {
+          legenda =
+            legendaBase.trimEnd().slice(0, -ctaVelho.trim().length) + ctaNovo;
+          legendaSincronizada = true;
+        }
+
+        await tx
+          .update(t.brief)
+          .set({
+            /**
+             * Ausente preserva; `null` explícito limpa.
+             *
+             * Era `?? null` em quase todos: quem editasse só o CTA apagava
+             * hook, legenda, hashtags e pontos de atenção de uma vez. Não
+             * mordeu porque o formulário sempre manda tudo — mas a rota aceita
+             * campo opcional, então bastava um cliente mandar o que mudou.
+             */
+            headline: campos.headline ?? undefined,
+            hook: manter(campos.hook),
+            captionDraft: legendaSincronizada ? legenda : manter(legenda),
+            cta: manter(campos.cta),
+            hashtags: campos.hashtags,
+            reviewNotes: manter(campos.review_notes),
+            visualBrief: campos.visual_brief ?? linha.visualBrief,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(t.brief.id, linha.id));
+
+        // Edição que não mudou nada não vira evento: salvar sem alterar é
+        // gesto de interface, não fato editorial.
+        if (Object.keys(antes).length > 0) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "brief-corrected",
+            ator: "app:radar-web",
+            briefId: linha.id,
+            extra: {
+              campos: Object.keys(antes),
+              antes,
+              ...(legendaSincronizada ? { legenda_sincronizada: true } : {}),
+            },
+          });
+        }
+      }),
+
+    listarBlocos: () =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select()
+          .from(t.vaultBloco)
+          .orderBy(t.vaultBloco.ordem);
+        return linhas.map((l) => ({
+          slug: l.slug,
+          titulo: l.titulo,
+          corpo: l.corpo,
+          ordem: l.ordem,
+          escopo: l.escopo,
+          contrato: l.contrato,
+          versao: l.versao,
+          atualizadoEm: l.atualizadoEm.toISOString(),
+        }));
+      }),
+
+    /**
+     * Bloco e versão numa transação só: a versão nova e o histórico dela nascem
+     * juntos ou não nascem. Se o registro do porquê pudesse falhar sozinho, o
+     * histórico teria buracos justamente onde alguém foi olhar.
+     */
+    gravarBloco: (slug, corpo, motivo) =>
+      dentro(async (tx) => {
+        const [atual] = await tx
+          .select()
+          .from(t.vaultBloco)
+          .where(eq(t.vaultBloco.slug, slug));
+        if (!atual)
+          throw new StoreError("nao_encontrado", `bloco não existe: ${slug}`);
+
+        // Bloco vazio virando conteúdo é a versão 1 — o provisionamento cria a
+        // linha, mas não é uma versão: ninguém respondeu nada ainda.
+        const versao = atual.corpo === "" ? 1 : atual.versao + 1;
+
+        await tx
+          .update(t.vaultBloco)
+          .set({ corpo, versao, atualizadoEm: new Date() })
+          .where(eq(t.vaultBloco.slug, slug));
+
+        await tx.insert(t.vaultBlocoVersao).values({
+          ambienteId: ambiente,
+          slug,
+          versao,
+          corpo,
+          motivo,
+        });
+      }),
+
+    configuracao: () =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.config);
+        if (!linha)
+          throw new StoreError("nao_encontrado", "ambiente sem configuração");
+        return {
+          pesos: linha.pesos as Record<string, number>,
+          caps: linha.caps as Record<string, number>,
+          janelas: linha.janelas as Record<string, number | string>,
+          volume: linha.volume as Record<string, number | string>,
+        };
+      }),
+
+    contato: () =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.marca);
+        return linha
+          ? {
+              canalPrincipal: linha.canalPrincipal,
+              instagram: linha.instagram,
+              telefoneExibicao: linha.telefoneExibicao,
+              telefoneE164: linha.telefoneE164,
+              telefoneSecundarioE164: linha.telefoneSecundarioE164,
+            }
+          : null;
+      }),
+
+    gravarContato: (dados) =>
+      dentro(async (tx) => {
+        await tx
+          .insert(t.marca)
+          .values({ ambienteId: ambiente, ...dados })
+          .onConflictDoUpdate({
+            target: t.marca.ambienteId,
+            set: { ...dados, atualizadoEm: new Date() },
+          });
+      }),
+
+    escoposDeBusca: () =>
+      dentro(async (tx) => {
+        const [escopos, fontes, pilares] = await Promise.all([
+          tx.select().from(t.escopoBusca).orderBy(t.escopoBusca.slug),
+          tx.select().from(t.fonte),
+          tx.select().from(t.escopoPilar),
+        ]);
+        return escopos.map((e) => ({
+          slug: e.slug,
+          label: e.label,
+          ativo: e.ativo,
+          fontes: fontes
+            .filter((f) => f.escopoSlug === e.slug)
+            .map((f) => ({
+              slug: f.slug,
+              url: f.url,
+              nota: f.nota,
+              ativo: f.ativo,
+            })),
+          pilares: pilares
+            .filter((p) => p.escopoSlug === e.slug)
+            .map((p) => p.pilarSlug),
+        }));
+      }),
+
+    /**
+     * O banco é a fonte da verdade. O manifest.yaml recebe a mesma mudança por
+     * recorte cirúrgico porque as skills ainda o leem — é projeção de uma
+     * fonte só, não segunda fonte, e some quando a injeção entrar (fase 4).
+     *
+     * A ordem importa: se o arquivo falhar, a transação do banco não commitou
+     * e os dois seguem iguais. O contrário deixaria o banco à frente em
+     * silêncio.
+     *
+     * **A projeção é de um ambiente só.** Existe um `manifest.yaml`, e ele
+     * pertence à empresa declarada em `target_company.slug`. Sem esta
+     * verificação, um ambiente reescreveria a configuração das skills de
+     * outro — o vazamento que o RLS impede no banco, entrando pela porta do
+     * arquivo.
+     */
+    gravarConfiguracao: (edicoes) =>
+      dentro(async (tx) => {
+        const [linha] = await tx.select().from(t.config);
+        if (!linha)
+          throw new StoreError("nao_encontrado", "ambiente sem configuração");
+
+        const atual = {
+          pesos: linha.pesos as Record<string, unknown>,
+          caps: linha.caps as Record<string, unknown>,
+          janelas: linha.janelas as Record<string, unknown>,
+          volume: linha.volume as Record<string, unknown>,
+        };
+
+        for (const { path: caminho, value } of edicoes) {
+          const grupo = grupoDe(caminho);
+          if (!grupo)
+            throw new StoreError(
+              "candidata_invalida",
+              `caminho fora da configuração: ${caminho.join(".")}`,
+            );
+          atual[grupo.grupo][grupo.chave] = value;
+        }
+
+        await tx.update(t.config).set({ ...atual, atualizadoEm: new Date() });
+
+        const [amb] = await tx
+          .select()
+          .from(t.ambiente)
+          .where(eq(t.ambiente.id, ambiente));
+        const manifest = await loadManifest();
+        const dono = (manifest as { target_company?: { slug?: string } })
+          .target_company?.slug;
+
+        if (amb && dono === amb.slug) {
+          const { patchManifest } = await import("../lib/config/manifest-edit");
+          const bruto = await readFile(MANIFEST_PATH, "utf8");
+          await escreverAtomico(MANIFEST_PATH, patchManifest(bruto, edicoes));
+        }
+      }),
+
+    estadoDaConfig: () =>
+      dentro(async (tx) => {
+        const [fontes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.fonte);
+        const [ajustes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.config);
+        const [contato] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.marca);
+        return {
+          temFontes: fontes.n > 0,
+          temAjustes: ajustes.n > 0,
+          temContato: contato.n > 0,
+        };
+      }),
+
+    /**
+     * Publicar acontece fora do produto: a pessoa posta no Instagram e volta
+     * com a URL. O app registra que aconteceu — a URL é a prova, e é ela que
+     * torna o evento auditável depois.
+     */
+    marcarPublicado: (slug, dados) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        if (linha.estado !== "pendente-publicacao") {
+          throw new StoreError(
+            "nao_encontrado",
+            `brief está em ${linha.estado}; só se publica o que foi aprovado`,
+          );
+        }
+
+        await tx
+          .update(t.brief)
+          .set({
+            estado: "publicado",
+            publicadoEm: dados.publicadoEm,
+            igPostUrl: dados.igPostUrl,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(t.brief.id, linha.id));
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: "published",
+          ator: "app:radar-web",
+          briefId: linha.id,
+          deEstado: "pendente-publicacao",
+          paraEstado: "publicado",
+          extra: {
+            ig_post_url: dados.igPostUrl,
+            published_at: dados.publicadoEm.toISOString(),
+          },
+        });
+      }),
+
+    /**
+     * O package num `.md` só. A hero entra como URL do Cloudinary quando
+     * existe: depois do upload ela não é mais arquivo, e copiar a foto para
+     * dentro do pacote seria redundância do desenho antigo.
+     */
+    exportar: (slug) =>
+      dentro(async (tx) => {
+        const linha = await buscarLinha(tx, slug);
+        const candidatas = await tx
+          .select()
+          .from(t.briefCandidata)
+          .where(eq(t.briefCandidata.briefId, linha.id));
+        const [marca] = await tx.select().from(t.marca);
+        const [pilar] = await tx
+          .select()
+          .from(t.pilar)
+          .where(eq(t.pilar.slug, linha.pilarSlug));
+        const guardrails = await tx.select().from(t.guardrail);
+
+        const hero = candidatas.find((c) => c.indice === linha.heroIndice);
+        const destino = (linha.destinoOd ?? {}) as Record<string, unknown>;
+        const visual = (linha.visualBrief ?? {}) as Record<string, unknown>;
+        const origemDados = (linha.origem ?? {}) as Record<string, unknown>;
+        const modelo = (pilar?.template ?? {}) as Record<string, unknown>;
+        const formato = (modelo.formato ?? {}) as Record<string, unknown>;
+
+        const itens = (v: unknown): string[] =>
+          Array.isArray(v) ? v.map((x) => String(x)) : [];
+        const bullets = (v: unknown, vazio = "_(nada declarado)_") => {
+          const l = itens(v);
+          return l.length ? l.map((x) => `- ${x}`).join("\n") : vazio;
+        };
+
+        /**
+         * A proporção vem do **template do pilar**, não do `visual_brief`.
+         *
+         * O briefer deixa `aspect_ratio` nulo, e por isso o pacote chegou a
+         * omitir o formato — conclui que o dado não existia quando ele mora
+         * noutra tabela. É de lá que o pacote antigo tirava "1:1 (1080x1080)",
+         * e sem isso quem faz a arte não sabe o enquadramento.
+         */
+        /**
+         * Quem manda no enquadramento, do mais específico ao mais geral.
+         *
+         * O brief primeiro: `aspect_ratio` só existe ali se uma pessoa o
+         * escreveu na edição — a ingestão descarta o que o briefer inventa. A
+         * ordem era inversa, e nos pilares com template a edição não mudava
+         * nada.
+         *
+         * Depois o pilar, que é onde a marca declara o formato. E por último
+         * 3:4, porque três dos seis pilares não têm template e alguma coisa
+         * precisa ir para o pacote — melhor um padrão declarado aqui do que um
+         * palpite diferente a cada brief.
+         */
+        const proporcao = proporcaoEfetiva(
+          (visual.aspect_ratio ?? visual.aspectRatio) as string | undefined,
+          formato.proporcao as string | undefined,
+        );
+        const medida = [proporcao, formato.dimensao && `(${formato.dimensao})`]
+          .filter(Boolean)
+          .join(" ");
+
+        /**
+         * O que conferir antes de publicar.
+         *
+         * Três origens, um lugar só: o que a ingestão achou pendente no brief,
+         * o envelhecimento calculado, e a nota de quem revisou. Espalhadas —
+         * evento do scan, coluna, cabeça de alguém — nenhuma delas chega a
+         * quem vai fazer a peça.
+         */
+        const diasDeVida = Math.floor(
+          (Date.now() - linha.criadoEm.getTime()) / 86_400_000,
+        );
+        const atencao = [
+          ...(Array.isArray(linha.avisos) ? (linha.avisos as string[]) : []),
+          /**
+           * Duas semanas é o limiar porque a pauta nasce de notícia: passado
+           * isso, "pela primeira vez na história" pode ter deixado de ser
+           * verdade sem ninguém avisar. Não é erro do brief — é conferência
+           * antes de publicar.
+           */
+          ...(diasDeVida >= 14
+            ? [
+                `o brief tem ${diasDeVida} dias: confirme se o dado não foi ` +
+                  `superado antes de publicar, e revise o enquadramento de novidade`,
+              ]
+            : []),
+          ...(linha.reviewNotes
+            ? [`nota da revisão: ${linha.reviewNotes}`]
+            : []),
+        ];
+
+        const heroTexto =
+          linha.heroDecididoEm === null
+            ? "**não decidida** — este brief não deveria ter chegado aqui"
+            : hero?.cloudUrl
+              ? hero.cloudUrl
+              : linha.heroIndice === null
+                ? "**sem foto** — o Smart Design gera a arte"
+                : "**escolhida, mas ainda sem URL do Cloudinary**";
+
+        /**
+         * O bloco para colar é a razão de o pacote existir.
+         *
+         * Sem ele, quem vai gerar a peça lê o documento inteiro e monta o prompt
+         * de cabeça — e o que se perde na montagem é justamente o que ninguém
+         * confere depois: uma regra da marca, um item do "evitar". Aqui vai tudo
+         * o que o agente do Smart Design precisa, de uma vez.
+         */
+        const paraColar = [
+          `Crie um post de feed Instagram${medida ? ` em ${medida}` : ""}.`,
+          ``,
+          `PILAR: ${pilar?.nome ?? linha.pilarSlug} · PÚBLICO: ${linha.publicoSlug}`,
+          ``,
+          `── HEADLINE (overlay da arte) ──`,
+          linha.headline,
+          ``,
+          `── CAPTION (cole no Instagram) ──`,
+          linha.captionDraft ?? "(sem rascunho de legenda)",
+          /**
+           * Hook e CTA só entram separados quando a legenda não os contém. Por
+           * especificação ela abre com um e fecha com o outro — mas quando isso
+           * falha, omiti-los perderia a chamada para ação, que é o que converte.
+           */
+          ...(contem(linha.captionDraft, linha.hook)
+            ? []
+            : [``, `── HOOK ──`, linha.hook ?? "(sem hook)"]),
+          ...(contem(linha.captionDraft, linha.cta)
+            ? []
+            : [``, `── CTA ──`, linha.cta ?? "(sem CTA)"]),
+          ``,
+          `── HASHTAGS ──`,
+          (linha.hashtags ?? []).map((h) => `#${h}`).join(" ") || "(nenhuma)",
+          ``,
+          `── ARTE ──`,
+          String(
+            visual.composition_notes ??
+              visual.compositionNotes ??
+              "(sem notas de composição)",
+          ),
+          ``,
+          `MUST-HAVE:`,
+          bullets(visual.must_have ?? visual.mustHave, "- (nada declarado)"),
+          ``,
+          `EVITAR:`,
+          bullets(
+            visual.avoid_visual ?? visual.avoidVisual,
+            "- (nada declarado)",
+          ),
+          ...(itens(modelo.regras_obrigatorias).length
+            ? [``, `REGRAS DO PILAR:`, bullets(modelo.regras_obrigatorias)]
+            : []),
+          ...(guardrails.length
+            ? [
+                ``,
+                `GUARDRAILS DA MARCA:`,
+                guardrails.map((g) => `- ${g.corpo}`).join("\n"),
+              ]
+            : []),
+          ...(marca?.telefoneExibicao
+            ? [
+                ``,
+                `CONTATO NA ARTE: ${marca.telefoneExibicao} · ${marca.canalPrincipal}`,
+              ]
+            : []),
+        ].join("\n");
+
+        const conteudo = `# ${linha.headline}
+
+> Package do content-radar para o Smart Design.
+> Brief \`${linha.briefId}\` · pilar \`${linha.pilarSlug}\` · público \`${linha.publicoSlug}\`
+
+## O que produzir
+
+${medida ? `- **Formato:** ${medida}\n` : ""}- **Skill no Smart Design:** \`${destino.od_skill_ref ?? "—"}\`${
+          Array.isArray(destino.alternativas) && destino.alternativas.length
+            ? ` · alternativas ${(destino.alternativas as string[])
+                .map((a) => `\`${a}\``)
+                .join(", ")}`
+            : ""
+        }
+- **Hero:** ${heroTexto}${hero?.alt ? `\n- **Alt da hero:** ${hero.alt}` : ""}${
+          hero?.licenseHint
+            ? `\n- **Licença:** ${hero.licenseHint}${
+                hero.licensable === false ? " · **não licenciável**" : ""
+              }`
+            : ""
+        }
+
+## Para colar no Smart Design
+
+\`\`\`
+${paraColar}
+\`\`\`
+
+${
+  atencao.length
+    ? `## Pontos de atenção\n\n${atencao.map((a) => `- ${a}`).join("\n")}\n\n`
+    : ""
+}## Por que esta pauta
+
+${
+  pilar
+    ? `**${pilar.nome}** — ${semMarcacao(primeiroParagrafo(pilar.corpo))}\n\n`
+    : ""
+}${origemDados.why_match ?? "_(sem justificativa registrada)_"}
+
+## De onde veio
+
+${
+  Array.isArray(origemDados.source_urls) && origemDados.source_urls.length > 0
+    ? (origemDados.source_urls as string[]).map((u) => `- ${u}`).join("\n")
+    : "_(sem fonte registrada)_"
+}
+
+---
+
+_Gerado em ${new Date().toISOString()} · não publica no Instagram: a publicação é manual._
+`;
+
+        /**
+         * O carimbo marca a **primeira** entrega. Reexportar não é entregar de
+         * novo: é alguém pegando o arquivo outra vez — para refazer a arte, para
+         * conferir, ou porque o pacote mudou. Sobrescrever `handoff_em` faria a
+         * data da entrega andar para frente sem que nada tivesse acontecido, e
+         * gravar `handoff-finished` de novo contaria a mesma história duas vezes.
+         */
+        const primeira = linha.handoffEm === null;
+        if (primeira) {
+          await tx
+            .update(t.brief)
+            .set({ handoffEm: new Date() })
+            .where(eq(t.brief.id, linha.id));
+        }
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: primeira ? "handoff-finished" : "handoff-reexportado",
+          ator: "app:radar-web",
+          briefId: linha.id,
+          extra: {
+            hero_choice: linha.heroIndice,
+            cloudinary: hero?.cloudUrl ? "url" : "skipped",
+            ...(primeira
+              ? {}
+              : { entregue_em: linha.handoffEm?.toISOString() }),
+          },
+        });
+
+        return { nome: `${linha.slug}.md`, conteudo };
+      }),
+
+    enfileirarScan: (pedido) =>
+      dentro(async (tx) => {
+        const emAndamento = await tx
+          .select({ id: t.scan.id })
+          .from(t.scan)
+          .where(
+            sql`${t.scan.estado} in ('enfileirado','rodando','pesquisa','filtragem','redacao')`,
+          );
+        if (emAndamento.length > 0) throw new JaRodando();
+
+        const todos = await tx.select({ id: t.scan.id }).from(t.scan);
+        const agora = new Date();
+        const ano = agora.getUTCFullYear();
+        const semana = Math.ceil(
+          ((agora.getTime() - Date.UTC(ano, 0, 1)) / 86400000 + 1) / 7,
+        );
+        const ref = `${ano}-W${String(semana).padStart(2, "0")}-scan-${String(
+          todos.length + 1,
+        ).padStart(3, "0")}`;
+
+        const [linha] = await tx
+          .insert(t.scan)
+          .values({
+            ambienteId: ambiente,
+            scanRef: ref,
+            escopo: pedido.escopo,
+            pilarFiltro: pedido.pilar ?? null,
+            alvoQtd: pedido.alvo ?? null,
+            estado: "enfileirado",
+          })
+          .returning({ id: t.scan.id });
+
+        // A entrada da fila carrega só identificadores — é o que permite
+        // escolher o próximo sem enxergar conteúdo de ninguém.
+        await tx.insert(t.filaPedido).values({
+          scanId: linha.id,
+          ambienteId: ambiente,
+        });
+
+        await tx.insert(t.evento).values({
+          ambienteId: ambiente,
+          tipo: "scan-enfileirado",
+          ator: "app:radar-web",
+          scanId: linha.id,
+          extra: { ...pedido },
+        });
+
+        const [{ n }] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(t.filaPedido)
+          .where(sql`${t.filaPedido.reivindicadoEm} is null`);
+
+        return { scanId: linha.id, scanRef: ref, posicao: n };
+      }),
+
+    vocabulario: () =>
+      dentro(async (tx) => {
+        const [pilares, publicos] = await Promise.all([
+          tx.select().from(t.pilar).orderBy(t.pilar.ordem),
+          tx.select().from(t.publico).orderBy(t.publico.slug),
+        ]);
+        return {
+          pilares: pilares.map((p) => ({
+            slug: p.slug,
+            nome: p.nome,
+            corpo: p.corpo,
+            ordem: p.ordem,
+            noRadar: p.noRadar,
+          })),
+          publicos: publicos.map((p) => ({
+            slug: p.slug,
+            nome: p.nome,
+            corpo: p.corpo,
+            padrao: p.padrao,
+          })),
+        };
+      }),
+
+    varreduraRecente: () =>
+      dentro(async (tx): Promise<Varredura | null> => {
+        // A mais recente, seja qual for o estado. Filtrar por "em voo" fazia o
+        // resultado sumir da tela no instante em que a varredura terminava.
+        const [linha] = await tx
+          .select()
+          .from(t.scan)
+          .orderBy(desc(t.scan.pedidoEm))
+          .limit(1);
+        if (!linha) return null;
+
+        const emAndamento = !["concluido", "falhou"].includes(linha.estado);
+
+        const eventos = await tx
+          .select({ tipo: t.evento.tipo, extra: t.evento.extra })
+          .from(t.evento)
+          .where(
+            and(
+              eq(t.evento.scanId, linha.id),
+              inArray(t.evento.tipo, [
+                "scan-stage",
+                "scan-finished",
+                "scan-aborted",
+              ]),
+              eq(t.evento.ator, "app:radar-executor"),
+            ),
+          )
+          .orderBy(t.evento.ts);
+
+        /**
+         * A posição só vale enquanto o pedido espera vaga: depois de
+         * reivindicado, "3º da fila" seria mentira. `fila_pedido` não tem RLS,
+         * então a contagem enxerga a fila inteira — que é o que dá sentido à
+         * posição, já que a vaga disputada é global.
+         */
+        let posicao: number | null = null;
+        if (linha.estado === "enfileirado") {
+          const [{ n }] = await tx
+            .select({ n: sql<number>`count(*)::int` })
+            .from(t.filaPedido)
+            .where(
+              /**
+               * O desempate entra na comparação: `criado_em` sozinho empata
+               * quando dois pedidos caem no mesmo microssegundo, e aí os dois
+               * se contam mutuamente e ambos viram "2º da fila". Comparar o par
+               * `(criado_em, scan_id)` dá ordem total — duas posições nunca
+               * coincidem, que é o mínimo que uma posição precisa prometer.
+               */
+              sql`${t.filaPedido.reivindicadoEm} is null
+                  and (${t.filaPedido.criadoEm}, ${t.filaPedido.scanId}) <= (
+                    select criado_em, scan_id from fila_pedido
+                    where scan_id = ${linha.id}
+                  )`,
+            );
+          posicao = n;
+        }
+
+        const desfecho = eventos.find(
+          (e) => e.tipo === "scan-finished" || e.tipo === "scan-aborted",
+        );
+        const extraDesfecho = (desfecho?.extra ?? {}) as Record<
+          string,
+          unknown
+        >;
+
+        return {
+          scanId: linha.id,
+          scanRef: linha.scanRef,
+          estado: linha.estado as Varredura["estado"],
+          emAndamento,
+          pedido: {
+            escopo: linha.escopo,
+            pilar: linha.pilarFiltro ?? undefined,
+            alvo: linha.alvoQtd ?? undefined,
+          },
+          pedidoEm: linha.pedidoEm.toISOString(),
+          iniciadoEm: linha.iniciadoEm?.toISOString() ?? null,
+          encerradoEm: linha.encerradoEm?.toISOString() ?? null,
+          posicao,
+          estagios: eventos
+            .filter((e) => e.tipo === "scan-stage")
+            .map((e) => {
+              const extra = (e.extra ?? {}) as Record<string, unknown>;
+              const { estagio, minuto, ...resto } = extra;
+              return {
+                estagio: estagio as Estagio,
+                minuto: typeof minuto === "number" ? minuto : 0,
+                extra: resto,
+              };
+            }),
+          resultado: desfecho
+            ? {
+                briefs:
+                  typeof extraDesfecho.briefs === "number"
+                    ? extraDesfecho.briefs
+                    : 0,
+                minutos:
+                  typeof extraDesfecho.minutos === "number"
+                    ? extraDesfecho.minutos
+                    : null,
+                avisos: Array.isArray(extraDesfecho.avisos)
+                  ? (extraDesfecho.avisos as {
+                      onde: string;
+                      detalhe: string;
+                    }[])
+                  : [],
+                erro:
+                  typeof extraDesfecho.erro === "string"
+                    ? extraDesfecho.erro
+                    : null,
+              }
+            : null,
+        };
+      }),
+
+    registrarConsumo: ({ origem, scanId, conversaId, linhas }) =>
+      dentro(async (tx) => {
+        if (linhas.length === 0) return;
+        await tx.insert(t.consumo).values(
+          linhas.map((l) => ({
+            ambienteId: ambiente,
+            origem,
+            scanId: scanId ?? null,
+            conversaId: conversaId ?? null,
+            ...l,
+          })),
+        );
+      }),
+
+    /**
+     * Agrega por execução, não por linha: a pergunta que se faz é "quanto
+     * custou aquela varredura", e o detalhamento por modelo é o segundo clique.
+     *
+     * A ordenação usa o instante mais recente do grupo — as linhas de uma
+     * execução são gravadas juntas, mas nada garante o mesmo microssegundo.
+     */
+    consumoRecente: (limite = 50) =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select({
+            origem: t.consumo.origem,
+            scanId: t.consumo.scanId,
+            conversaId: t.consumo.conversaId,
+            custoUsd: sql<string>`sum(${t.consumo.custoUsd})`,
+            tokens: sql<string>`sum(${t.consumo.inputTokens} + ${t.consumo.outputTokens}
+              + ${t.consumo.cacheLeituraTokens} + ${t.consumo.cacheEscritaTokens})`,
+            buscasWeb: sql<string>`sum(${t.consumo.buscasWeb})`,
+            modelos: sql<string>`count(*)`,
+            quando: sql<string>`max(${t.consumo.criadoEm})`,
+            scanRef: sql<string | null>`max(${t.scan.scanRef})`,
+            titulo: sql<string | null>`max(${t.conversa.titulo})`,
+          })
+          .from(t.consumo)
+          .leftJoin(t.scan, eq(t.scan.id, t.consumo.scanId))
+          .leftJoin(t.conversa, eq(t.conversa.id, t.consumo.conversaId))
+          .groupBy(t.consumo.origem, t.consumo.scanId, t.consumo.conversaId)
+          .orderBy(sql`max(${t.consumo.criadoEm}) desc`)
+          .limit(limite);
+
+        return linhas.map((l) => ({
+          origem: l.origem as "scan" | "chat",
+          scanId: l.scanId,
+          conversaId: l.conversaId,
+          rotulo: l.scanRef ?? l.titulo ?? "sem referência",
+          custoUsd: Number(l.custoUsd),
+          tokens: Number(l.tokens),
+          buscasWeb: Number(l.buscasWeb),
+          modelos: Number(l.modelos),
+          quando: new Date(l.quando).toISOString(),
+        }));
+      }),
+
+    purgarMidia: (opcoes = {}) =>
+      dentro(async (tx) => {
+        const [ajustes] = await tx.select().from(t.config);
+        const janelas = (ajustes?.janelas ?? {}) as Record<string, unknown>;
+        /**
+         * Trinta dias é o que o manifest sempre declarou
+         * (`cloudinary.purge_local_after_days`). Fica configurável por ambiente
+         * porque a janela certa depende de com que frequência alguém volta a
+         * uma pauta publicada — e isso é do cliente, não do produto.
+         */
+        const dias =
+          typeof janelas.purga_local_dias === "number"
+            ? janelas.purga_local_dias
+            : 30;
+
+        const candidatas = await tx
+          .select({
+            id: t.brief.id,
+            estado: t.brief.estado,
+            slug: t.brief.slug,
+            indice: t.briefCandidata.indice,
+            objetoPath: t.briefCandidata.objetoPath,
+            cloudUrl: t.briefCandidata.cloudUrl,
+          })
+          .from(t.briefCandidata)
+          .innerJoin(t.brief, eq(t.brief.id, t.briefCandidata.briefId))
+          /**
+           * Os dois filtros dizem quase a mesma coisa: `publicado_em` só é
+           * preenchido ao publicar, então a comparação de data já exclui o que
+           * não saiu — tirar o estado não muda o resultado, e nenhum teste
+           * distingue os dois. Fica pela intenção declarada e pelo caso em que
+           * um brief publicado voltasse atrás sem que a data fosse limpa.
+           */
+          .where(
+            and(
+              eq(t.brief.estado, "publicado"),
+              sql`${t.brief.publicadoEm} < now() - make_interval(days => ${dias})`,
+              sql`${t.briefCandidata.objetoPath} is not null`,
+            ),
+          );
+
+        let apagados = 0;
+        let bytes = 0;
+        let preservados = 0;
+        const prefixo = await prefixoDoAmbiente(tx);
+
+        for (const c of candidatas) {
+          /**
+           * Sem cópia remota, o arquivo local é a única que existe. Apagá-lo
+           * não é liberar disco: é perder a foto. A skill original dizia o
+           * mesmo — "NUNCA apaga mídia de brief em modo placeholder".
+           */
+          if (!c.cloudUrl) {
+            preservados++;
+            continue;
+          }
+
+          const caminho = caminhoDaMidia(prefixo, c.estado, c.objetoPath!);
+          try {
+            const info = await stat(caminho);
+            if (!opcoes.ensaio) await rm(caminho, { force: true });
+            apagados++;
+            bytes += info.size;
+          } catch {
+            // Arquivo já ausente é o estado desejado, não erro.
+            continue;
+          }
+
+          if (!opcoes.ensaio) {
+            // O registro perde o caminho local: mantê-lo faria a tela pedir um
+            // arquivo que não existe mais, em vez de usar a URL remota.
+            await tx
+              .update(t.briefCandidata)
+              .set({ objetoPath: null })
+              .where(
+                and(
+                  eq(t.briefCandidata.briefId, c.id),
+                  eq(t.briefCandidata.indice, c.indice),
+                ),
+              );
+          }
+        }
+
+        if (!opcoes.ensaio && (apagados > 0 || preservados > 0)) {
+          await tx.insert(t.evento).values({
+            ambienteId: ambiente,
+            tipo: "media-purged",
+            ator: "app:radar-web",
+            extra: { apagados, bytes, preservados, janela_dias: dias },
+          });
+        }
+
+        return { apagados, bytes, preservados };
+      }),
+
+    listarConversas: () =>
+      dentro(async (tx) => {
+        const linhas = await tx
+          .select()
+          .from(t.conversa)
+          .orderBy(desc(t.conversa.atualizadoEm));
+        return linhas.map((c) => ({
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: c.sessaoAgente,
+        }));
+      }),
+
+    buscarConversa: (id) =>
+      dentro(async (tx) => {
+        const [c] = await tx
+          .select()
+          .from(t.conversa)
+          .where(eq(t.conversa.id, id));
+        if (!c) throw new StoreError("nao_encontrado", `conversa ${id}`);
+
+        const msgs = await tx
+          .select()
+          .from(t.mensagem)
+          .where(eq(t.mensagem.conversaId, id))
+          .orderBy(t.mensagem.ts, t.mensagem.id);
+
+        return {
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: c.sessaoAgente,
+          mensagens: msgs.map((m) => ({
+            id: m.id,
+            papel: m.papel as "usuario" | "agente" | "erro",
+            corpo: m.corpo,
+            ferramentas: m.ferramentas ?? [],
+            modelo: m.modelo,
+            esforco: m.esforco,
+            ts: m.ts.toISOString(),
+          })),
+        };
+      }),
+
+    criarConversa: (titulo) =>
+      dentro(async (tx) => {
+        const [c] = await tx
+          .insert(t.conversa)
+          .values({ ambienteId: ambiente, titulo })
+          .returning();
+        return {
+          id: c.id,
+          titulo: c.titulo,
+          atualizadoEm: c.atualizadoEm.toISOString(),
+          sessaoAgente: null,
+          mensagens: [],
+        };
+      }),
+
+    renomearConversa: (id, titulo) =>
+      dentro(async (tx) => {
+        await tx
+          .update(t.conversa)
+          .set({ titulo, atualizadoEm: new Date() })
+          .where(eq(t.conversa.id, id));
+      }),
+
+    excluirConversa: (id) =>
+      dentro(async (tx) => {
+        // As mensagens vão junto por cascata da chave composta.
+        await tx.delete(t.conversa).where(eq(t.conversa.id, id));
+      }),
+
+    guardarAnexo: ({ conversaId, nome, mime, bytes, conteudo }) =>
+      dentro(async (tx) => {
+        // A conversa é conferida antes: sem isto o erro viria da chave
+        // estrangeira, e o usuário leria uma violação de constraint.
+        const [existe] = await tx
+          .select({ id: t.conversa.id })
+          .from(t.conversa)
+          .where(eq(t.conversa.id, conversaId));
+        if (!existe) {
+          throw new StoreError("nao_encontrado", "conversa não encontrada");
+        }
+
+        const [linha] = await tx
+          .insert(t.anexo)
+          .values({
+            ambienteId: ambiente,
+            conversaId,
+            nome,
+            mime,
+            bytes,
+            conteudo,
+          })
+          .returning();
+
+        return {
+          id: linha.id,
+          nome: linha.nome,
+          mime: linha.mime,
+          bytes: linha.bytes,
+          criadoEm: linha.criadoEm.toISOString(),
+        };
+      }),
+
+    listarAnexos: (conversaId) =>
+      dentro(async (tx) => {
+        // Sem o conteúdo: a lista alimenta a tela, e trazer o texto de todos os
+        // anexos a cada abertura carregaria o que ninguém pediu.
+        const linhas = await tx
+          .select({
+            id: t.anexo.id,
+            nome: t.anexo.nome,
+            mime: t.anexo.mime,
+            bytes: t.anexo.bytes,
+            criadoEm: t.anexo.criadoEm,
+          })
+          .from(t.anexo)
+          .where(eq(t.anexo.conversaId, conversaId))
+          .orderBy(t.anexo.criadoEm);
+
+        return linhas.map((l) => ({
+          ...l,
+          criadoEm: l.criadoEm.toISOString(),
+        }));
+      }),
+
+    lerAnexo: (id) =>
+      dentro(async (tx) => {
+        const [linha] = await tx
+          .select()
+          .from(t.anexo)
+          .where(eq(t.anexo.id, id));
+        // O RLS já garante que só o ambiente dono enxerga; ausente aqui é
+        // ausente de verdade ou de outro cliente, e a resposta é a mesma.
+        if (!linha)
+          throw new StoreError("nao_encontrado", "anexo não encontrado");
+
+        return {
+          id: linha.id,
+          nome: linha.nome,
+          mime: linha.mime,
+          bytes: linha.bytes,
+          criadoEm: linha.criadoEm.toISOString(),
+          conteudo: linha.conteudo,
+        };
+      }),
+
+    gravarMensagem: (conversaId, mensagem) =>
+      dentro(async (tx) => {
+        const [m] = await tx
+          .insert(t.mensagem)
+          .values({
+            ambienteId: ambiente,
+            conversaId,
+            papel: mensagem.papel,
+            corpo: mensagem.corpo,
+            ferramentas: mensagem.ferramentas ?? [],
+            modelo: mensagem.modelo ?? null,
+            esforco: mensagem.esforco ?? null,
+          })
+          .returning({ id: t.mensagem.id, ts: t.mensagem.ts });
+
+        /**
+         * A sessão do agente é gravada com a mensagem que a produziu, não numa
+         * chamada à parte: se a conversa terminasse aqui, o ponteiro para a
+         * memória do SDK precisaria já estar no banco — era o navegador que o
+         * guardava, e um F5 apagava a memória junto.
+         */
+        await tx
+          .update(t.conversa)
+          .set({
+            atualizadoEm: new Date(),
+            ...(mensagem.sessaoAgente
+              ? { sessaoAgente: mensagem.sessaoAgente }
+              : {}),
+          })
+          .where(eq(t.conversa.id, conversaId));
+
+        return { id: m.id, ts: m.ts.toISOString() };
+      }),
+
+    lerLedger: () =>
+      dentro(async (tx): Promise<LedgerReadResult> => {
+        const linhas = await tx
+          .select({
+            ts: t.evento.ts,
+            tipo: t.evento.tipo,
+            ator: t.evento.ator,
+            extra: t.evento.extra,
+            briefRef: t.brief.briefId,
+            scanRef: t.scan.scanRef,
+            de: t.evento.deEstado,
+            para: t.evento.paraEstado,
+          })
+          .from(t.evento)
+          .leftJoin(t.brief, eq(t.brief.id, t.evento.briefId))
+          .leftJoin(t.scan, eq(t.scan.id, t.evento.scanId))
+          .orderBy(t.evento.ts);
+
+        return {
+          events: linhas.map((l): LedgerEvent => ({
+            ts: l.ts.toISOString(),
+            event: l.tipo,
+            actor: l.ator,
+            brief_id: l.briefRef,
+            scan_id: l.scanRef,
+            from_dir: l.de && `briefs/${l.de}`,
+            to_dir: l.para && `briefs/${l.para}`,
+            extra: l.extra as Record<string, unknown>,
+          })),
+          // Linha malformada era conceito de JSONL; no banco não existe.
+          malformedLines: [],
+        };
+      }),
+
+    registrarEvento: (evento) =>
+      dentro(async (tx) => {
+        const [linha] = await tx
+          .insert(t.evento)
+          .values({
+            ambienteId: ambiente,
+            tipo: evento.event,
+            ator: evento.actor ?? "app:radar-web",
+            extra: (evento.extra ?? {}) as Record<string, unknown>,
+          })
+          .returning();
+        return { ...evento, ts: linha.ts.toISOString() };
+      }),
+
+    // Mídia continua em disco: binário nunca foi para o banco. Some daqui
+    // quando o armazenamento de objetos entrar.
+    /**
+     * Lê uma mídia **deste** ambiente.
+     *
+     * A dona é a consulta, não o caminho: só entrega bytes se existir uma
+     * candidata com este arquivo num brief que o RLS deixa enxergar. Sem isso o
+     * caminho seria a única defesa, e caminho se adivinha — era assim que um
+     * cliente lia a foto de outro sabendo o nome do arquivo.
+     */
+    lerMidia: (estado, arquivo) =>
+      dentro(async (tx) => {
+        const [dona] = await tx
+          .select({ id: t.briefCandidata.briefId })
+          .from(t.briefCandidata)
+          .innerJoin(
+            t.brief,
+            and(
+              eq(t.brief.id, t.briefCandidata.briefId),
+              eq(t.brief.estado, estado),
+            ),
+          )
+          .where(eq(t.briefCandidata.objetoPath, path.basename(arquivo)));
+        if (!dona) return null;
+
+        const prefixo = await prefixoDoAmbiente(tx);
+        return (
+          (await lerArquivo(caminhoDaMidia(prefixo, estado, arquivo))) ??
+          // Os briefs importados têm a foto no diretório antigo. A consulta
+          // acima já provou que este arquivo é deste ambiente.
+          (await lerArquivo(await caminhoLegado(estado, arquivo)))
+        );
+      }),
+
+    caminhoMidia: (estado, arquivo) =>
+      dentro(async (tx) =>
+        caminhoDaMidia(await prefixoDoAmbiente(tx), estado, arquivo),
+      ),
+  };
+}

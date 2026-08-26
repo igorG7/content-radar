@@ -6,6 +6,16 @@ session_end: 2026-05-27
 next_session_owner: igorg7
 ---
 
+> [!WARNING]
+> **Documento histórico — 2026-05-27.** Descreve o content-radar como pipeline
+> de linha de comando, operado por skills. A app web o substituiu: as skills
+> determinísticas viraram código, `radar-handoff` virou `exportar`, e as
+> credenciais do Cloudinary saíram de `.local/cloudinary.env` para o `.env` de
+> cada instalação. **Não siga as instruções daqui.**
+>
+> O estado atual está em [`docs/pendencias.md`](./docs/pendencias.md); o
+> contrato de ambiente, em [`web/.env.example`](./web/.env.example).
+
 # HANDOFF — content-radar
 
 > Documento canônico pra a próxima sessão de trabalho continuar de onde paramos.

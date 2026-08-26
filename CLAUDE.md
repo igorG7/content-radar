@@ -51,7 +51,7 @@ A entrega NÃO é o post final — é um **package** que alimenta o
 ## Mídia
 
 - Local `store/media/` é cache (gitignored).
-- Cloudinary é fonte da verdade após `radar-handoff`.
+- Cloudinary é fonte da verdade após a exportação do pacote.
 - Conta Cloudinary ainda a definir (§11.N pendente).
 
 ## Idioma

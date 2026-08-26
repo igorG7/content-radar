@@ -1,0 +1,567 @@
+import { describe, expect, it, afterAll, beforeAll } from "vitest";
+import { mkdir, writeFile, appendFile } from "node:fs/promises";
+import path from "node:path";
+import { Pool } from "pg";
+import { ambienteSemeado } from "./teste-banco";
+import { materializar, descartar, type Workspace } from "./workspace";
+import { ingerir } from "./ingerir";
+import { encerrarPool } from "./cliente";
+
+/**
+ * A ingestão fecha o ciclo: o que a execução escreveu no workspace volta para o
+ * banco. O que se exige dela é atomicidade e recusa — brief com referência que
+ * não existe não entra, e nem os eventos entram junto.
+ */
+
+const disponivel = await ambienteSemeado("avanz-imoveis");
+
+let ambienteId = "";
+const criados: Workspace[] = [];
+
+/** Escreve no workspace o que uma execução deixaria. */
+async function simularSaida(
+  ws: Workspace,
+  brief: Record<string, unknown>,
+  eventos: Record<string, unknown>[],
+) {
+  const fm = Object.entries(brief)
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join("\n");
+  await writeFile(
+    path.join(ws.dir, "store/briefs/pendente-aprovacao", `${brief.slug}.md`),
+    `---\n${fm}\n---\n\nCorpo do brief escrito pelo briefer.\n`,
+    "utf8",
+  );
+  for (const e of eventos) {
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify(e) + "\n",
+      "utf8",
+    );
+  }
+}
+
+/** Lê linhas com o ambiente declarado — sob FORCE RLS o dono não vê nada sem. */
+async function noAmbiente(sql: string): Promise<Record<string, unknown>[]> {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_MIGRATIONS,
+  });
+  await pool.query("begin");
+  await pool.query("select set_config('app.ambiente', $1, true)", [ambienteId]);
+  const { rows } = await pool.query(sql);
+  await pool.query("commit");
+  await pool.end();
+  return rows;
+}
+
+async function contar(sql: string): Promise<number> {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_MIGRATIONS,
+  });
+  await pool.query("begin");
+  await pool.query("select set_config('app.ambiente', $1, true)", [ambienteId]);
+  const { rows } = await pool.query(sql);
+  await pool.query("commit");
+  await pool.end();
+  return Number(rows[0].n);
+}
+
+beforeAll(async () => {
+  if (!disponivel) return;
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL_MIGRATIONS,
+  });
+  const { rows } = await pool.query(
+    "select id from ambiente where slug='avanz-imoveis'",
+  );
+  ambienteId = rows[0].id;
+
+  // Limpa antes, não só depois: uma execução que morre no meio deixa resto, e
+  // o teste seguinte falharia por conflito de chave em vez de por defeito.
+  await pool.query("begin");
+  await pool.query("select set_config('app.ambiente', $1, true)", [ambienteId]);
+  await pool.query("delete from brief where brief_id like '2026-W98-%'");
+  await pool.query("delete from evento where ator = 'teste:ingestao'");
+  await pool.query("commit");
+  await pool.end();
+});
+
+afterAll(async () => {
+  if (disponivel) {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL_MIGRATIONS,
+    });
+    await pool.query("begin");
+    await pool.query("select set_config('app.ambiente', $1, true)", [
+      ambienteId,
+    ]);
+    await pool.query("delete from brief where brief_id like '2026-W98-%'");
+    await pool.query("delete from evento where ator = 'teste:ingestao'");
+    await pool.query("commit");
+    await pool.end();
+    for (const ws of criados) await descartar(ws);
+  }
+  await encerrarPool();
+});
+
+describe.skipIf(!disponivel)("ingestão", () => {
+  it("traz brief, candidatas e eventos numa transação", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+
+    await mkdir(path.join(ws.dir, "store/media/pendente-aprovacao"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(ws.dir, "store/media/pendente-aprovacao/foto.jpg"),
+      "bytes",
+      "utf8",
+    );
+
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-001",
+        slug: "2026-W98-001_teste",
+        headline: "Uma headline de teste",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-de-teste-001",
+        why_match: "banco §B10 (construir vs comprar)",
+        hero_image_candidates: [
+          { index: 0, local_path: "./store/media/pendente-aprovacao/foto.jpg" },
+        ],
+      },
+      [
+        {
+          ts: new Date().toISOString(),
+          event: "scan-started",
+          actor: "teste:ingestao",
+        },
+        {
+          ts: new Date().toISOString(),
+          event: "brief-created",
+          actor: "teste:ingestao",
+          brief_id: "2026-W98-001",
+        },
+      ],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(1);
+    expect(r.candidatas).toBe(1);
+    expect(r.eventos).toBe(2);
+    expect(r.midiaCopiada).toBe(1);
+
+    expect(
+      await contar(
+        "select count(*)::int n from brief where brief_id='2026-W98-001'",
+      ),
+    ).toBe(1);
+    // O evento ficou ligado ao brief pelo id do banco, não pela referência textual.
+    expect(
+      await contar(
+        "select count(*)::int n from evento e join brief b on b.id=e.brief_id where b.brief_id='2026-W98-001'",
+      ),
+    ).toBe(1);
+  });
+
+  it("o brief entra sem decisão de arte registrada", async () => {
+    // O briefer grava o padrão; ninguém decidiu. É a distinção que o arquivo
+    // não conseguia fazer e que a fila depende para não liberar aprovação.
+    expect(
+      await contar(
+        "select count(*)::int n from brief where brief_id='2026-W98-001' and hero_decidido_em is null",
+      ),
+    ).toBe(1);
+  });
+
+  it("recusa brief que cita tema inexistente, e nem os eventos entram", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-002",
+        slug: "2026-W98-002_ruim",
+        headline: "Cita tema que não existe",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-de-teste-002",
+        why_match: "banco §Z99 (inventado)",
+      },
+      [
+        {
+          ts: new Date().toISOString(),
+          event: "scan-started",
+          actor: "teste:ingestao",
+        },
+      ],
+    );
+
+    const antesEventos = await contar("select count(*)::int n from evento");
+    await expect(ingerir(ws)).rejects.toThrow(/recusada/i);
+
+    expect(
+      await contar(
+        "select count(*)::int n from brief where brief_id='2026-W98-002'",
+      ),
+    ).toBe(0);
+    // Ledger registrando um scan cujos briefs não existem descreveria algo que
+    // não aconteceu.
+    expect(await contar("select count(*)::int n from evento")).toBe(
+      antesEventos,
+    );
+  });
+
+  it("lê o brief do .json, com os campos que o markdown perdia", async () => {
+    // Duas execuções reais gravaram formatos diferentes de .md: numa, hook,
+    // CTA, hashtags e direção de arte foram para o frontmatter; na outra, para
+    // o corpo. O .json é o objeto do briefer gravado como veio — não depende
+    // de o modelo decidir onde põe cada campo.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await writeFile(
+      path.join(
+        ws.dir,
+        "store/briefs/pendente-aprovacao",
+        "2026-W98-006_do-json.json",
+      ),
+      JSON.stringify({
+        brief_id: "2026-W98-006",
+        slug: "2026-W98-006_do-json",
+        headline: "Veio do JSON",
+        hook: "Um hook",
+        caption_draft: "Parágrafo um.\n\nParágrafo dois.",
+        cta: "Chama no WhatsApp",
+        hashtags: ["avanzimoveis", "rmbh"],
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-do-json",
+        why_match: "casa com o pilar",
+        od_skill_ref: "ad-creative",
+        visual_brief: { must_have: ["logo"], avoid_visual: ["stock"] },
+      }),
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(1);
+    // Os campos de prosa livre — que o markdown perdia — chegaram todos. O
+    // aviso de imagem é outro assunto: este fixture não tem candidata.
+    expect(r.avisos.map((a) => a.detalhe)).toEqual([
+      "sem candidatas de imagem",
+    ]);
+
+    const [linha] = await noAmbiente(
+      `select hook, caption_draft, cta, hashtags, visual_brief, destino_od
+       from brief where brief_id = '2026-W98-006'`,
+    );
+    expect(String(linha.caption_draft)).toContain("Parágrafo dois");
+    expect(linha.cta).toBe("Chama no WhatsApp");
+    expect(linha.hashtags).toEqual(["avanzimoveis", "rmbh"]);
+    expect((linha.visual_brief as { must_have: string[] }).must_have).toEqual([
+      "logo",
+    ]);
+    expect((linha.destino_od as { od_skill_ref: string }).od_skill_ref).toBe(
+      "ad-creative",
+    );
+  });
+
+  it("avisa quando teve de cair para o markdown", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-007",
+        slug: "2026-W98-007_do-md",
+        headline: "Veio do markdown",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-do-md",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.avisos.map((a) => a.detalhe)).toContain(
+      "lido do markdown, não do .json — campos podem ter ficado no corpo",
+    );
+  });
+
+  it("aceita brief sem legenda, mas avisa", async () => {
+    // O primeiro scan bem-sucedido entregou exatamente isto: tudo preenchido
+    // menos a legenda. Recusar jogaria fora 25 minutos por um campo que dá
+    // para escrever à mão; aceitar calado foi como ninguém notou até abrir a
+    // tela.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-005",
+        slug: "2026-W98-005_sem-legenda",
+        headline: "Sem legenda",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-sem-legenda",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(1);
+    expect(r.recusas).toEqual([]);
+    expect(r.avisos.map((a) => a.detalhe)).toContain("sem rascunho de legenda");
+
+    // E fica no brief, não só no relatório: o aviso precisa sobreviver à
+    // varredura que o produziu.
+    const [linha] = await noAmbiente(
+      `select avisos from brief where brief_id = '2026-W98-005'`,
+    );
+    expect(linha.avisos).toContain("sem rascunho de legenda");
+  });
+
+  it("relata o aborto que a própria skill declarou", async () => {
+    // A primeira execução real terminou assim: o researcher não teve busca
+    // disponível, devolveu zero achados e a skill abortou — sem exceção
+    // nenhuma. O executor gravou "concluído" 58 segundos depois do
+    // `scan-aborted` da skill, e o banco passou a contradizer o ledger.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        event: "scan-aborted",
+        actor: "teste:ingestao",
+        scan_id: "2026-W98-scan-042",
+        extra: { detail: "WebSearch indisponível", briefs_created: 0 },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.briefs).toBe(0);
+    expect(r.abortadaPelaSkill?.motivo).toBe("WebSearch indisponível");
+  });
+
+  it("uma varredura que produziu brief não é dada como abortada", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-004",
+        slug: "2026-W98-004_saida-boa",
+        headline: "Saída boa",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: "hash-saida-boa",
+      },
+      [
+        {
+          ts: new Date().toISOString(),
+          event: "scan-finished",
+          actor: "teste:ingestao",
+          scan_id: "2026-W98-scan-043",
+        },
+      ],
+    );
+
+    expect((await ingerir(ws)).abortadaPelaSkill).toBeNull();
+  });
+
+  it("recusa pilar que saiu do vault", async () => {
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-003",
+        slug: "2026-W98-003_pilar",
+        headline: "Pilar que não existe",
+        pillar: "pilar-inventado",
+        icp: "comprador",
+        topic_hash: "hash-003",
+      },
+      [],
+    );
+    await expect(ingerir(ws)).rejects.toThrow(/recusada/i);
+  });
+
+  it("enxerga o aborto que a skill escreve no formato antigo", async () => {
+    /**
+     * A skill grava o nome do evento **dentro de `extra`**. A colheita lia
+     * `event` só no topo, então todo evento dela entrava como `desconhecido` e
+     * a detecção de aborto — que procura `scan-aborted` — nunca achava nada.
+     *
+     * Não é hipótese: a scan-007 abortou por schema inválido do pesquisador,
+     * a skill registrou o aborto, e o banco gravou `concluido`. A tela disse
+     * que deu certo uma varredura que a própria skill declarou abortada.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        brief_id: null,
+        actor: "skill:radar-scan",
+        extra: {
+          event: "scan-aborted",
+          scan_id: "2026-W34-scan-001",
+          stage: "researcher",
+          error: "schema-invalid",
+        },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.abortadaPelaSkill).not.toBeNull();
+    expect(r.abortadaPelaSkill?.motivo).toBeTruthy();
+
+    // E o evento não pode entrar como "desconhecido": o ledger é o registro do
+    // que houve, e um tipo genérico apaga justamente o que houve.
+    const [linha] = await noAmbiente(
+      "select tipo from evento where extra->>'error' = 'schema-invalid'",
+    );
+    expect(linha.tipo).toBe("scan-aborted");
+  });
+
+  it("liga os eventos ao scan que o executor criou, não ao que a skill inventou", async () => {
+    // A skill numera o scan contando os briefs do workspace e chega a
+    // `2026-W34-scan-001` enquanto o banco chamou a linha de outra coisa.
+    // Inferir o vínculo daí deixava todo evento da skill sem scan.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    // Ref única por execução e estado terminal: a suíte roda repetida no mesmo
+    // banco, e `rodando` esbarraria em `scan_um_rodando_por_ambiente` — a
+    // restrição que garante uma varredura por vez, e que este teste não precisa
+    // exercitar.
+    const [scan] = await noAmbiente(
+      `insert into scan (ambiente_id, scan_ref, escopo, alvo_qtd, estado)
+       values ('${ambienteId}','2026-W98-scan-${process.pid}','local',1,'concluido') returning id`,
+    );
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        actor: "skill:radar-scan",
+        extra: { event: "scan-started", scan_id: "2026-W34-scan-001" },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws, scan.id as string);
+
+    const [linha] = await noAmbiente(
+      `select scan_id from evento where scan_id = '${scan.id}'`,
+    );
+    expect(linha?.scan_id).toBe(scan.id);
+  });
+
+  it("carimbo no futuro é substituído pela hora da ingestão", async () => {
+    /**
+     * A skill escreveu `2026-08-24T12:50:00-03:00` à mão para um evento que
+     * acontecera às 11:50 UTC — minutos redondos, segundos zerados, quatro
+     * horas adiante. Ficou ordenado depois de eventos realmente posteriores.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const daquiA4h = new Date(Date.now() + 4 * 3600_000).toISOString();
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: daquiA4h,
+        actor: "skill:radar-scan",
+        extra: { event: "brief-created", slug: `inventado-${process.pid}` },
+      }) + "\n",
+      "utf8",
+    );
+
+    const r = await ingerir(ws);
+    expect(r.avisos.map((a) => a.detalhe).join(" ")).toMatch(/futuro/);
+
+    const [linha] = await noAmbiente(
+      "select ts, extra->>'ts_declarado' as declarado from evento" +
+        ` where extra->>'slug' = 'inventado-${process.pid}'`,
+    );
+    // Gravado com a hora real...
+    expect(new Date(linha.ts as string).getTime()).toBeLessThan(
+      Date.now() + 60_000,
+    );
+    // ...e o que a skill afirmou não se perde: é a prova de que ela errou.
+    expect(linha.declarado).toBe(daquiA4h);
+  });
+
+  it("carimbo do passado é respeitado", async () => {
+    // O oposto importa: varredura longa gera evento genuinamente anterior à
+    // ingestão, e reescrevê-lo apagaria a duração por estágio.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const haUmaHora = new Date(Date.now() - 3600_000).toISOString();
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: haUmaHora,
+        actor: "skill:radar-scan",
+        extra: { event: "brief-created", slug: `passado-${process.pid}` },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws);
+    const [linha] = await noAmbiente(
+      "select ts, extra->>'ts_declarado' as declarado from evento" +
+        ` where extra->>'slug' = 'passado-${process.pid}'`,
+    );
+    expect(new Date(linha.ts as string).toISOString()).toBe(haUmaHora);
+    expect(linha.declarado).toBeNull();
+  });
+
+  it("vincula o evento ao brief mesmo com brief_id dentro de extra", async () => {
+    /**
+     * A skill põe `brief_id` no topo numa execução e dentro de `extra` noutra.
+     * Lendo só o topo, o evento entrava sem vínculo e a linha do tempo do brief
+     * ficava **vazia** — o `2026-W34-001` parecia nunca ter nascido, e o
+     * `brief-created` dele estava no banco o tempo todo, solto.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    const ref = `2026-W97-${String(process.pid).slice(-3)}`;
+    await simularSaida(
+      ws,
+      {
+        brief_id: ref,
+        slug: `${ref}_com-extra`,
+        headline: "Nasceu com o id no lugar errado",
+        pillar: "decisao-inteligente",
+        icp: "comprador",
+        topic_hash: `hash-${ref}`,
+      },
+      [],
+    );
+    await appendFile(
+      path.join(ws.dir, "store/ledger.jsonl"),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        actor: "skill:radar-scan",
+        // Sem `brief_id` no topo — só dentro de extra, como a skill já fez.
+        extra: { event: "brief-created", brief_id: ref },
+      }) + "\n",
+      "utf8",
+    );
+
+    await ingerir(ws);
+    const [linha] = await noAmbiente(
+      `select e.tipo from evento e join brief b on b.id = e.brief_id
+       where b.brief_id = '${ref}' and e.tipo = 'brief-created'`,
+    );
+    expect(linha?.tipo).toBe("brief-created");
+  });
+});

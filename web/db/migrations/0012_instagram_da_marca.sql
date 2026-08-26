@@ -1,0 +1,1 @@
+ALTER TABLE "marca" ADD COLUMN "instagram" text;

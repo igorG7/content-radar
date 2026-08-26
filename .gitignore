@@ -9,6 +9,10 @@ store/media/
 # Manter packages fora do git evita duplicação.
 store/packages/
 
+# Renders/previews: artefatos gerados (mesma natureza de store/media/) — cache local, não versionar
+store/previews/
+w-view/
+
 # Secrets locais (cloudinary.env, open-design-basic-auth.txt, etc)
 # NB: comentário só vale em linha própria — inline (.local/ # ...) vira parte do padrão e não casa nada.
 .local/
@@ -26,3 +30,11 @@ store/packages/
 .DS_Store
 .idea/
 .vscode/
+content-radar-layout
+# Artefatos do Playwright MCP — snapshots e downloads de sessão de teste.
+.playwright-mcp/
+
+# Cache de mídia por ambiente. É derivado: a fonte da verdade é o Cloudinary
+# depois da escolha da arte, e o que está aqui pode ser rebaixado a qualquer
+# momento. Fica fora de store/, que é a fotografia congelada da importação.
+var/
