@@ -26,7 +26,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { writeFile, chmod, readFile } from "node:fs/promises";
+import { writeFile, chmod, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { Pool } from "pg";
 
@@ -72,6 +72,13 @@ if (!process.argv.includes("--conferir")) {
     );
     process.exit(1);
   }
+
+  /**
+   * `.local/` é gitignored, então não existe num clone novo — e era ali que o
+   * script tentava escrever, morrendo em ENOENT antes de qualquer coisa útil.
+   * Modo 700: o diretório guarda arquivos com senha.
+   */
+  await mkdir(path.dirname(SQL_ANTES), { recursive: true, mode: 0o700 });
 
   const cabecalho = (qual: string) =>
     `-- ${qual}. Gerado por scripts/papeis-de-producao.mts. **Contém senhas.**
