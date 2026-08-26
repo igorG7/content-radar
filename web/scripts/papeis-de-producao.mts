@@ -430,15 +430,28 @@ conta(
 );
 
 /**
- * Resíduo do papel de aplicação de desenvolvimento. Sem CONNECT ele não
- * alcança o banco, então isto não é brecha hoje — é a brecha de amanhã, se
- * alguém devolver o CONNECT achando que o resto já estava limpo.
+ * Concessão **direta** ao papel de aplicação de desenvolvimento — não o
+ * privilégio efetivo.
+ *
+ * `has_schema_privilege` responderia `true` de qualquer jeito: `radar_app` é
+ * membro de `radar_apps`, e herdar do grupo é o desenho. Ela também responde
+ * `true` para um superusuário. A primeira versão desta checagem perguntava
+ * isso, e por isso nunca passaria — uma verificação que sempre falha é pior do
+ * que nenhuma, porque ensina a ignorá-la.
+ *
+ * O que importa é o que sobreviveria a tirar o papel do grupo: uma linha na
+ * ACL com o nome dele.
  */
-const { rows: residuo } = await dono.query<{ tem: boolean }>(
-  `select has_schema_privilege($1,'public','USAGE') as tem`,
+const { rows: direto } = await dono.query<{ n: number }>(
+  `select count(*)::int as n
+     from pg_namespace n, aclexplode(n.nspacl) a
+    where n.nspname = 'public' and a.grantee = $1::regrole`,
   [APP_DEV],
-).catch(() => ({ rows: [{ tem: false }] }));
-conta(!residuo[0].tem, `${APP_DEV} não tem privilégio no schema`);
+).catch(() => ({ rows: [{ n: 0 }] }));
+conta(
+  direto[0].n === 0,
+  `${APP_DEV} não tem concessão própria no schema (só o que herda do grupo)`,
+);
 
 /** A verificação que já enganou uma vez: contar sem satisfazer a política. */
 const cliente = await app.connect();
