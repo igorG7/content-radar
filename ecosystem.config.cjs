@@ -62,7 +62,19 @@ module.exports = {
        * `web/`. Declarar explicitamente evita depender de onde o pm2 foi
        * invocado.
        */
-      env: { RADAR_ROOT: raiz, NODE_ENV: "production" },
+      /**
+       * Fuso do processo. O sistema desta máquina é UTC e assim fica — ela
+       * hospeda apps de outras pessoas, e trocar o fuso do sistema mexeria no
+       * log de todas. Declarar aqui alcança só os nossos.
+       *
+       * Sem isto o log sai em UTC enquanto o banco responde em -03, e às 22h
+       * de um dia os dois discordam até da data.
+       */
+      env: {
+        RADAR_ROOT: raiz,
+        NODE_ENV: "production",
+        TZ: "America/Sao_Paulo",
+      },
 
       /**
        * Uma instância só. O teto de scans simultâneos é global e vive no banco
@@ -115,6 +127,9 @@ module.exports = {
        * desenvolvimento — sem erro nenhum, servindo os dados errados.
        */
       interpreter_args: "--env-file=.env.producao",
+
+      /** Mesmo motivo do trabalhador: o fuso do sistema não é nosso para mudar. */
+      env: { TZ: "America/Sao_Paulo" },
 
       instances: 1,
       autorestart: true,
