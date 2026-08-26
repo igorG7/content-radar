@@ -15,8 +15,8 @@
 - **Retenção de conversas** — nada apaga conversa antiga, e ninguém decidiu por
   quanto tempo ficam.
 
-- **Deploy.** Cinco dos sete itens abaixo foram feitos em 2026-08-25. Sobram a
-  credencial da Anthropic e a montagem da VPS. O roteiro do banco virou dois
+- **Deploy.** O banco de produção está na VPS e verificado. Sobram a app de lá
+  — credencial da Anthropic inclusa — e desativar produção nesta máquina. O roteiro do banco virou dois
   scripts — `papeis-de-producao.mts` (papéis, segredos e conferência) e
   `migrar.mts` (migrações, mostrando o erro que o `drizzle-kit` engole):
 
@@ -109,25 +109,47 @@
      pessoal. O custo dos scans dos clientes precisa cair onde a telemetria de
      consumo consegue prestar contas.
 
-  7. **Montar a VPS**, que é o trabalho que sobrou. Roteiro levantado, nada
-     executado:
+  7. **A VPS** — o banco está feito; a app, não.
 
-     clonar o repositório; Postgres com os papéis (`papeis-de-producao.mts`
-     imprime o SQL de superusuário); restaurar o dump do backup — que é feito
-     como superusuário e conferido linha a linha, e por isso serve de veículo
-     da migração; gerar o `.env.producao` **lá**, com senhas de lá; instalar o
-     binário do Claude Code e preencher a chave; subir app e trabalhador; e a
-     camada de entrada, que na VPS pode ser nginx com certbot de verdade, já que
-     ela tem IP público.
+     Feito e verificado em 2026-08-26: Postgres 16.15 instalado, papéis e banco
+     criados pelo `01-antes-do-restore.sql`, dump restaurado, posse e
+     privilégios pelo `02`, mídia em `store/media/` e `var/`. As treze
+     verificações do `--conferir` passam: 34 briefs com `app.ambiente`, zero sem
+     ele, posse toda de `radar_owner_prod`, e os papéis de desenvolvimento nem
+     existem lá. Segredos só em `web/.env.producao`, 600; os SQL apagados
+     depois de as credenciais autenticarem contra o cluster.
 
-     O que **não** vai no clone e precisa existir na VPS: o `.env.producao`, o
-     binário do Claude Code, e as chaves do Cloudinary. Tudo o que a app lê em
-     execução está versionado — `manifest.yaml`, o vault, `docs/specs/` e os
-     quatro arquivos de `.claude/`.
+     Três defeitos apareceram no caminho, e todos eram meus:
 
-     Uma consequência a não esquecer: o que for feito neste `radar_prod` entre
-     hoje e a virada **não viaja sozinho**. O dump tem de ser tirado no momento
-     da virada, não antes.
+     - O laço de posse lia `pg_class`, que não inclui tipos. Um enum continuou
+       pertencendo ao papel de dev, e o dump o carregou pelo nome — abortando o
+       restore numa máquina onde esse papel não existe.
+     - **A conferência tinha o mesmo ponto cego**, e afirmava "toda a posse é do
+       dono de produção" quando era falso. Verificação que compartilha o ponto
+       cego do que verifica é pior que nenhuma: troca um desconhecido por uma
+       certeza errada.
+     - `has_database_privilege` e o cast `::regrole` **lançam** para papel
+       inexistente. Escrito nesta máquina, onde os papéis de dev sempre
+       existiram, o `--conferir` morria na primeira instalação limpa — onde
+       ninguém tem um segundo jeito de saber se o restore prestou.
+
+     O que falta lá, e é a app: as três chaves do Cloudinary e a
+     `ANTHROPIC_API_KEY` no `.env.producao`, o binário do Claude Code, `next
+     build`, pm2, e a camada de entrada — que na VPS pode ser nginx com certbot,
+     já que ela tem IP público.
+
+     E duas que a restauração criou:
+
+     - **O `radar_prod` da VPS não tem backup.** A rotina que existe faz backup
+       do banco desta máquina, que a partir de agora é a cópia secundária. O
+       script roda em qualquer lugar; falta instalá-lo lá.
+     - **A app roda como root na VPS**, e a mídia chegou com dono `1003`. Os
+       dois se resolvem juntos, criando um usuário próprio antes de ir ao ar.
+
+  8. **Desativar produção nesta máquina**, quando a VPS estiver servindo: o pm2
+     daqui volta para desenvolvimento, e o `radar_prod` local vira
+     `radar_ensaio` — dois bancos com o mesmo nome em máquinas diferentes é como
+     se erra o alvo.
 
   Já resolvidos e fora da lista: cadastro fechado por padrão
   (`CADASTRO_ABERTO`), limite de tentativas no login e no cadastro, e
