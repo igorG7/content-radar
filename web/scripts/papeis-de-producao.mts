@@ -38,8 +38,20 @@ const DONO = "radar_owner_prod";
 const APP_DEV = "radar_app";
 const DONO_DEV = "radar_owner";
 
-const RAIZ = path.resolve(import.meta.dirname, "..", "..");
-const SQL = path.join(RAIZ, ".local", "papeis-producao.sql");
+/** Como o resto do app: `RADAR_ROOT` manda, e o default é a raiz do clone. */
+const RAIZ = process.env.RADAR_ROOT
+  ? path.resolve(process.env.RADAR_ROOT)
+  : path.resolve(import.meta.dirname, "..", "..");
+/**
+ * Dois arquivos, porque o restore acontece no meio.
+ *
+ * Os papéis precisam existir **antes** do dump: ele os cita pelo nome, em
+ * `ALTER TABLE ... OWNER TO` e nos `GRANT`. A posse e os privilégios só podem
+ * ser ajustados **depois**, quando as tabelas existem. Num arquivo só, uma das
+ * duas metades roda na hora errada.
+ */
+const SQL_ANTES = path.join(RAIZ, ".local", "01-antes-do-restore.sql");
+const SQL_DEPOIS = path.join(RAIZ, ".local", "02-depois-do-restore.sql");
 const ENV = path.join(RAIZ, "web", ".env.producao");
 
 /** base64url: cabe numa URL de conexão sem escapar nada. */
@@ -49,13 +61,50 @@ if (!process.argv.includes("--conferir")) {
   const senhaApp = segredo(24);
   const senhaDono = segredo(24);
 
-  await writeFile(
-    SQL,
-    `-- Gerado por scripts/papeis-de-producao.mts. Contém senhas.
--- Rode como superusuário e **apague depois**:
+  // Antes de escrever qualquer coisa: recusar depois de gerar o SQL deixaria
+  // arquivos com senhas que não batem com o .env vivo — e alguém as rodaria.
+  const jaTem = await readFile(ENV, "utf8").catch(() => null);
+  if (jaTem && !process.argv.includes("--forcar")) {
+    console.error(
+      `\n${ENV} já existe.\n` +
+        `Sobrescrever geraria senhas que não batem com os papéis já criados.\n` +
+        `Se é isso mesmo que você quer, repita com --forcar.\n`,
+    );
+    process.exit(1);
+  }
+
+  const cabecalho = (qual: string) =>
+    `-- ${qual}. Gerado por scripts/papeis-de-producao.mts. **Contém senhas.**
 --
---   sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL}
---   shred -u ${SQL}
+-- Rode como superusuário, por stdin — o arquivo é 600 e do seu usuário, e o
+-- psql roda como postgres. Quem lê é o seu shell:
+--
+--   sudo -u postgres psql -v ON_ERROR_STOP=1 < <este arquivo>
+--
+-- Apague os dois com \`shred -u\` quando terminar.
+`;
+
+  /**
+   * Os papéis de desenvolvimento não existem numa instalação nova, e citá-los
+   * cruamente aborta o arquivo em \`role does not exist\`. Guardados por
+   * existência, o mesmo SQL serve nas duas máquinas — o que evita um segundo
+   * roteiro que diverge do primeiro sem ninguém notar.
+   */
+  const seExistir = (papel: string, corpo: string) =>
+    `DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${papel}') THEN
+${corpo
+  .split("\n")
+  .map((l) => (l.trim() ? `    ${l}` : l))
+  .join("\n")}
+  END IF;
+END $$;`;
+
+  await writeFile(
+    SQL_ANTES,
+    `${cabecalho("Antes do restore")}
+-- Só faz os nomes existirem: papéis e banco. Nada de posse ou privilégio —
+-- não há tabela ainda.
 
 -- Papéis são do cluster, não do banco: criar só se ainda não existirem.
 DO $$ BEGIN
@@ -80,22 +129,46 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Os dois papéis de aplicação herdam o que o grupo pode — e o que ele não pode.
-GRANT ${GRUPO} TO ${APP_DEV};
+-- O papel de aplicação herda do grupo o que pode — e o que não pode.
 GRANT ${GRUPO} TO ${APP};
+${seExistir(APP_DEV, `EXECUTE 'GRANT ${GRUPO} TO ${APP_DEV}';`)}
+
+-- O banco. Sem \`IF NOT EXISTS\` no Postgres, então o psql monta o comando e
+-- só executa se faltar — rodar duas vezes não é erro.
+SELECT 'CREATE DATABASE ${BANCO} OWNER ${DONO}'
+ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${BANCO}')\\gexec
+
+-- Agora restaure o dump, e só depois rode o 02:
+--
+--   sudo -u postgres bash -c 'set -o pipefail; gzip -dc <dump>.sql.gz | psql -q -v ON_ERROR_STOP=1 ${BANCO}'
+--
+-- O \`pipefail\` não é zelo: sem ele, um gzip que falha passa despercebido
+-- porque o status do pipeline é o do psql, que carrega o pedaço que chegou e
+-- sai feliz. Foi assim que a primeira tentativa criou 22 tabelas vazias.
+`,
+    { mode: 0o600 },
+  );
+  await chmod(SQL_ANTES, 0o600);
+
+  await writeFile(
+    SQL_DEPOIS,
+    `${cabecalho("Depois do restore")}
+-- Posse e privilégios, agora que as tabelas existem.
+
+ALTER DATABASE ${BANCO} OWNER TO ${DONO};
 
 -- Quem entra em ${BANCO}. O REVOKE de PUBLIC é o que fecha a porta: sem ele
 -- qualquer papel do cluster conecta, e a separação seria só de nome.
 REVOKE CONNECT ON DATABASE ${BANCO} FROM PUBLIC;
 GRANT CONNECT ON DATABASE ${BANCO} TO ${APP};
 GRANT CONNECT ON DATABASE ${BANCO} TO ${DONO};
-ALTER DATABASE ${BANCO} OWNER TO ${DONO};
 
 \\connect ${BANCO}
 
--- Posse das tabelas, sequências e views. Um a um, e não com REASSIGN OWNED:
--- REASSIGN pega também objetos compartilhados do cluster, e ${DONO_DEV} é dono
--- do radar_dev — a versão preguiçosa levaria o banco de desenvolvimento junto.
+-- Posse de tudo que não for de ${DONO} — inclui o que o restore deixou do
+-- superusuário e, numa migração a partir de dev, o que era de outro dono.
+-- Um a um, e não com REASSIGN OWNED: REASSIGN pega também objetos
+-- compartilhados do cluster e levaria outros bancos junto.
 DO $$
 DECLARE alvo record;
 BEGIN
@@ -104,7 +177,7 @@ BEGIN
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE n.nspname IN ('public', 'drizzle')
       AND c.relkind IN ('r', 'S', 'v', 'm', 'p')
-      AND pg_get_userbyid(c.relowner) = '${DONO_DEV}'
+      AND pg_get_userbyid(c.relowner) <> '${DONO}'
       -- Sequência de bigserial ou identity não é objeto independente: ela
       -- pertence à coluna, e o Postgres **recusa** trocar o dono dela em
       -- separado em vez de ignorar o pedido. Trocar o dono da tabela já leva a
@@ -133,25 +206,16 @@ ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO} IN SCHEMA public
   GRANT SELECT, USAGE ON SEQUENCES TO ${GRUPO};
 
--- E o default antigo, que apontava para ${APP_DEV}, sai de cena.
-ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO_DEV} IN SCHEMA public
-  REVOKE ALL ON TABLES FROM ${APP_DEV};
-ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO_DEV} IN SCHEMA public
-  REVOKE ALL ON SEQUENCES FROM ${APP_DEV};
+-- E o default antigo de desenvolvimento, onde ele existir, sai de cena.
+${seExistir(
+  DONO_DEV,
+  `EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO_DEV} IN SCHEMA public REVOKE ALL ON TABLES FROM ${APP_DEV}';
+EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE ${DONO_DEV} IN SCHEMA public REVOKE ALL ON SEQUENCES FROM ${APP_DEV}';`,
+)}
 `,
     { mode: 0o600 },
   );
-  await chmod(SQL, 0o600);
-
-  const jaTem = await readFile(ENV, "utf8").catch(() => null);
-  if (jaTem && !process.argv.includes("--forcar")) {
-    console.error(
-      `\n${ENV} já existe.\n` +
-        `Sobrescrever geraria senhas que não batem com os papéis já criados.\n` +
-        `Se é isso mesmo que você quer, repita com --forcar.\n`,
-    );
-    process.exit(1);
-  }
+  await chmod(SQL_DEPOIS, 0o600);
 
   await writeFile(
     ENV,
@@ -208,20 +272,27 @@ CLOUDINARY_FOLDER=content-radar/avanz
   await chmod(ENV, 0o600);
 
   console.log(
-    `\nEscritos, os dois em 600:\n` +
-      `  ${SQL}   (senhas — apague depois de rodar)\n` +
+    `\nEscritos, os três em 600:\n` +
+      `  ${SQL_ANTES}   (senhas)\n` +
+      `  ${SQL_DEPOIS}\n` +
       `  ${ENV}\n\n` +
-      `1. Provisione os papéis. Por stdin, e não com -f: o arquivo é 600 e seu,\n` +
-      `   e o psql roda como postgres — quem lê é o seu shell, e o segredo não\n` +
-      `   precisa ficar legível para outra conta:\n\n` +
-      `     sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL}\n\n` +
-      `2. Migre — dev primeiro, que é onde um erro é barato, depois o teste:\n\n` +
-      `     node --env-file=.env.local    node_modules/.bin/tsx scripts/migrar.mts\n` +
-      `     node --env-file=.env.producao node_modules/.bin/tsx scripts/migrar.mts\n` +
-      `     npx tsx scripts/preparar-banco-de-teste.mts\n\n` +
-      `3. Confira:\n\n` +
+      `A ordem importa: o dump cita os papéis pelo nome, então eles vêm antes;\n` +
+      `a posse só pode ser ajustada depois que as tabelas existem.\n\n` +
+      `Por stdin, e não com -f: os arquivos são 600 e seus, o psql roda como\n` +
+      `postgres, e assim quem lê é o seu shell — o segredo não precisa ficar\n` +
+      `legível para outra conta.\n\n` +
+      `1. Papéis e banco:\n\n` +
+      `     sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL_ANTES}\n\n` +
+      `2. Restaure o dump do backup:\n\n` +
+      `     sudo -u postgres bash -c 'set -o pipefail; gzip -dc <dump>.sql.gz | psql -q -v ON_ERROR_STOP=1 ${BANCO}'\n\n` +
+      `3. Posse e privilégios:\n\n` +
+      `     sudo -u postgres psql -v ON_ERROR_STOP=1 < ${SQL_DEPOIS}\n\n` +
+      `4. Confira — e não pule, porque é a única etapa que olha o resultado em\n` +
+      `   vez do comando:\n\n` +
       `     npx tsx --env-file=.env.producao scripts/papeis-de-producao.mts --conferir\n\n` +
-      `4. Apague o SQL:  shred -u ${SQL}\n`,
+      `5. Apague os dois SQL:  shred -u ${SQL_ANTES} ${SQL_DEPOIS}\n\n` +
+      `Falta preencher no ${ENV}: as três chaves do Cloudinary e a\n` +
+      `ANTHROPIC_API_KEY, que nasce comentada.\n`,
   );
   process.exit(0);
 }
@@ -332,6 +403,6 @@ if (falhou) {
   process.exit(1);
 }
 console.log(
-  `\nConfere. Apague ${SQL} se ainda não apagou, e sobra apontar a app e o\n` +
+  `\nConfere. Apague os SQL se ainda não apagou, e sobra apontar a app e o\n` +
     `trabalhador para .env.producao.\n`,
 );
