@@ -289,6 +289,10 @@ NODE_ENV=production
 # FOLDER, que prefixa o public_id — sem ele o identificador é
 # <ambiente>/<brief>, igual nos dois bancos, e o envio usa overwrite.
 #
+# O nome é da **instalação**, nunca de um cliente: o identificador final é
+# <folder>/<ambiente>/<brief>, e o ambiente já separa um cliente do outro.
+# Uma pasta com nome de cliente faria a mídia dos demais morar debaixo dele.
+#
 # As três chaves nascem vazias: numa instalação nova elas precisam ser copiadas
 # da conta. Faltando qualquer uma, o app segue inteiro e só não publica mídia.
 CLOUDINARY_CLOUD_NAME=
@@ -298,7 +302,7 @@ CLOUDINARY_API_SECRET=
 # Sem isso os dois escrevem no mesmo objeto: os bancos saíram da mesma cópia e
 # têm os mesmos slugs, e o envio usa overwrite. Subir um brief em dev trocaria a
 # imagem publicada do mesmo brief aqui.
-CLOUDINARY_FOLDER=content-radar/avanz
+CLOUDINARY_FOLDER=content-radar/prod
 `,
     { mode: 0o600 },
   );
