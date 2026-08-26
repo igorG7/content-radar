@@ -16,7 +16,8 @@
   quanto tempo ficam.
 
 - **Deploy.** O banco de produção está na VPS e verificado. Sobram a app de lá
-  — credencial da Anthropic inclusa — e desativar produção nesta máquina. O roteiro do banco virou dois
+  — credencial da Anthropic inclusa — e desativar produção nesta máquina, nessa
+  ordem: a de cá é a única que roda scan hoje. O roteiro do banco virou dois
   scripts — `papeis-de-producao.mts` (papéis, segredos e conferência) e
   `migrar.mts` (migrações, mostrando o erro que o `drizzle-kit` engole):
 
@@ -77,6 +78,31 @@
      aponta para ela e nenhum ingress do túnel a menciona. Ela é mantida porque
      este `radar_prod` é a fonte da migração e o único lugar onde dá para
      exercitar o fluxo autenticado antes da VPS.
+
+     **O critério de desligamento é a VPS rodar um scan, não a VPS existir.**
+     Ela já existe — Postgres 16.15, `radar_prod` restaurado, 22 tabelas, RLS
+     efetivo, build do Next feito — e mesmo assim o segundo motivo acima
+     continua de pé: a VPS ainda não tem `ANTHROPIC_API_KEY` nem o binário
+     nativo do Claude Code (item 6), então nenhuma varredura roda lá. Desligar
+     esta instância antes disso não deixa produção sem casa; deixa o produto
+     inteiro sem lugar nenhum onde um scan chega ao fim.
+
+     Dos dois motivos, o primeiro já caiu: a migração aconteceu, e os 34 briefs
+     estão verificados na VPS.
+
+     Quando a VPS fechar o item 6 e completar um scan de ponta a ponta, o
+     desligamento daqui é `pm2 delete radar-trabalhador radar-web` seguido de
+     `pm2 save` — sem o `save`, o `pm2-igorg7.service` os traz de volta no
+     próximo boot. O banco `radar_prod` desta máquina não é tocado por isso.
+
+     Até lá, atenção a um efeito do `CLAUDE_CONFIG_DIR` que o
+     `ecosystem.config.cjs` agora declara: esta instância autentica hoje pela
+     sessão do Claude Code do operador, e é exatamente essa porta que a
+     variável fecha. Um `pm2 reload` **nesta máquina**, antes de a decisão ser
+     tomada, faz os scans dela avisarem na partida e terminarem vazios. Quem
+     quiser mantê-la viva até lá precisa descomentar `ANTHROPIC_API_KEY` no
+     `web/.env.producao` daqui. Desenvolvimento não é afetado: roda fora do
+     pm2, e continua caindo na sessão do CLI.
   6. **A credencial da Anthropic — o que sobrou, e virou bloqueio.**
 
      As varreduras autenticam pela sessão do Claude Code de quem roda o

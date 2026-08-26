@@ -1,9 +1,11 @@
 /**
  * O processo que executa as varreduras.
  *
- * Roda **fora** do processo que atende HTTP, porque os scans registrados
- * levaram de 12 a 63 minutos e nenhum ciclo de requisição sobrevive a isso.
- * Fica sob pm2:
+ * Roda **fora** do processo que atende HTTP, porque um scan leva dezenas de
+ * minutos e nenhum ciclo de requisição sobrevive a isso. A medição por estágio
+ * (design-execucao-scan §9.2) registrou de 21 a 26 minutos, e o trabalhador
+ * execuções de até 63, sem instrumentação que dissesse onde o tempo foi. O
+ * teto do `kill_timeout` é dimensionado pelo 63, não pelo 26. Fica sob pm2:
  *
  *   pm2 start web/scripts/trabalhador.mts --name radar-trabalhador \
  *     --interpreter web/node_modules/.bin/tsx \
