@@ -379,13 +379,30 @@ for (const tabela of ["evento", "consumo"]) {
   conta(leitura[0].pode, `${APP} ainda grava em ${tabela}`);
 }
 
-/** Os papéis de desenvolvimento não alcançam este banco. */
+/**
+ * Os papéis de desenvolvimento não alcançam este banco — e podem simplesmente
+ * não existir.
+ *
+ * `has_database_privilege` **lança** para papel inexistente em vez de devolver
+ * falso, e o mesmo vale para o cast `::regrole` mais abaixo. Escrito nesta
+ * máquina, onde os dois papéis sempre existiram, o script morria na primeira
+ * instalação limpa — que é exatamente onde a verificação mais importa.
+ *
+ * `to_regrole` devolve NULL em vez de erro, e papel ausente é a forma mais
+ * forte de não alcançar o banco.
+ */
 for (const papel of [APP_DEV, DONO_DEV]) {
-  const { rows } = await app.query<{ pode: boolean }>(
-    `select has_database_privilege($1, $2, 'CONNECT') as pode`,
+  const { rows } = await app.query<{ existe: boolean; pode: boolean }>(
+    `select to_regrole($1) is not null as existe,
+            coalesce(has_database_privilege(to_regrole($1)::oid, $2, 'CONNECT'), false) as pode`,
     [papel, BANCO],
   );
-  conta(!rows[0].pode, `${papel} não conecta em ${BANCO}`);
+  conta(
+    !rows[0].pode,
+    rows[0].existe
+      ? `${papel} não conecta em ${BANCO}`
+      : `${papel} nem existe nesta instalação`,
+  );
 }
 
 /**
@@ -445,7 +462,7 @@ conta(
 const { rows: direto } = await dono.query<{ n: number }>(
   `select count(*)::int as n
      from pg_namespace n, aclexplode(n.nspacl) a
-    where n.nspname = 'public' and a.grantee = $1::regrole`,
+    where n.nspname = 'public' and a.grantee = to_regrole($1)::oid`,
   [APP_DEV],
 ).catch(() => ({ rows: [{ n: 0 }] }));
 conta(
