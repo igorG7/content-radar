@@ -38,3 +38,8 @@ content-radar-layout
 # depois da escolha da arte, e o que está aqui pode ser rebaixado a qualquer
 # momento. Fica fora de store/, que é a fotografia congelada da importação.
 var/
+
+# Build do Next na raiz — acontece quando alguém roda o build do diretório
+# errado. O .gitignore de web/ não alcança aqui, e os arquivos de trace já
+# entraram no repositório uma vez por isso.
+.next/
