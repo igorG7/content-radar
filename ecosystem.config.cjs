@@ -10,12 +10,15 @@
  * roda fora do pm2: `npm run dev` para a app, e o trabalhador à mão quando for
  * preciso testar uma varredura —
  *
- *   web/node_modules/.bin/tsx --conditions=react-server \
- *     --env-file=web/.env.local web/scripts/trabalhador.mts
+ *   cd web && node_modules/.bin/tsx --conditions=react-server \
+ *     --env-file=.env.local scripts/trabalhador.mts
  *
- * As flags vão para o `tsx`, não para o `node`. Passadas ao node, o
- * `--conditions` não alcança o processo que de fato carrega os módulos, e o
- * `server-only` lança na primeira importação.
+ * Duas coisas que já morderam neste comando. As flags vão para o `tsx`, não
+ * para o `node`: passadas ao node, o `--conditions` não alcança o processo que
+ * carrega os módulos e o `server-only` lança na primeira importação. E é
+ * preciso rodar **de dentro de `web/`** — sem `RADAR_ROOT`, a raiz é o pai do
+ * diretório de trabalho, e da raiz do repositório ele sobe um nível demais. O
+ * pm2 escapa disso porque declara `RADAR_ROOT` no `env`.
  *
  * Um trabalhador só de cada vez, de propósito: dois processos disputariam a
  * mesma credencial da Anthropic, e uma varredura custa de US$ 5 a 7.

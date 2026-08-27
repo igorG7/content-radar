@@ -27,6 +27,7 @@
 import { girar } from "../db/fila";
 import { encerrarPool } from "../db/cliente";
 import { credencialAnthropic } from "../lib/credencial-anthropic";
+import { RADAR_ROOT } from "../lib/manifest";
 
 /**
  * Intervalo entre perguntas quando a fila está vazia. Cinco segundos: a pessoa
@@ -78,6 +79,16 @@ console.log(
       ? `banco ${alvo.pathname.slice(1)} como ${alvo.username}`
       : "sem DATABASE_URL: backend de arquivo"),
 );
+
+/**
+ * A raiz, que é a terceira dependência invisível — e a que falha mais tarde.
+ *
+ * O default é o pai do diretório de trabalho, convenção de quem roda de dentro
+ * de `web/`. Rodado da raiz do repositório sem `RADAR_ROOT`, ele sobe um nível
+ * demais e a varredura só descobre isso ao copiar `.claude` para o workspace,
+ * minutos depois, com um ENOENT que fala de um caminho que ninguém escreveu.
+ */
+console.log(`[trabalhador] raiz: ${RADAR_ROOT}`);
 
 /**
  * Avisa na partida, não na primeira varredura.
