@@ -184,6 +184,34 @@
   Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
   limite de cadastro além do rate-limit, e o middleware de rota.
 
+- **Duas tabelas sem RLS: `usuario` e `fila_pedido`.** Das 21 com `ambiente_id`,
+  19 têm `ENABLE` + `FORCE`; estas duas não têm nem política. E `usuario` guarda
+  `senha_hash`.
+
+  **Não há vazamento pelo código de hoje.** As únicas leituras de `usuario` são
+  o login e a checagem de duplicata do cadastro, ambas por e-mail, mais o
+  insert do provisionamento — nada lista usuários. O que falta é a garantia: uma
+  consulta futura escrita sem filtro entregaria e-mails e hashes de todos os
+  clientes, e o banco não a impediria. Todo o resto do sistema tem essa rede.
+
+  A ausência tem razão estrutural, e é por isso que não é conserto de uma linha:
+
+  - **`usuario`** — o login precisa achar a pessoa **antes** de saber o
+    ambiente. Uma política `ambiente_id = current_setting('app.ambiente')`
+    quebraria a autenticação, e uma que aceite `app.ambiente` nulo é o buraco
+    que já existe, só que escrito.
+  - **`fila_pedido`** — o trabalhador precisa enxergar a fila inteira para
+    escolher o próximo pedido, que é justamente atravessar ambientes.
+
+  A correção certa para `usuario` é RLS com a política de sempre **mais** uma
+  função `SECURITY DEFINER` para a busca por e-mail, devolvendo só o que a
+  autenticação precisa. Aí o acesso direto à tabela passa a ser filtrado e o
+  login entra por uma porta estreita e nomeada.
+
+  O defeito real, hoje, é nenhuma das duas exceções estar escrita — nem na
+  migração, nem no desenho. Quem ler o esquema conclui que a proteção é
+  uniforme, e ela não é.
+
 - **Fixture própria da suíte** — detalhe abaixo. Só vira bloqueio no dia em que
   alguém quiser apagar o `store/briefs/`.
 
