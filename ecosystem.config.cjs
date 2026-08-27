@@ -169,6 +169,15 @@ module.exports = {
        * gastaria na assinatura pessoal dele.
        */
       env: {
+        /**
+         * Declarada, e não herdada do `cwd`. O default é o pai do diretório de
+         * trabalho — o que dá certo aqui, porque o `cwd` é `web/`. Mas foi
+         * essa dependência silenciosa que fez uma varredura morrer com ENOENT
+         * num caminho que ninguém tinha escrito, e o trabalhador ao lado já
+         * declara. Depender da convenção num processo e não no outro é a
+         * assimetria que confunde quem for mexer depois.
+         */
+        RADAR_ROOT: raiz,
         TZ: "America/Sao_Paulo",
         CLAUDE_CONFIG_DIR: `${raiz}/var/claude-config`,
       },
