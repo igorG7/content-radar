@@ -184,6 +184,38 @@
   Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
   limite de cadastro além do rate-limit, e o middleware de rota.
 
+- **A tela de fontes exibe e não grava.** A seção "Grupos de fontes" da
+  configuração renderiza campos, aceita digitação e mostra o diff — e a gravação
+  é recusada com 422: `gravarConfiguracao` só aceita caminhos de `funnel` e
+  `anti_repetition`, e a UI envia `search_scopes`. Provado chamando o store
+  direto: `caminho fora da configuração: search_scopes.trends.label`.
+
+  Quem edita fontes é **o cliente**, não o operador — então é tela de verdade,
+  não consulta. O que falta:
+
+  - **Ler o que já existe.** O store devolve `{slug, url, nota, ativo}` por
+    fonte; o `page.tsx` descarta tudo com `.map((f) => f.slug)`. Por isso não há
+    campo de URL: o dado nunca chega ao cliente. Falta passar também os pilares
+    do ambiente, para o seletor ter de onde escolher.
+  - **Escrever.** Método novo no store, transacional, sobre `escopo_busca`,
+    `fonte` e `escopo_pilar`. Não cabe em `gravarConfiguracao`, que é para os
+    números e tem outra forma. É onde mora o risco, e o que merece teste.
+  - **A interface.** URL por fonte, criar e remover fonte, criar e remover
+    grupo, seletor de pilares alvo, e os interruptores de ativo — por fonte e
+    por grupo.
+
+  Duas coisas facilitam mais do que parece. O manifest que a varredura lê é
+  **gerado do banco** (`workspace.ts`), então gravar no banco basta: não há
+  arquivo a sincronizar. E o `ativo` já é respeitado de ponta a ponta — o
+  workspace filtra escopo e fonte inativos, a API de varredura recusa escopo
+  inativo e lista os disponíveis, o chat filtra igual. O interruptor comanda
+  máquina que já funciona; falta só o botão.
+
+  Duas decisões de comportamento, para quem for fazer: apagar um grupo com
+  fontes deve **recusar**, não cascatear — dez fontes perdidas num clique se
+  descobre tarde. E o `ativo` é o caminho preferível ao apagar, porque preserva
+  a URL de uma fonte que só começou a dar ruído.
+
 - **Duas tabelas sem RLS: `usuario` e `fila_pedido`.** Das 21 com `ambiente_id`,
   19 têm `ENABLE` + `FORCE`; estas duas não têm nem política. E `usuario` guarda
   `senha_hash`.
