@@ -10,8 +10,12 @@
  * roda fora do pm2: `npm run dev` para a app, e o trabalhador à mão quando for
  * preciso testar uma varredura —
  *
- *   node --env-file=web/.env.local --conditions=react-server \
- *     web/node_modules/.bin/tsx web/scripts/trabalhador.mts
+ *   web/node_modules/.bin/tsx --conditions=react-server \
+ *     --env-file=web/.env.local web/scripts/trabalhador.mts
+ *
+ * As flags vão para o `tsx`, não para o `node`. Passadas ao node, o
+ * `--conditions` não alcança o processo que de fato carrega os módulos, e o
+ * `server-only` lança na primeira importação.
  *
  * Um trabalhador só de cada vez, de propósito: dois processos disputariam a
  * mesma credencial da Anthropic, e uma varredura custa de US$ 5 a 7.
