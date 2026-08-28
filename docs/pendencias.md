@@ -184,6 +184,36 @@
   Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
   limite de cadastro além do rate-limit, e o middleware de rota.
 
+- **Um cliente novo nasce sem escopo, sem fonte e sem pilar — e não há caminho
+  para lhe dar nenhum.** Medido: `cliente-novo` e `igor-teste` têm zero dos três.
+  A Avanz só os tem porque vieram da importação inicial, e o `imobiliaria-teste`
+  porque foi clonado.
+
+  Os únicos três lugares no código que criam essas linhas são de semeadura:
+
+  ```
+  db/seed/importar.ts      → escopo_busca, fonte
+  db/seed/semear-vault.ts  → pilar
+  ```
+
+  Nada na aplicação. O `provisionar` faz usuário, ambiente, config com defaults,
+  vault vazio e prefixo de mídia — e o comentário dele diz que "`fontes` vivem
+  na configuração", apontando para a tela que não sabe gravar. O laço se fecha
+  sem saída.
+
+  O efeito é que **um cliente novo não roda varredura nenhuma**: sem escopo a
+  API recusa qualquer pedido, e ainda que houvesse, sem pilar o matcher não tem
+  como classificar. Não é desconforto de interface — é pré-requisito do segundo
+  cliente.
+
+  A muleta que existe hoje é `scripts/clonar-ambiente.mts`, que copia a
+  configuração de um ambiente configurado. Serve para teste e não é produto: o
+  cliente novo herdaria os pilares e as fontes de uma imobiliária de BH.
+
+  A entrevista do vault já é o lugar natural para isso — ela pergunta pilares,
+  públicos e área de atuação em prosa. Falta o passo que transforma as respostas
+  em linhas de `pilar`, `escopo_busca` e `fonte`.
+
 - **A tela de fontes exibe e não grava.** A seção "Grupos de fontes" da
   configuração renderiza campos, aceita digitação e mostra o diff — e a gravação
   é recusada com 422: `gravarConfiguracao` só aceita caminhos de `funnel` e
@@ -191,7 +221,8 @@
   direto: `caminho fora da configuração: search_scopes.trends.label`.
 
   Quem edita fontes é **o cliente**, não o operador — então é tela de verdade,
-  não consulta. O que falta:
+  não consulta. É a metade "editar" do item acima; aquele é a metade "criar do
+  zero", e os dois se resolvem no mesmo caminho de gravação. O que falta:
 
   - **Ler o que já existe.** O store devolve `{slug, url, nota, ativo}` por
     fonte; o `page.tsx` descarta tudo com `.map((f) => f.slug)`. Por isso não há
