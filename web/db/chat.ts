@@ -135,9 +135,25 @@ export async function* conversar(
       options: {
         systemPrompt: instrucoes(nomeDoAmbiente),
         mcpServers: { radar: servidor },
-        // Só as ferramentas do radar: sem Read, Bash ou Write. O agente do chat
-        // não tem por que tocar no sistema de arquivos do servidor — e não
-        // listar aqui é o que garante isso, não a boa vontade do modelo.
+        /**
+         * `tools: []` é o que **restringe**; `allowedTools` só auto-aprova.
+         *
+         * A distinção não é sutil, é o oposto do que este comentário dizia
+         * antes: listar apenas as ferramentas do radar em `allowedTools` não
+         * tirava `Read`, `Bash` e `Write` do agente. Medido — pedindo o
+         * conteúdo de `/etc/hostname`, ele leu, das duas formas: com
+         * `bypassPermissions` usando `Bash`, e com `permissionMode: "default"`
+         * usando `Read`.
+         *
+         * Isto é: qualquer pessoa autenticada podia mandar o chat rodar comando
+         * no servidor. Na VPS, como root.
+         *
+         * A documentação do SDK diz em uma linha o que levou dois testes para
+         * ficar claro: "to restrict which tools are available, use the `tools`
+         * option instead", e `[]` desliga todos os built-ins. O que sobra são
+         * os servidores MCP — as ferramentas do radar, e só elas.
+         */
+        tools: [],
         allowedTools: permitidas,
         /**
          * `default`, e não `bypassPermissions`.
