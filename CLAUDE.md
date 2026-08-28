@@ -64,4 +64,10 @@ A entrega NÃO é o post final — é um **package** que alimenta o
 
 - Alterações em `/srv/`, `systemctl`, `apt`, firewall → siga regras do
   `/etc/claude-code/CLAUDE.md` global e use o agente `manager` se aplicável.
+
+  **Só na máquina de desenvolvimento.** Na VPS de produção esse arquivo não
+  existe, nem `/root/.claude/CLAUDE.md` — verificado em 2026-08-28. Quem opera
+  produção não tem essas regras carregadas, e procurá-las custa tempo. Este
+  repositório descreve as duas máquinas; quando um trecho valer só para uma,
+  diga qual.
 - Deploy do próprio content-radar → ainda não definido (ver pendência na spec).

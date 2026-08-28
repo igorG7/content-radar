@@ -1,6 +1,10 @@
 /**
- * Processos do content-radar sob pm2 — o padrão deste servidor, onde cada
- * usuário tem sua instância sob systemd (`pm2-<usuario>.service`).
+ * Processos do content-radar sob pm2.
+ *
+ * A instância do systemd varia por máquina, e este arquivo roda nas duas: na de
+ * desenvolvimento cada usuário tem a sua (`pm2-igorg7.service`); na VPS de
+ * produção há só `pm2-root.service`. Não presuma a de dev ao ler um log ou
+ * mandar reiniciar — verifique com `systemctl list-units 'pm2-*'`.
  *
  *   pm2 start ecosystem.config.cjs
  *   pm2 logs radar-trabalhador

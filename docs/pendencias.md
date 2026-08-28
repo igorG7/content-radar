@@ -103,7 +103,22 @@
      quiser mantê-la viva até lá precisa descomentar `ANTHROPIC_API_KEY` no
      `web/.env.producao` daqui. Desenvolvimento não é afetado: roda fora do
      pm2, e continua caindo na sessão do CLI.
-  6. **A credencial da Anthropic — o que sobrou, e virou bloqueio.**
+  6. ~~**A credencial da Anthropic**~~ — resolvida na VPS em 2026-08-28. A
+     `ANTHROPIC_API_KEY` foi escrita no `.env.producao` de lá, e os processos só
+     passaram a enxergá-la depois de `pm2 restart` seguido de `pm2 save` — os
+     que estavam de pé eram de 26/08.
+
+     **Como se confere, e como não se confere.** Não dá para olhar
+     `/proc/<pid>/environ`: o `--env-file` popula o ambiente por dentro do Node,
+     e o `environ` do processo continua sem a variável. A evidência de fora é a
+     linha de partida do trabalhador, que mudou de `ATENÇÃO — sem credencial`
+     para `Anthropic: chave de API`. Foi para isso que ela existe.
+
+     Continua valendo o resto do que estava escrito aqui: são três lugares que
+     autenticam — executor, chat e ensaio —, e a chave deve ser de conta da
+     empresa, não pessoal.
+
+  6b. **O texto abaixo é histórico**, de quando isto era bloqueio:
 
      As varreduras autenticam pela sessão do Claude Code de quem roda o
      processo (`~/.claude/.credentials.json`). Funciona nesta máquina, onde
