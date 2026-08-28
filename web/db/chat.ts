@@ -139,9 +139,25 @@ export async function* conversar(
         // não tem por que tocar no sistema de arquivos do servidor — e não
         // listar aqui é o que garante isso, não a boa vontade do modelo.
         allowedTools: permitidas,
-        // As ferramentas já são a única superfície; nada aqui precisa de
-        // aprovação humana por chamada, senão a conversa trava a cada consulta.
-        permissionMode: "bypassPermissions",
+        /**
+         * `default`, e não `bypassPermissions`.
+         *
+         * A lista acima já é a única superfície: uma ferramenta fora dela é
+         * recusada, e a recusa volta ao modelo sem travar a conversa. O bypass
+         * não estava segurando nada — verificado rodando o chat sem ele, com
+         * uma pergunta de uma ferramenta e outra de várias.
+         *
+         * E ele quebrava produção: o SDK traduz `bypassPermissions` em
+         * `--dangerously-skip-permissions`, que o CLI **recusa sob root**. Na
+         * VPS a app roda como root, então toda mensagem morria em
+         * "process exited with code 1". O executor escapava por usar
+         * `acceptEdits`, e por isso a varredura funcionava e o chat não.
+         *
+         * Trocar o usuário do processo continua sendo o certo (pendencias.md),
+         * mas isto vale por si: pedir a permissão perigosa para não precisar
+         * dela é o tipo de folga que só aparece quando cobra.
+         */
+        permissionMode: "default",
         ...(sessaoAnterior ? { resume: sessaoAnterior } : {}),
       },
     });
