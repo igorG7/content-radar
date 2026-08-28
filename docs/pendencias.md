@@ -103,7 +103,22 @@
      quiser mantê-la viva até lá precisa descomentar `ANTHROPIC_API_KEY` no
      `web/.env.producao` daqui. Desenvolvimento não é afetado: roda fora do
      pm2, e continua caindo na sessão do CLI.
-  6. **A credencial da Anthropic — o que sobrou, e virou bloqueio.**
+  6. ~~**A credencial da Anthropic**~~ — resolvida na VPS em 2026-08-28. A
+     `ANTHROPIC_API_KEY` foi escrita no `.env.producao` de lá, e os processos só
+     passaram a enxergá-la depois de `pm2 restart` seguido de `pm2 save` — os
+     que estavam de pé eram de 26/08.
+
+     **Como se confere, e como não se confere.** Não dá para olhar
+     `/proc/<pid>/environ`: o `--env-file` popula o ambiente por dentro do Node,
+     e o `environ` do processo continua sem a variável. A evidência de fora é a
+     linha de partida do trabalhador, que mudou de `ATENÇÃO — sem credencial`
+     para `Anthropic: chave de API`. Foi para isso que ela existe.
+
+     Continua valendo o resto do que estava escrito aqui: são três lugares que
+     autenticam — executor, chat e ensaio —, e a chave deve ser de conta da
+     empresa, não pessoal.
+
+  6b. **O texto abaixo é histórico**, de quando isto era bloqueio:
 
      As varreduras autenticam pela sessão do Claude Code de quem roda o
      processo (`~/.claude/.credentials.json`). Funciona nesta máquina, onde
@@ -121,11 +136,19 @@
      O trabalhador também anuncia a origem na partida, porque o intervalo entre
      um servidor subir e alguém pedir o primeiro scan é onde isso se esconderia.
 
-     **O que a chave não resolve:** o SDK não traz o modelo nem o executável —
-     ele spawna o binário nativo do Claude Code, que o `npm install` não
-     instala. Na VPS ele precisa existir no home de quem roda o pm2, junto com
-     `curl`, que é como o briefer baixa as imagens. Binário ausente falha alto,
-     com mensagem clara; era a credencial que falhava em silêncio.
+     **Correção de 2026-08-28:** eu afirmei aqui, e várias vezes na conversa,
+     que o `npm install` não traz o binário e que era preciso instalá-lo à parte
+     no home de quem roda o pm2. **É falso.** Desde a 0.3.236 o SDK o traz como
+     dependência opcional por plataforma — 320 MB, em
+     `node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude`. O clone
+     mais `npm ci` bastam, e não há passo de instalação separado nem
+     complicação ao trocar o usuário do processo. O erro veio de eu ter olhado
+     o `manifest.json` do pacote, que lista os binários por plataforma, e
+     concluído que ele não os continha — sem procurar as dependências opcionais.
+     Achado pelo agente da VPS, operando a máquina.
+
+     O que a chave de fato não resolve: `curl`, que o briefer usa para baixar
+     imagem.
 
      Três lugares usam o SDK, não um: o executor, o **chat** (que roda no
      processo web) e o ensaio. Sem binário, a VPS serve tudo menos essas três
@@ -183,6 +206,121 @@
 
   Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
   limite de cadastro além do rate-limit, e o middleware de rota.
+
+- **A URL de terceiro entra sem aspas na linha de `curl` do briefer.** Achado
+  pelo agente da VPS em 2026-08-28, e é o mais sério da lista dele.
+
+  A cadeia: o `market-researcher` lê páginas de terceiros com `WebSearch` e
+  `WebFetch`, e `image_candidates[].url` sai de `og:image`, `twitter:image` ou
+  `<img src>` — texto que um estranho escolheu. Isso chega ao
+  `instagram-briefer`, que tem `Bash`, e o executor roda com
+  `permissionMode: "acceptEdits"` sem ninguém para aprovar.
+
+  Mitigado no mesmo dia, editando o `.claude/agents/instagram-briefer.md`:
+  aspas simples na URL, `--` antes dela, `--proto '=https'`, `--max-filesize`,
+  extensão derivada do mime em vez da URL, e instrução para recusar URL que
+  contenha aspa. **É mitigação, não garantia** — mora num prompt, e prompt é
+  instrução a um modelo, não guarda de código.
+
+  A correção de verdade é tirar o shell do laço: uma ferramenta MCP estreita
+  que baixe a imagem em código, com validação de URL, substituindo o `Bash` do
+  briefer. Nenhuma validação programática de URL existe hoje — nem em
+  `web/lib/`, nem em `web/db/`.
+
+  Vale notar o contraste com o chat, fechado em 2026-08-28 (`4ec7b3c`): lá a
+  superfície foi removida com `tools: []`, em código. O briefer é o mesmo
+  problema e é ele, não o chat, quem recebe texto não confiável.
+
+- **Um cliente novo nasce sem escopo, sem fonte e sem pilar — e não há caminho
+  para lhe dar nenhum.** Medido: `cliente-novo` e `igor-teste` têm zero dos três.
+  A Avanz só os tem porque vieram da importação inicial, e o `imobiliaria-teste`
+  porque foi clonado.
+
+  Os únicos três lugares no código que criam essas linhas são de semeadura:
+
+  ```
+  db/seed/importar.ts      → escopo_busca, fonte
+  db/seed/semear-vault.ts  → pilar
+  ```
+
+  Nada na aplicação. O `provisionar` faz usuário, ambiente, config com defaults,
+  vault vazio e prefixo de mídia — e o comentário dele diz que "`fontes` vivem
+  na configuração", apontando para a tela que não sabe gravar. O laço se fecha
+  sem saída.
+
+  O efeito é que **um cliente novo não roda varredura nenhuma**: sem escopo a
+  API recusa qualquer pedido, e ainda que houvesse, sem pilar o matcher não tem
+  como classificar. Não é desconforto de interface — é pré-requisito do segundo
+  cliente.
+
+  A muleta que existe hoje é `scripts/clonar-ambiente.mts`, que copia a
+  configuração de um ambiente configurado. Serve para teste e não é produto: o
+  cliente novo herdaria os pilares e as fontes de uma imobiliária de BH.
+
+  A entrevista do vault já é o lugar natural para isso — ela pergunta pilares,
+  públicos e área de atuação em prosa. Falta o passo que transforma as respostas
+  em linhas de `pilar`, `escopo_busca` e `fonte`.
+
+- **A tela de fontes exibe e não grava.** A seção "Grupos de fontes" da
+  configuração renderiza campos, aceita digitação e mostra o diff — e a gravação
+  é recusada com 422: `gravarConfiguracao` só aceita caminhos de `funnel` e
+  `anti_repetition`, e a UI envia `search_scopes`. Provado chamando o store
+  direto: `caminho fora da configuração: search_scopes.trends.label`.
+
+  Quem edita fontes é **o cliente**, não o operador — então é tela de verdade,
+  não consulta. É a metade "editar" do item acima; aquele é a metade "criar do
+  zero", e os dois se resolvem no mesmo caminho de gravação. O que falta:
+
+  - **Ler o que já existe.** O store devolve `{slug, url, nota, ativo}` por
+    fonte; o `page.tsx` descarta tudo com `.map((f) => f.slug)`. Por isso não há
+    campo de URL: o dado nunca chega ao cliente. Falta passar também os pilares
+    do ambiente, para o seletor ter de onde escolher.
+  - **Escrever.** Método novo no store, transacional, sobre `escopo_busca`,
+    `fonte` e `escopo_pilar`. Não cabe em `gravarConfiguracao`, que é para os
+    números e tem outra forma. É onde mora o risco, e o que merece teste.
+  - **A interface.** URL por fonte, criar e remover fonte, criar e remover
+    grupo, seletor de pilares alvo, e os interruptores de ativo — por fonte e
+    por grupo.
+
+  Duas coisas facilitam mais do que parece. O manifest que a varredura lê é
+  **gerado do banco** (`workspace.ts`), então gravar no banco basta: não há
+  arquivo a sincronizar. E o `ativo` já é respeitado de ponta a ponta — o
+  workspace filtra escopo e fonte inativos, a API de varredura recusa escopo
+  inativo e lista os disponíveis, o chat filtra igual. O interruptor comanda
+  máquina que já funciona; falta só o botão.
+
+  Duas decisões de comportamento, para quem for fazer: apagar um grupo com
+  fontes deve **recusar**, não cascatear — dez fontes perdidas num clique se
+  descobre tarde. E o `ativo` é o caminho preferível ao apagar, porque preserva
+  a URL de uma fonte que só começou a dar ruído.
+
+- **Duas tabelas sem RLS: `usuario` e `fila_pedido`.** Das 21 com `ambiente_id`,
+  19 têm `ENABLE` + `FORCE`; estas duas não têm nem política. E `usuario` guarda
+  `senha_hash`.
+
+  **Não há vazamento pelo código de hoje.** As únicas leituras de `usuario` são
+  o login e a checagem de duplicata do cadastro, ambas por e-mail, mais o
+  insert do provisionamento — nada lista usuários. O que falta é a garantia: uma
+  consulta futura escrita sem filtro entregaria e-mails e hashes de todos os
+  clientes, e o banco não a impediria. Todo o resto do sistema tem essa rede.
+
+  A ausência tem razão estrutural, e é por isso que não é conserto de uma linha:
+
+  - **`usuario`** — o login precisa achar a pessoa **antes** de saber o
+    ambiente. Uma política `ambiente_id = current_setting('app.ambiente')`
+    quebraria a autenticação, e uma que aceite `app.ambiente` nulo é o buraco
+    que já existe, só que escrito.
+  - **`fila_pedido`** — o trabalhador precisa enxergar a fila inteira para
+    escolher o próximo pedido, que é justamente atravessar ambientes.
+
+  A correção certa para `usuario` é RLS com a política de sempre **mais** uma
+  função `SECURITY DEFINER` para a busca por e-mail, devolvendo só o que a
+  autenticação precisa. Aí o acesso direto à tabela passa a ser filtrado e o
+  login entra por uma porta estreita e nomeada.
+
+  O defeito real, hoje, é nenhuma das duas exceções estar escrita — nem na
+  migração, nem no desenho. Quem ler o esquema conclui que a proteção é
+  uniforme, e ela não é.
 
 - **Fixture própria da suíte** — detalhe abaixo. Só vira bloqueio no dia em que
   alguém quiser apagar o `store/briefs/`.

@@ -1,6 +1,10 @@
 /**
- * Processos do content-radar sob pm2 — o padrão deste servidor, onde cada
- * usuário tem sua instância sob systemd (`pm2-<usuario>.service`).
+ * Processos do content-radar sob pm2.
+ *
+ * A instância do systemd varia por máquina, e este arquivo roda nas duas: na de
+ * desenvolvimento cada usuário tem a sua (`pm2-igorg7.service`); na VPS de
+ * produção há só `pm2-root.service`. Não presuma a de dev ao ler um log ou
+ * mandar reiniciar — verifique com `systemctl list-units 'pm2-*'`.
  *
  *   pm2 start ecosystem.config.cjs
  *   pm2 logs radar-trabalhador
@@ -10,8 +14,15 @@
  * roda fora do pm2: `npm run dev` para a app, e o trabalhador à mão quando for
  * preciso testar uma varredura —
  *
- *   node --env-file=web/.env.local --conditions=react-server \
- *     web/node_modules/.bin/tsx web/scripts/trabalhador.mts
+ *   cd web && node_modules/.bin/tsx --conditions=react-server \
+ *     --env-file=.env.local scripts/trabalhador.mts
+ *
+ * Duas coisas que já morderam neste comando. As flags vão para o `tsx`, não
+ * para o `node`: passadas ao node, o `--conditions` não alcança o processo que
+ * carrega os módulos e o `server-only` lança na primeira importação. E é
+ * preciso rodar **de dentro de `web/`** — sem `RADAR_ROOT`, a raiz é o pai do
+ * diretório de trabalho, e da raiz do repositório ele sobe um nível demais. O
+ * pm2 escapa disso porque declara `RADAR_ROOT` no `env`.
  *
  * Um trabalhador só de cada vez, de propósito: dois processos disputariam a
  * mesma credencial da Anthropic, e uma varredura custa de US$ 5 a 7.
@@ -162,6 +173,15 @@ module.exports = {
        * gastaria na assinatura pessoal dele.
        */
       env: {
+        /**
+         * Declarada, e não herdada do `cwd`. O default é o pai do diretório de
+         * trabalho — o que dá certo aqui, porque o `cwd` é `web/`. Mas foi
+         * essa dependência silenciosa que fez uma varredura morrer com ENOENT
+         * num caminho que ninguém tinha escrito, e o trabalhador ao lado já
+         * declara. Depender da convenção num processo e não no outro é a
+         * assimetria que confunde quem for mexer depois.
+         */
+        RADAR_ROOT: raiz,
         TZ: "America/Sao_Paulo",
         CLAUDE_CONFIG_DIR: `${raiz}/var/claude-config`,
       },

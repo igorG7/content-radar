@@ -135,13 +135,45 @@ export async function* conversar(
       options: {
         systemPrompt: instrucoes(nomeDoAmbiente),
         mcpServers: { radar: servidor },
-        // Só as ferramentas do radar: sem Read, Bash ou Write. O agente do chat
-        // não tem por que tocar no sistema de arquivos do servidor — e não
-        // listar aqui é o que garante isso, não a boa vontade do modelo.
+        /**
+         * `tools: []` é o que **restringe**; `allowedTools` só auto-aprova.
+         *
+         * A distinção não é sutil, é o oposto do que este comentário dizia
+         * antes: listar apenas as ferramentas do radar em `allowedTools` não
+         * tirava `Read`, `Bash` e `Write` do agente. Medido — pedindo o
+         * conteúdo de `/etc/hostname`, ele leu, das duas formas: com
+         * `bypassPermissions` usando `Bash`, e com `permissionMode: "default"`
+         * usando `Read`.
+         *
+         * Isto é: qualquer pessoa autenticada podia mandar o chat rodar comando
+         * no servidor. Na VPS, como root.
+         *
+         * A documentação do SDK diz em uma linha o que levou dois testes para
+         * ficar claro: "to restrict which tools are available, use the `tools`
+         * option instead", e `[]` desliga todos os built-ins. O que sobra são
+         * os servidores MCP — as ferramentas do radar, e só elas.
+         */
+        tools: [],
         allowedTools: permitidas,
-        // As ferramentas já são a única superfície; nada aqui precisa de
-        // aprovação humana por chamada, senão a conversa trava a cada consulta.
-        permissionMode: "bypassPermissions",
+        /**
+         * `default`, e não `bypassPermissions`.
+         *
+         * A lista acima já é a única superfície: uma ferramenta fora dela é
+         * recusada, e a recusa volta ao modelo sem travar a conversa. O bypass
+         * não estava segurando nada — verificado rodando o chat sem ele, com
+         * uma pergunta de uma ferramenta e outra de várias.
+         *
+         * E ele quebrava produção: o SDK traduz `bypassPermissions` em
+         * `--dangerously-skip-permissions`, que o CLI **recusa sob root**. Na
+         * VPS a app roda como root, então toda mensagem morria em
+         * "process exited with code 1". O executor escapava por usar
+         * `acceptEdits`, e por isso a varredura funcionava e o chat não.
+         *
+         * Trocar o usuário do processo continua sendo o certo (pendencias.md),
+         * mas isto vale por si: pedir a permissão perigosa para não precisar
+         * dela é o tipo de folga que só aparece quando cobra.
+         */
+        permissionMode: "default",
         ...(sessaoAnterior ? { resume: sessaoAnterior } : {}),
       },
     });

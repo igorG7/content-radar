@@ -114,8 +114,26 @@ avoid_visual: [...]                      # propaga visual_mood.avoid_visual do I
 1. Pegue até **3 primeiros** `image_candidates[]` do finding.
 2. Pra cada candidato N (0-indexed):
    - `mkdir -p store/media/pendente-aprovacao`
-   - `curl -sSL --max-time 20 --retry 1 -A "content-radar/0.1 (+avanz)" -o store/media/pendente-aprovacao/<slug>__<N>.<ext> <url>`
-   - `file --mime-type` → deve começar com `image/` (senão, descarte).
+   - Baixe com a URL **entre aspas simples** e depois de `--`:
+
+     ```
+     curl -sSL --proto '=https' --max-time 20 --max-filesize 15M --retry 1 \
+       -A 'content-radar/0.1 (+avanz)' \
+       -o 'store/media/pendente-aprovacao/<slug>__<N>.bin' -- '<url>'
+     ```
+
+     A URL vem de `og:image`/`<img src>` de página de terceiro — é texto que
+     um estranho escolheu. Sem aspas, um `;` ou um `$(...)` nela vira comando
+     seu. Sem `--`, uma URL começando com `-` vira flag do curl. `--proto`
+     recusa `file://` e `gopher://`; `--max-filesize` recusa o disco cheio.
+
+     **Se a URL contiver aspa simples, não baixe** — marque `ok: false` e siga.
+     Não tente escapar: uma URL de imagem legítima não tem aspa.
+
+   - `file --mime-type` → deve começar com `image/` (senão, apague e descarte).
+   - Só então renomeie para a extensão correspondente ao mime — `.jpg`, `.png`,
+     `.webp`. A extensão **não** sai da URL: ela é escolha do mesmo estranho, e
+     o mime é o que o arquivo de fato é.
    - Reporte no `media_downloads[]` do JSON intermediário com `ok: true/false`.
 3. Preencha `hero_image_candidates[]` no brief com os candidatos baixados (descarte os que falharam).
 4. `hero_choice: null` por default (editor decide na revisão).
