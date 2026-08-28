@@ -47,6 +47,19 @@ const TABELAS = [
 /** O provisionamento já cria estas — copiar por cima em vez de inserir. */
 const JA_EXISTEM = new Set(["config", "marca", "vault_bloco"]);
 
+/**
+ * Colunas que descrevem **uso**, não configuração: viajam como nulas.
+ *
+ * `tema.usado_em` e `tema.esgotado_em` dizem que aquele tema já virou pauta —
+ * história de quem o gastou. Copiados, o ambiente novo nasceria com temas
+ * marcados como usados sem nunca ter publicado nada, e o banco de temas
+ * chegaria menor do que é. Hoje seria inofensivo, porque a Avanz tem 0 de 135
+ * gastos; é o tipo de coisa que só cobra quando a origem já rodou um tempo.
+ */
+const ZERAR: Record<string, string[]> = {
+  tema: ["usado_em", "esgotado_em"],
+};
+
 function arg(nome: string): string | undefined {
   const p = process.argv.find((a) => a.startsWith(`--${nome}=`));
   return p?.slice(nome.length + 3);
@@ -150,7 +163,12 @@ try {
     for (const linha of linhas) {
       await escritor.query(
         `insert into "${tabela}" (${nomes}) values ($1, ${marcadores})`,
-        [novo.ambienteId, ...cols.map((c) => linha[c])],
+        [
+          novo.ambienteId,
+          ...cols.map((c) =>
+            ZERAR[tabela]?.includes(c) ? null : linha[c],
+          ),
+        ],
       );
       gravadas++;
     }

@@ -121,11 +121,19 @@
      O trabalhador também anuncia a origem na partida, porque o intervalo entre
      um servidor subir e alguém pedir o primeiro scan é onde isso se esconderia.
 
-     **O que a chave não resolve:** o SDK não traz o modelo nem o executável —
-     ele spawna o binário nativo do Claude Code, que o `npm install` não
-     instala. Na VPS ele precisa existir no home de quem roda o pm2, junto com
-     `curl`, que é como o briefer baixa as imagens. Binário ausente falha alto,
-     com mensagem clara; era a credencial que falhava em silêncio.
+     **Correção de 2026-08-28:** eu afirmei aqui, e várias vezes na conversa,
+     que o `npm install` não traz o binário e que era preciso instalá-lo à parte
+     no home de quem roda o pm2. **É falso.** Desde a 0.3.236 o SDK o traz como
+     dependência opcional por plataforma — 320 MB, em
+     `node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude`. O clone
+     mais `npm ci` bastam, e não há passo de instalação separado nem
+     complicação ao trocar o usuário do processo. O erro veio de eu ter olhado
+     o `manifest.json` do pacote, que lista os binários por plataforma, e
+     concluído que ele não os continha — sem procurar as dependências opcionais.
+     Achado pelo agente da VPS, operando a máquina.
+
+     O que a chave de fato não resolve: `curl`, que o briefer usa para baixar
+     imagem.
 
      Três lugares usam o SDK, não um: o executor, o **chat** (que roda no
      processo web) e o ensaio. Sem binário, a VPS serve tudo menos essas três
@@ -183,6 +191,30 @@
 
   Continuam adiados de propósito, com o cadastro fechado: confirmação de e-mail,
   limite de cadastro além do rate-limit, e o middleware de rota.
+
+- **A URL de terceiro entra sem aspas na linha de `curl` do briefer.** Achado
+  pelo agente da VPS em 2026-08-28, e é o mais sério da lista dele.
+
+  A cadeia: o `market-researcher` lê páginas de terceiros com `WebSearch` e
+  `WebFetch`, e `image_candidates[].url` sai de `og:image`, `twitter:image` ou
+  `<img src>` — texto que um estranho escolheu. Isso chega ao
+  `instagram-briefer`, que tem `Bash`, e o executor roda com
+  `permissionMode: "acceptEdits"` sem ninguém para aprovar.
+
+  Mitigado no mesmo dia, editando o `.claude/agents/instagram-briefer.md`:
+  aspas simples na URL, `--` antes dela, `--proto '=https'`, `--max-filesize`,
+  extensão derivada do mime em vez da URL, e instrução para recusar URL que
+  contenha aspa. **É mitigação, não garantia** — mora num prompt, e prompt é
+  instrução a um modelo, não guarda de código.
+
+  A correção de verdade é tirar o shell do laço: uma ferramenta MCP estreita
+  que baixe a imagem em código, com validação de URL, substituindo o `Bash` do
+  briefer. Nenhuma validação programática de URL existe hoje — nem em
+  `web/lib/`, nem em `web/db/`.
+
+  Vale notar o contraste com o chat, fechado em 2026-08-28 (`4ec7b3c`): lá a
+  superfície foi removida com `tools: []`, em código. O briefer é o mesmo
+  problema e é ele, não o chat, quem recebe texto não confiável.
 
 - **Um cliente novo nasce sem escopo, sem fonte e sem pilar — e não há caminho
   para lhe dar nenhum.** Medido: `cliente-novo` e `igor-teste` têm zero dos três.
