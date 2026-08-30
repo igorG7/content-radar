@@ -324,6 +324,71 @@ describe.skipIf(!disponivel)("ingestão", () => {
     expect(linha.avisos).toContain("sem rascunho de legenda");
   });
 
+  it("aceita o pilar na numeração antiga, traduz e avisa", async () => {
+    /**
+     * O caso de 2026-08-30: o briefer copiou o nome da matriz do prompt, que
+     * estava na numeração posicional, em vez do slug que veio do matcher. A
+     * ingestão recusou, a transação inteira foi desfeita, e 42 minutos e sete
+     * dólares foram embora com a pauta pronta e correta em tudo o mais.
+     *
+     * A causa eram os prompts, corrigidos junto. Isto é a contenção: um desvio
+     * de nome entra com aviso em vez de virar prejuízo.
+     */
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-009",
+        slug: "2026-W98-009_numeracao-antiga",
+        headline: "Pilar na numeração antiga",
+        caption_draft: "legenda",
+        pillar: "2-decisao",
+        icp: "comprador",
+        topic_hash: "hash-numeracao-antiga",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws);
+    expect(r.recusas).toEqual([]);
+    expect(r.briefs).toBe(1);
+    expect(r.avisos.map((a) => a.detalhe).join(" ")).toContain(
+      "numeração antiga",
+    );
+
+    // E entra com o slug do banco, não com o código antigo — senão a
+    // anti-repetição e a fila passariam a ver dois pilares onde há um.
+    const [linha] = await noAmbiente(
+      `select pilar_slug from brief where brief_id = '2026-W98-009'`,
+    );
+    expect(linha.pilar_slug).toBe("decisao-inteligente");
+  });
+
+  it("um pilar que não existe em vocabulário nenhum continua sendo recusa", async () => {
+    // A tradução é uma lista de seis códigos que existiram, não um passe livre:
+    // nome inventado precisa continuar barrando, ou a validação não vale nada.
+    const ws = await materializar(ambienteId);
+    criados.push(ws);
+    await simularSaida(
+      ws,
+      {
+        brief_id: "2026-W98-010",
+        slug: "2026-W98-010_pilar-inventado",
+        headline: "Pilar inventado",
+        pillar: "9-pilar-que-nao-existe",
+        icp: "comprador",
+        topic_hash: "hash-pilar-inventado",
+      },
+      [],
+    );
+
+    const r = await ingerir(ws).catch((e) => e.relatorio ?? { recusas: [] });
+    expect(
+      (r.recusas as { detalhe: string }[]).map((x) => x.detalhe).join(" "),
+    ).toContain("pilar inexistente no vault");
+  });
+
   it("relata o aborto que a própria skill declarou", async () => {
     // A primeira execução real terminou assim: o researcher não teve busca
     // disponível, devolveu zero achados e a skill abortou — sem exceção

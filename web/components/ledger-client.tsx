@@ -16,6 +16,24 @@ export interface BriefRef {
   headline: string;
 }
 
+/**
+ * Um campo de `extra` como texto legível.
+ *
+ * `Array.prototype.join` num array de objetos devolve `[object Object]`, uma
+ * vez por item — e foi assim que `recusas` chegou à tela. O registro guardava
+ * o motivo da recusa e a exibição o destruía, no único lugar onde alguém iria
+ * procurá-lo.
+ *
+ * Cada item é serializado por si: os primitivos como estão, os objetos como
+ * JSON compacto. Quem lê prefere `{"onde":"slug","detalhe":"..."}` a um
+ * marcador que não diz nada.
+ */
+export function textoDoExtra(valor: unknown): string {
+  if (Array.isArray(valor)) return valor.map(textoDoExtra).join("  ·  ");
+  if (valor !== null && typeof valor === "object") return JSON.stringify(valor);
+  return String(valor);
+}
+
 export function LedgerClient({
   eventos,
   briefs,
@@ -247,11 +265,7 @@ export function LedgerClient({
                       ) : (
                         <div className="json-view">
                           {Object.entries(extra).map(([chave, valor]) => {
-                            const texto = Array.isArray(valor)
-                              ? valor.join(", ")
-                              : valor !== null && typeof valor === "object"
-                                ? JSON.stringify(valor)
-                                : String(valor);
+                            const texto = textoDoExtra(valor);
                             const ehUrl = texto.startsWith("http");
                             return (
                               <div className="json-row" key={chave}>

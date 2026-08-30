@@ -95,7 +95,7 @@ planner no primeiro slice).
         "Lotes em RMBH valorizaram 8.4% no Q1 2026...",
         "Mateus Leme lidera com alta de 11.2%."
       ],
-      "relevance_hint": "Foco em lotes em RMBH bate direto com Pilar 6 + foco editorial Avanz."
+      "relevance_hint": "Foco em lotes em RMBH bate direto com `mercado-rmbh` + foco editorial Avanz."
     }
   ]
 }
@@ -141,7 +141,7 @@ O matcher só lê frontmatter (`source_urls`, `topic_hash`, `pillar`, `icp`,
   "ranked": [
     {
       "finding": { "...original do researcher, intacto..." },
-      "pillar": "6-mercado-rmbh",
+      "pillar": "mercado-rmbh",
       "icp": "investidor",
       "match_score": 0.82,
       "match_score_breakdown": {
@@ -153,7 +153,7 @@ O matcher só lê frontmatter (`source_urls`, `topic_hash`, `pillar`, `icp`,
       },
       "why_match": "Relatório FipeZap sobre valorização de LOTES (foco_principal Avanz) em RMBH (Mateus Leme, Esmeraldas — área de atuação direta). Dado numérico fechado bate com tone_overlay.investidor (analítico, dado-suportado, comparativo).",
       "source_relevance_hints": [
-        {"component": "pillar_fit", "evidence": "headline menciona explicitamente RMBH e valorização — bate Pilar 6"},
+        {"component": "pillar_fit", "evidence": "headline menciona explicitamente RMBH e valorização — bate `mercado-rmbh`"},
         {"component": "foco_editorial_fit", "evidence": "fonte trata de lote (não casa pronta) — alinha foco declarado"},
         {"component": "geografia_fit", "evidence": "Mateus Leme + Esmeraldas em geo_hints — núcleo RMBH"}
       ],
@@ -232,9 +232,9 @@ estrutura de cada pilar em
 
 | Score | Critério |
 |---|---|
-| **0.95–1.00** | Finding é praticamente uma pauta pré-cozida — encaixe perfeito em 1 pilar, com gancho concreto (notícia + dado + implicação). Ex.: relatório FipeZap RMBH → Pilar 6 direto. |
-| **0.75–0.94** | Encaixa bem em 1 pilar, exige só rework editorial — ex.: artigo educacional Caixa sobre MCMV → Pilar 2 (Decisão Inteligente). |
-| **0.55–0.74** | Encaixa em 1 pilar, mas tema lateral — gancho exige bastante reframing. Ex.: notícia genérica sobre Selic → Pilar 2 só se reframear pro impacto no financiamento. |
+| **0.95–1.00** | Finding é praticamente uma pauta pré-cozida — encaixe perfeito em 1 pilar, com gancho concreto (notícia + dado + implicação). Ex.: relatório FipeZap RMBH → `mercado-rmbh` direto. |
+| **0.75–0.94** | Encaixa bem em 1 pilar, exige só rework editorial — ex.: artigo educacional Caixa sobre MCMV → `decisao-inteligente` (Decisão Inteligente). |
+| **0.55–0.74** | Encaixa em 1 pilar, mas tema lateral — gancho exige bastante reframing. Ex.: notícia genérica sobre Selic → `decisao-inteligente` só se reframear pro impacto no financiamento. |
 | **0.30–0.54** | Ambíguo entre 2 pilares ou tema "tangencia" os pilares Avanz — desempate via §9 (gotcha #1). |
 | **0.00–0.29** | Nenhum pilar comporta — ex.: notícia sobre IPO de construtora SP, sem relação com curadoria RMBH; ou conteúdo genérico de "como ser feliz na casa nova". |
 
@@ -244,13 +244,13 @@ estrutural (sem pilar, não tem onde alocar no calendário; vira ruído).
 **Edge cases:**
 - **Cabe em 2 pilares** → escolher o de maior `pillar_fit`; empate vai pro
   pilar com **maior `cadence.pillars_by_day_base` underfill** na semana
-  corrente (consultar `manifest.yaml#cadence`). Default: Pilar 1.
-- **Pilar 4 (Bastidor) detectado** → forçar `pillar_fit = 0` e
+  corrente (consultar `manifest.yaml#cadence`). Default: `imovel-da-semana`.
+- **`bastidor` detectado** → forçar `pillar_fit = 0` e
   `decision = "skip-out-of-scope"` (§9 gotcha #6).
-- **Pilar 5 (Quem comprou)** → matcher quase nunca promove pra esse pilar,
+- **`quem-comprou` (Quem comprou)** → matcher quase nunca promove pra esse pilar,
   porque depoimento real exige consentimento e dados internos que o
-  researcher web não tem. Se `pillar_fit` empata em 5, descer pra Pilar 1
-  ou Pilar 2.
+  researcher web não tem. Se `pillar_fit` empata em 5, descer pra `imovel-da-semana`
+  ou `decisao-inteligente`.
 
 ---
 
@@ -285,7 +285,7 @@ que tem `pillar_fit = 0.95`.
 **Edge cases:**
 - **Conteúdo B2B/institucional** (ex.: lançamento de loteamento por outra
   imobiliária) → `icp = null`, `icp_fit = 0.30` (não penaliza brutalmente —
-  pode virar Pilar 3 ou 6 sem ICP-foco).
+  pode virar `inteligencia-imobiliaria` ou 6 sem ICP-foco).
 - **Tom inadequado pro ICP detectado** (ex.: "compre antes que acabe!"
   pra `proprietario`, cujo overlay diz `avoid: "urgência fabricada"`) →
   cap em 0.50 e flagar no `why_match`.
@@ -325,7 +325,7 @@ mais 1 dimensão decente pra passar.
   alto (0.95) mas `geografia` baixa — o agregado decide; geralmente
   out-of-scope.
 - **Conteúdo educacional sobre processo de compra sem produto específico**
-  (ex.: "como funciona escritura") → 0.60 (assume aderência a Pilar 2 com
+  (ex.: "como funciona escritura") → 0.60 (assume aderência a `decisao-inteligente` com
   qualquer produto).
 
 ---
@@ -357,7 +357,7 @@ Sabará) entra como "raio operacional".
 
 **Edge cases:**
 - **Geografia ausente** (notícia macro de Brasil sem ancoragem em região)
-  → 0.40 default (espaço pra Pilar 2 educacional reformatar).
+  → 0.40 default (espaço pra `decisao-inteligente` educacional reformatar).
 - **Macro nacional REANCORÁVEL** (calibração §11.V — piso
   `geografia_reframe_floor = 0.50`): dado nacional imobiliário com implicação
   clara pra RMBH — financiamento (SBPE, taxa Caixa), índices de mercado
@@ -404,7 +404,7 @@ Com `TAU = 30` (meia-vida ~21 dias). Tabela de referência:
 **Justificativa do TAU=30:**
 - IG hoje recompensa frescor: notícia de 7 dias ainda vira post relevante
   (0.79); de 30 dias precisa de boa razão (0.37).
-- Pauta educacional (Pilar 2) — `freshness` baixo (~0.5) é OK porque
+- Pauta educacional (`decisao-inteligente`) — `freshness` baixo (~0.5) é OK porque
   contribuição da dimensão é só 10% do agregado; outros pesos compensam.
 - Decisão é não-binária: nada é descartado **só** por freshness.
 
@@ -467,7 +467,7 @@ match_score =
    - 1 skip-out-of-scope barrado por cap (§5.6) antes do threshold importar.
 
 2. **Trade-off precision vs recall:**
-   - Mais alto (0.65): perderíamos pautas Pilar 2 educacionais com
+   - Mais alto (0.65): perderíamos pautas `decisao-inteligente` educacionais com
      `freshness` ruim mas conteúdo bom; menos volume.
    - Mais baixo (0.45): briefer perderia tempo refinando pautas que o
      editor humano vai reprovar (lixo entra no funil).
@@ -589,7 +589,7 @@ Carregue (via Read):
 3. **Caps obrigatórios**:
    - `pillar_fit < 0.30` → `decision = "skip-out-of-scope"`
    - `foco_editorial_fit < 0.20` AND `geografia_fit < 0.50` → `decision = "skip-out-of-scope"`
-   - Finding mapeia pra Pilar 4 (Bastidor) → `pillar_fit = 0`, `decision = "skip-out-of-scope"`
+   - Finding mapeia pra `bastidor` → `pillar_fit = 0`, `decision = "skip-out-of-scope"`
 
 4. **Agregação** (weighted sum):
    `match_score = 0.30*pillar_fit + 0.15*icp_fit + 0.25*foco_editorial_fit + 0.20*geografia_fit + 0.10*freshness`
@@ -607,7 +607,7 @@ Carregue (via Read):
 
 - **Nunca invente fato** que não esteja em `title`, `summary`, `raw_excerpts` ou `geo_hints`.
 - **Sempre cite trecho** ao justificar — `why_match` deve referenciar texto do finding.
-- **Pilar 4 nunca** sai do matcher como promote (`promote-to-brief` nem `promote-borderline`; ver CLAUDE.md).
+- **`bastidor` nunca** sai do matcher como promote (`promote-to-brief` nem `promote-borderline`; ver CLAUDE.md).
 - **`decision` ∈** `{promote-to-brief, promote-borderline, skip-redundant, skip-low-score, skip-out-of-scope}`.
 - **Default ICP = comprador** quando ambíguo (cap 0.45 no icp_fit).
 - **Saída JSON estrita** no schema do §4 da spec 003. Sem markdown ao redor, sem comentários YAML.
@@ -624,7 +624,7 @@ Carregue (via Read):
 Aplicação do algoritmo §5 + threshold 0.55 a 5 findings plausíveis. Misturei
 casos reais (URLs verificáveis) com 1 simulado pra cobrir anti-repetição.
 
-### Exemplo 1 — PROMOTE estrelado (Pilar 6)
+### Exemplo 1 — PROMOTE estrelado (`mercado-rmbh`)
 
 | Campo | Valor |
 |---|---|
@@ -636,7 +636,7 @@ casos reais (URLs verificáveis) com 1 simulado pra cobrir anti-repetição.
 **Scores:**
 | Dimensão | Score | Por quê |
 |---|---|---|
-| `pillar_fit` | 0.95 | Mapeia direto em Pilar 6 (Mercado RMBH) — fato + análise + implicação. |
+| `pillar_fit` | 0.95 | Mapeia direto em `mercado-rmbh` (Mercado RMBH) — fato + análise + implicação. |
 | `icp_fit` | 0.85 | Linguagem analítica, dados fechados → `investidor` (overlay direto). |
 | `foco_editorial_fit` | 0.95 | "lotes" + "terrenos" = carro-chefe Avanz. |
 | `geografia_fit` | 0.98 | Cita Mateus Leme + Esmeraldas (lista canônica) + BH (RMBH). |
@@ -644,12 +644,12 @@ casos reais (URLs verificáveis) com 1 simulado pra cobrir anti-repetição.
 
 **Agregado:** `0.30×0.95 + 0.15×0.85 + 0.25×0.95 + 0.20×0.98 + 0.10×0.85 = **0.916**`
 **Decision:** `promote-to-brief`. Justificativa: muito acima do threshold,
-sem cap acionado. Pauta-estrela; briefer recebe com `pillar: 6-mercado-rmbh`,
+sem cap acionado. Pauta-estrela; briefer recebe com `pillar: mercado-rmbh`,
 `icp: investidor`.
 
 ---
 
-### Exemplo 2 — PROMOTE borderline (Pilar 2)
+### Exemplo 2 — PROMOTE borderline (`decisao-inteligente`)
 
 | Campo | Valor |
 |---|---|
@@ -661,7 +661,7 @@ sem cap acionado. Pauta-estrela; briefer recebe com `pillar: 6-mercado-rmbh`,
 **Scores:**
 | Dimensão | Score | Por quê |
 |---|---|---|
-| `pillar_fit` | 0.78 | Pilar 2 (Decisão Inteligente) — encaixa em "5 perguntas antes de assinar contrato" / educacional. |
+| `pillar_fit` | 0.78 | `decisao-inteligente` (Decisão Inteligente) — encaixa em "5 perguntas antes de assinar contrato" / educacional. |
 | `icp_fit` | 0.75 | `comprador` (primeiro imóvel, sair do aluguel). |
 | `foco_editorial_fit` | 0.62 | MCMV (casa) — passa pela `excecao_casas` SÓ porque tem simulador Caixa explícito. Sem o simulador, cairia pra 0.40. |
 | `geografia_fit` | 0.55 | Caixa Brasil (escopo nacional) — reframable pra RMBH no briefer. |
@@ -705,7 +705,7 @@ Scoring nem é calculado. Log silencioso no ledger (§11.J da foundation).
 **Scores:**
 | Dimensão | Score | Por quê |
 |---|---|---|
-| `pillar_fit` | 0.32 | Tangencia Pilar 2 mas é o exato tipo de conteúdo excluído ("dica de feng shui" listada em `content-pillars.md#O-que-NÃO-entra`). |
+| `pillar_fit` | 0.32 | Tangencia `decisao-inteligente` mas é o exato tipo de conteúdo excluído ("dica de feng shui" listada em `content-pillars.md#O-que-NÃO-entra`). |
 | `icp_fit` | 0.40 | Vagamente `comprador` (família) — ambíguo, default aplicado, cap 0.45. |
 | `foco_editorial_fit` | 0.30 | Casa pronta genérica, sem MCMV/Caixa. |
 | `geografia_fit` | 0.40 | Brasil amplo, sem ancoragem. |
@@ -751,8 +751,8 @@ no ledger; sem brief.
 
 | Ex. | Pilar | Agregado | Decision | Margem do threshold |
 |---|---|---|---|---|
-| 1 | 6-mercado-rmbh | **0.916** | `promote-to-brief` | +0.366 |
-| 2 | 2-decisao | **0.660** | `promote-to-brief` | +0.110 |
+| 1 | mercado-rmbh | **0.916** | `promote-to-brief` | +0.366 |
+| 2 | decisao-inteligente | **0.660** | `promote-to-brief` | +0.110 |
 | 3 | (redundant) | n/a | `skip-redundant` | (anti-rep) |
 | 4 | (low) | **0.378** | `skip-low-score` | -0.172 |
 | 5 | (out) | (cap) | `skip-out-of-scope` | (cap) |
@@ -826,8 +826,8 @@ calculado).
 ### #1 — Finding ambíguo entre 2 pilares
 
 **Sintoma:** ex. notícia sobre "novo loteamento em Mateus Leme com
-financiamento próprio" pode mapear pra Pilar 1 (Imóvel da semana) ou
-Pilar 6 (Mercado RMBH).
+financiamento próprio" pode mapear pra `imovel-da-semana` (Imóvel da semana) ou
+`mercado-rmbh` (Mercado RMBH).
 
 **Regra de desempate:**
 1. Calcular `pillar_fit` pros 2 candidatos.
@@ -835,11 +835,11 @@ Pilar 6 (Mercado RMBH).
 3. Se diferença < 0.15 → escolher o pilar com **maior underfill** na
    semana corrente (consultar `manifest.yaml#cadence` + briefs já em
    `pendente-publicacao/`).
-4. Default final (empate ainda): Pilar 1 (Imóvel da semana — maior
+4. Default final (empate ainda): `imovel-da-semana` (Imóvel da semana — maior
    frequência base = 2x/sem, absorve excedente).
 
-Documentar a escolha em `why_match`: "Encaixa em Pilar 1 e 6 (Δ=0.05);
-escolhido Pilar 6 por underfill da semana W22."
+Documentar a escolha em `why_match`: "Encaixa em `imovel-da-semana` e 6 (Δ=0.05);
+escolhido `mercado-rmbh` por underfill da semana W22."
 
 ### #2 — ICP ambíguo
 
@@ -870,11 +870,11 @@ e registro".
 **Regra:**
 - `foco_editorial_fit = 0.60` (default neutro — tema é universal,
   aplicável a qualquer produto).
-- Mapear pra Pilar 2 (Decisão Inteligente) — exatamente o que o pilar
+- Mapear pra `decisao-inteligente` (Decisão Inteligente) — exatamente o que o pilar
   pede.
 - ICP default = `comprador`.
 
-### #5 — Pilar 3 (Inteligência) com risco "Ivan tirou foto bonita"
+### #5 — `inteligencia-imobiliaria` (Inteligência) com risco "Ivan tirou foto bonita"
 
 **Sintoma:** notícia sobre "imobiliária usa drone pra mostrar lote" ou
 "app de assinatura digital agiliza vendas" — tecnologia genérica que pode
@@ -882,23 +882,23 @@ virar post raso (modo de falha explicitamente listado em
 [`content-pillars.md#Pilar-3`](/srv/my-mind/Empresas/avanz-imoveis/strategy/content-pillars.md#pilar-3--inteligência-imobiliária-autoridade-tech-do-ivan-)).
 
 **Regra:**
-- Pra promover finding pra Pilar 3, exigir que `summary` ou `raw_excerpts`
+- Pra promover finding pra `inteligencia-imobiliaria`, exigir que `summary` ou `raw_excerpts`
   contenham **insight** (não só "feature"). Heurística simples:
   presença de números/comparativo/caso real → ok; só "novidade" → cap
   `pillar_fit` em 0.50 (vira `skip-low-score` no agregado).
-- Flagar em `why_match`: "Pilar 3 borderline — risco de raso se briefer
+- Flagar em `why_match`: "`inteligencia-imobiliaria` borderline — risco de raso se briefer
   não trouxer dado próprio Avanz."
 
-### #6 — Pilar 4 (Bastidor) está **fora do escopo do radar**
+### #6 — `bastidor` está **fora do escopo do radar**
 
 **Regra absoluta** ([`CLAUDE.md`](../../CLAUDE.md) do content-radar):
-matcher **nunca** promove pra Pilar 4. Bastidor vive nos stories e é
+matcher **nunca** promove pra `bastidor`. Bastidor vive nos stories e é
 decisão humana ad-hoc (foto da equipe, visita técnica, atendimento — não
 sai de notícia pública).
 
-Se finding cheira a Pilar 4 (raro — exigiria "bastidor de outra
+Se finding cheira a `bastidor` (raro — exigiria "bastidor de outra
 imobiliária"), forçar `pillar_fit = 0` e `decision = "skip-out-of-scope"`,
-com `decision_reason: "Pilar 4 está fora do escopo do radar (CLAUDE.md)."`.
+com `decision_reason: "`bastidor` está fora do escopo do radar (CLAUDE.md)."`.
 
 ### #7 — Findings duplicados na mesma resposta do researcher
 

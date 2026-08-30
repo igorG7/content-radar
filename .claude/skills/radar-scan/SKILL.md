@@ -6,7 +6,7 @@ description: |
   store/briefs/pendente-aprovacao/ + mídia em store/media/pendente-aprovacao/ e atualiza store/ledger.jsonl.
   Use sempre que quiser **gerar pautas novas de Instagram** sob demanda. Não publica, não chama Open Design API.
 argument-hint: |
-  --scope=<trends|competitors|seasonal|cases|local> [--pillar=<1-imovel|2-decisao|3-inteligencia|5-quem-comprou|6-mercado-rmbh>] [--target-count=N] [--dry-run] [--scan-id=<id>]
+  --scope=<trends|competitors|seasonal|cases|local> [--pillar=<imovel-da-semana|decisao-inteligente|inteligencia-imobiliaria|quem-comprou|mercado-rmbh>] [--target-count=N] [--dry-run] [--scan-id=<id>]
 ---
 
 # radar-scan
@@ -18,7 +18,7 @@ argument-hint: |
 
 ## Princípios duros
 
-1. **Sem Pilar 4.** `--pillar=4-bastidor` → erro fatal. Bastidor vive nos stories (decisão humana ad-hoc),
+1. **Sem `bastidor`.** `--pillar=bastidor` → erro fatal. Bastidor vive nos stories (decisão humana ad-hoc),
    fora do escopo do radar (CLAUDE.md + spec 001 §3 + spec 003 §5.1).
 2. **`--dry-run` é sagrado.** Em dry-run, **não invoque** Task() pra nenhum subagente. **Não escreva** em
    `store/`. **Não toque** no ledger. Só relate o plano (§7 da spec 005).
@@ -48,7 +48,7 @@ Carregue (via Read):
 ## Args
 
 - `--scope` (obrig.): chave de `manifest.search_scopes`.
-- `--pillar` (opc.): rejeitar `4-bastidor` com erro; outros valores OK.
+- `--pillar` (opc.): rejeitar `bastidor` com erro; outros valores OK.
 - `--target-count` (opc.): default = `manifest.funnel.candidates_per_week_target`.
 - `--dry-run` (opc.): plano apenas.
 - `--scan-id` (opc.): auto se omitido (formato `<YYYY-Www>-scan-<NNN>`).

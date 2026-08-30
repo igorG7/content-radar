@@ -154,7 +154,7 @@ credenciais — só não dá pra rodar handoff de verdade.
 ## Próximas ações sugeridas (em ordem)
 
 1. **Rodar o pipeline pela primeira vez** —
-   `/radar-scan --scope=trends --pillar=6-mercado-rmbh --dry-run` pra ver
+   `/radar-scan --scope=trends --pillar=mercado-rmbh --dry-run` pra ver
    plano; depois sem `--dry-run` pra execução real. Esperado: 3+ briefs
    em `store/briefs/pendente-aprovacao/`.
 2. **Revisão humana** — abrir os `.md` gerados, escolher `hero_choice`,
@@ -217,7 +217,7 @@ credenciais — só não dá pra rodar handoff de verdade.
 
 ### Da spec 004 (briefer)
 
-- **Matriz pilar → skill OD**: Pilar 1/5 → `poster-hero`; Pilar 2/3/6 →
+- **Matriz pilar → skill OD**: `imovel-da-semana`/`quem-comprou` → `poster-hero`; os demais →
   `ad-creative` (com `social-x-post-card` como alternativa recorrente).
   `avanz-instagram-post` fica como placeholder pra spec 010 — ainda
   não usável (enum do schema não a inclui).
@@ -251,7 +251,7 @@ credenciais — só não dá pra rodar handoff de verdade.
 
 ### Da spec 003 (matcher)
 
-- **Pilar 4 nunca é promovido** — fora do escopo do radar (`pillar_fit=0`,
+- **`bastidor` nunca é promovido** — fora do escopo do radar (`pillar_fit=0`,
   decisão = `skip-out-of-scope`). Bastidor vive nos stories, decisão humana
   ad-hoc.
 - **Default ICP=comprador** quando ambíguo, mas com cap `icp_fit=0.45` (sinaliza

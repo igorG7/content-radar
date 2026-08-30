@@ -48,17 +48,27 @@ O telefone que vai no `visual_brief.must_have` vem de
 
 | Pilar | Skill default | Alternativas |
 |---|---|---|
-| `1-imovel` | `poster-hero` | `ad-creative`, `social-x-post-card` |
-| `2-decisao` | `ad-creative` | `social-x-post-card`, `poster-hero` |
-| `3-inteligencia` | `ad-creative` | `social-x-post-card`, `poster-hero` |
-| `5-quem-comprou` | `poster-hero` | `ad-creative` |
-| `6-mercado-rmbh` | `ad-creative` | `social-x-post-card`, `poster-hero` |
+| `imovel-da-semana` | `poster-hero` | `ad-creative`, `social-x-post-card` |
+| `decisao-inteligente` | `ad-creative` | `social-x-post-card`, `poster-hero` |
+| `inteligencia-imobiliaria` | `ad-creative` | `social-x-post-card`, `poster-hero` |
+| `quem-comprou` | `poster-hero` | `ad-creative` |
+| `mercado-rmbh` | `ad-creative` | `social-x-post-card`, `poster-hero` |
 
-Pilar 4 (Bastidor) não chega aqui (matcher filtra). Se chegar:
-`decision: skip-validation-failed`, `skip_reason: "pillar-4-out-of-scope"`.
+`bastidor` não chega aqui (matcher filtra). Se chegar:
+`decision: skip-validation-failed`, `skip_reason: "bastidor-out-of-scope"`.
 
-Pilar inesperado (≠ 1/2/3/5/6): mesmo skip-validation-failed,
-`skip_reason: "unexpected_pillar"`.
+Pilar fora dos códigos em uso do vault (`vault/pilares.md > Códigos em uso`):
+mesmo skip-validation-failed, `skip_reason: "unexpected_pillar"`.
+
+> **O `pillar` do finding é para copiar, não para traduzir.** Ele chega pronto
+> do matcher, no vocabulário do vault daquele cliente. Copie **verbatim**: não
+> normalize, não abrevie, e não troque pelo nome da matriz acima — ela serve
+> para escolher a skill do Open Design, não para renomear o pilar.
+>
+> Isto não é zelo. Em 2026-08-30 o briefer copiou o nome da matriz em vez do
+> finding, a ingestão recusou o brief por pilar inexistente, e a varredura
+> inteira foi desfeita depois de 42 minutos e sete dólares — com a pauta pronta
+> e correta em tudo o mais.
 
 ### 2. Headline
 
@@ -94,13 +104,13 @@ Pilar inesperado (≠ 1/2/3/5/6): mesmo skip-validation-failed,
 
 - Use o `cta_pattern` do ICP em `icp-modifiers.json`. Substitua
   placeholder `AVZ-XXXX`:
-  - Se vier código de imóvel do finding (raro no 1º slice, só Pilar 1) → substitui.
+  - Se vier código de imóvel do finding (raro no 1º slice, só `imovel-da-semana`) → substitui.
   - Senão mantém literal `AVZ-RMBH` (referência regional).
 
 ### 7. Visual brief
 
 ```yaml
-base_template: post-imovel | post-mes   # post-imovel pra Pilar 1; post-mes pros demais
+base_template: post-imovel | post-mes   # post-imovel pra `imovel-da-semana`; post-mes pros demais
 composition_notes: <2-4 frases descrevendo a arte>
 must_have:
   - "logo Avanz canto inferior direito"
@@ -243,7 +253,7 @@ ausente: a anti-repetição nunca casa e nada acusa.
   `raw_excerpts[]` do finding (auditoria do orquestrador depende disso).
 - **`source_relevance_hints[]`** vem do matcher — propague intacto.
 - **`match_score_breakdown`** vem do matcher — propague intacto.
-- **Pilar 4 nunca** vira brief (defesa em profundidade).
+- **`bastidor` nunca** vira brief (defesa em profundidade).
 - **Cloudinary é DEPOIS** — `cloud_url`/`cloudinary_public_id` sempre `null` aqui.
 - **`hero_choice` = `null`** sempre (editor decide).
 - **Headline ≤ 90 chars** confirmado pelo owner.

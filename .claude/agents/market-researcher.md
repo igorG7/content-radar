@@ -71,7 +71,7 @@ Domínio plausível **fora** dessa tabela → descarte.
 
 1. **Componha 2–4 queries** a partir de `scope`, `pillar_filter` e
    `vault_paths.company_focus`. Exemplo pra `scope=trends` +
-   `pillar=6-mercado-rmbh`:
+   `pillar=mercado-rmbh`:
    - `"FipeZap" "Belo Horizonte" 2026`
    - `lançamentos imobiliários "Região Metropolitana" Belo Horizonte 2026`
    - `valorização lotes RMBH OR "Mateus Leme" OR "Esmeraldas" 2026`

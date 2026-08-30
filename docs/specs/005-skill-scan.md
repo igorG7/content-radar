@@ -151,7 +151,7 @@ Frontmatter `argument-hint`:
 | Arg | Tipo | Obrigatório? | Default | Notas |
 |---|---|---|---|---|
 | `--scope` | enum | **sim** | — | Chave de [`manifest.search_scopes`](../../manifest.yaml). Valores: `trends`, `competitors`, `seasonal`, `cases`, `local`. Fora da lista → abort com erro claro. |
-| `--pillar` | enum | não | `null` (sem filtro) | `1-imovel`, `2-decisao`, `3-inteligencia`, `5-quem-comprou`, `6-mercado-rmbh`. **`4-bastidor` rejeita com erro** (§9 da [001](./001-foundation.md) — Pilar 4 está fora do escopo do radar; reforça spec 003 §5.1 + spec 004 §13.3). |
+| `--pillar` | enum | não | `null` (sem filtro) | `imovel-da-semana`, `decisao-inteligente`, `inteligencia-imobiliaria`, `quem-comprou`, `mercado-rmbh`. **`bastidor` rejeita com erro** (§9 da [001](./001-foundation.md) — `bastidor` está fora do escopo do radar; reforça spec 003 §5.1 + spec 004 §13.3). |
 | `--target-count` | int | não | `manifest.funnel.candidates_per_week_target` (= **10**) | Repassado ao researcher como `target_count`; este busca até `target_count * 1.5` (spec 002 §3). |
 | `--dry-run` | flag | não | `false` | Roda todo o fluxo de **planejamento** (validação args, cálculo de `week_key`, `NNN`, paths) mas **não invoca subagentes** e **não escreve** nada (sem `Write`, sem ledger, sem mídia). Output: relatório do que seria feito. Ver §7. |
 | `--scan-id` | string | não | auto: `<week_key>-scan-<NNN>` | Identificador da run pro ledger. Calculado contando `scan-started` events existentes no ledger pra `week_key`. |
@@ -159,7 +159,7 @@ Frontmatter `argument-hint`:
 **Edge cases de validação de args:**
 
 - `--scope` ausente → erro fatal, mensagem `"--scope é obrigatório (valores: trends, competitors, seasonal, cases, local)"`.
-- `--pillar=4-bastidor` → erro fatal, `"Pilar 4 (Bastidor) está fora do escopo do radar — ver CLAUDE.md e spec 001 CLAUDE.md"`.
+- `--pillar=bastidor` → erro fatal, `"`bastidor` está fora do escopo do radar — ver CLAUDE.md e spec 001 CLAUDE.md"`.
 - `--target-count <= 0` ou `> 50` → erro (proteção bobagem).
 - `--scope` válido mas `--pillar` não está em `manifest.search_scopes[scope].pillars_alvo` → **warning** (não erro) — owner pode estar testando combinação fora do default.
 
@@ -268,7 +268,7 @@ Mesma rotina:
 - Top-level: `ranked` (array) e `meta` (object).
 - Cada `ranked[i]`: `finding` (object), `pillar`, `icp`, `match_score`, `match_score_breakdown`, `why_match`, `topic_hash`, `redundant`, `decision`, `decision_reason`.
 - `decision ∈ {promote-to-brief, skip-redundant, skip-low-score, skip-out-of-scope}`.
-- `pillar ∈ {1-imovel, 2-decisao, 3-inteligencia, 5-quem-comprou, 6-mercado-rmbh}` (pilar 4 nunca deve aparecer — defesa em profundidade).
+- `pillar ∈ {imovel-da-semana, decisao-inteligente, inteligencia-imobiliaria, quem-comprou, mercado-rmbh}` (pilar 4 nunca deve aparecer — defesa em profundidade).
 - `match_score ∈ [0, 1]`.
 
 **Falha**: abort scan, ledger `scan-aborted` com `stage: matcher`. **Output do researcher fica perdido** (não tem onde persistir no 1º slice — aceitar).
@@ -336,7 +336,7 @@ spec futura**.
 
 - **Pos-researcher (§5.5)**: `jq -e '.findings'` (existe e é array), `jq -e '.meta'` (existe e é object), `jq -e '.findings[].url'` (toda entrada tem URL string), `jq -e '.findings[].published_at'` (parseável como data). Se algum check falha → abort.
 - **Pos-matcher (§5.7)**: idem com chaves do spec 003 §4. `jq -e '.ranked[].decision'` deve estar no enum.
-- **Pos-briefer (§5.8)**: schema do brief (spec 004 §4.2). Especialmente: `brief.brief_id` casa pattern `^\d{4}-W\d{2}-\d{3}$`; `brief.slug` casa pattern; `brief.headline` `length <= 90` (spec 004 §6.2); `brief.hashtags.length` ∈ [5, 8] (spec 004 §6.5); `brief.hero_image_candidates.length <= 3` (spec 004 §8.1); `brief.pillar` não pode ser `4-bastidor`.
+- **Pos-briefer (§5.8)**: schema do brief (spec 004 §4.2). Especialmente: `brief.brief_id` casa pattern `^\d{4}-W\d{2}-\d{3}$`; `brief.slug` casa pattern; `brief.headline` `length <= 90` (spec 004 §6.2); `brief.hashtags.length` ∈ [5, 8] (spec 004 §6.5); `brief.hero_image_candidates.length <= 3` (spec 004 §8.1); `brief.pillar` não pode ser `bastidor`.
 
 ### 6.3 Schemas formais — diferimento
 
@@ -359,13 +359,13 @@ Em `--dry-run`, a skill executa **somente** §5.1 e §5.2 (validação +
 preparação) e emite relatório:
 
 ```
-🧪 radar-scan --dry-run --scope=trends --pillar=6-mercado-rmbh
+🧪 radar-scan --dry-run --scope=trends --pillar=mercado-rmbh
 Plano:
   Scan ID:           2026-W22-scan-001
   Week key:          2026-W22
   Próximo NNN:       005 (4 briefs já existentes na semana entre os 4 dirs)
   Scope:             trends
-  Pillar filter:     6-mercado-rmbh
+  Pillar filter:     mercado-rmbh
   Target count:      10 (→ researcher buscará até 15)
   Allowed sources:   fipezap, abrainc, valor, globo-rural-imoveis, exame-imoveis
   Vault snapshot:    ✅ 7 paths lidos do always_load
@@ -388,7 +388,7 @@ sequência sem efeito colateral.
 
 ### 8.1 Re-rodar mesmo scope no mesmo dia
 
-Cenário comum: humano rodou `--scope=trends --pillar=6-mercado-rmbh`
+Cenário comum: humano rodou `--scope=trends --pillar=mercado-rmbh`
 de manhã, gerou 5 briefs em `pendente-aprovacao/`. À tarde, quer
 rodar de novo (talvez por curiosidade, talvez porque saiu notícia
 nova).
@@ -471,7 +471,7 @@ Paralelismo entra como pendência futura quando volume justificar
 Ao final da scan (modo normal), a skill imprime:
 
 ```
-📡 radar-scan <scope=trends, pillar=6-mercado-rmbh>
+📡 radar-scan <scope=trends, pillar=mercado-rmbh>
 Scan ID: 2026-W22-scan-001
 Iniciado: 2026-05-27T14:32:00-03:00
 Finalizado: 2026-05-27T14:38:11-03:00 (6m 11s)
@@ -536,7 +536,7 @@ description: |
   store/briefs/pendente-aprovacao/ + mídia em store/media/pendente-aprovacao/ e atualiza store/ledger.jsonl.
   Use sempre que quiser **gerar pautas novas de Instagram** sob demanda. Não publica, não chama Open Design API.
 argument-hint: |
-  --scope=<trends|competitors|seasonal|cases|local> [--pillar=<1-imovel|2-decisao|3-inteligencia|5-quem-comprou|6-mercado-rmbh>] [--target-count=N] [--dry-run] [--scan-id=<id>]
+  --scope=<trends|competitors|seasonal|cases|local> [--pillar=<imovel-da-semana|decisao-inteligente|inteligencia-imobiliaria|quem-comprou|mercado-rmbh>] [--target-count=N] [--dry-run] [--scan-id=<id>]
 ---
 
 # radar-scan
@@ -548,7 +548,7 @@ argument-hint: |
 
 ## Princípios duros
 
-1. **Sem Pilar 4.** `--pillar=4-bastidor` → erro fatal. Bastidor vive nos stories (decisão humana ad-hoc),
+1. **Sem `bastidor`.** `--pillar=bastidor` → erro fatal. Bastidor vive nos stories (decisão humana ad-hoc),
    fora do escopo do radar (CLAUDE.md + spec 001 §3 + spec 003 §5.1).
 2. **`--dry-run` é sagrado.** Em dry-run, **não invoque** Task() pra nenhum subagente. **Não escreva** em
    `store/`. **Não toque** no ledger. Só relate o plano (§7 da spec 005).
@@ -574,7 +574,7 @@ Carregue (via Read):
 ## Args
 
 - `--scope` (obrig.): chave de `manifest.search_scopes`.
-- `--pillar` (opc.): rejeitar `4-bastidor` com erro; outros valores OK.
+- `--pillar` (opc.): rejeitar `bastidor` com erro; outros valores OK.
 - `--target-count` (opc.): default = `manifest.funnel.candidates_per_week_target`.
 - `--dry-run` (opc.): plano apenas.
 - `--scan-id` (opc.): auto se omitido.
@@ -925,8 +925,8 @@ Refina e fixa [`001 §6.3`](./001-foundation.md#63-ledger-storeledgerjsonl).
 ### 18.5 Exemplos (uma scan completa)
 
 ```jsonl
-{"ts":"2026-05-27T14:32:00-03:00","brief_id":null,"from_dir":null,"to_dir":null,"actor":"skill:radar-scan","extra":{"event":"scan-started","scan_id":"2026-W22-scan-001","scope":"trends","pillar_filter":"6-mercado-rmbh","target_count":10,"week_key":"2026-W22"}}
-{"ts":"2026-05-27T14:35:11-03:00","brief_id":"2026-W22-005","from_dir":null,"to_dir":"briefs/pendente-aprovacao","actor":"skill:radar-scan","extra":{"event":"brief-created","slug":"2026-W22-005_lote-em-rmbh-valorizou-8-4-no-q1-2026","pillar":"6-mercado-rmbh","icp":"investidor","match_score":0.916,"media_files":["2026-W22-005_...__0.png"]}}
+{"ts":"2026-05-27T14:32:00-03:00","brief_id":null,"from_dir":null,"to_dir":null,"actor":"skill:radar-scan","extra":{"event":"scan-started","scan_id":"2026-W22-scan-001","scope":"trends","pillar_filter":"mercado-rmbh","target_count":10,"week_key":"2026-W22"}}
+{"ts":"2026-05-27T14:35:11-03:00","brief_id":"2026-W22-005","from_dir":null,"to_dir":"briefs/pendente-aprovacao","actor":"skill:radar-scan","extra":{"event":"brief-created","slug":"2026-W22-005_lote-em-rmbh-valorizou-8-4-no-q1-2026","pillar":"mercado-rmbh","icp":"investidor","match_score":0.916,"media_files":["2026-W22-005_...__0.png"]}}
 {"ts":"2026-05-27T14:36:02-03:00","brief_id":null,"from_dir":null,"to_dir":null,"actor":"skill:radar-scan","extra":{"event":"skip-redundant","reason":"topic_hash collision with 2026-W22-005 in pendente-aprovacao (in_flight_check)","finding_url":"https://valor.globo.com/.../fipezap-q1.ghtml"}}
 {"ts":"2026-05-27T14:38:11-03:00","brief_id":null,"from_dir":null,"to_dir":null,"actor":"skill:radar-scan","extra":{"event":"scan-finished","scan_id":"2026-W22-scan-001","summary":{"briefs_created":["2026-W22-005","2026-W22-006","2026-W22-007"],"skip_redundant":1,"skip_validation_failed":0}}}
 {"ts":"2026-05-27T15:01:00-03:00","brief_id":"2026-W22-005","from_dir":"briefs/pendente-aprovacao","to_dir":"briefs/pendente-publicacao","actor":"skill:radar-mv","extra":{"event":"mv-approved","hero_choice":0,"media_kept":"2026-W22-005_...__0.png","reason":null}}
@@ -938,7 +938,7 @@ A spec 005 fecha o **escopo do 1º slice** pegando carona nos critérios da [`00
 
 | Item do critério da 001 §10 | Esta spec cobre? | Como |
 |---|---|---|
-| 1. `radar-scan --scope=trends --pillar=6-mercado-rmbh` roda sem erro | ✅ | Parte B inteira; em particular §5 + §11. |
+| 1. `radar-scan --scope=trends --pillar=mercado-rmbh` roda sem erro | ✅ | Parte B inteira; em particular §5 + §11. |
 | 2. Output do researcher passa validação JSON-schema | ✅ | §6 (validação ad-hoc inline). Schemas formais ficam pra spec futura. |
 | 2a (spec 002 §8.3) — researcher devolve JSON estrito | ✅ | §5.5. |
 | 3. Gera ≥3 briefs válidos com imagens baixadas | ✅ | §5.8 + spec 004 §8 (briefer já cobre download). Esta spec valida + materializa `.md`. |
@@ -969,8 +969,8 @@ spec + 002/003/004. Item 6 é a próxima fronteira (spec 007).
 ## 21. Critérios de pronto da spec
 
 1. **Arquivos `.claude/skills/radar-scan/SKILL.md` e `.claude/skills/radar-mv/SKILL.md`** existem com o conteúdo proposto nas §12 e §17 desta spec (literal, sem edição estrutural).
-2. **`radar-scan --dry-run --scope=trends --pillar=6-mercado-rmbh`** reporta o plano (§7) sem escrever nada em disco — `store/ledger.jsonl` não recebe linhas novas; `store/briefs/` e `store/media/` ficam inalterados.
-3. **Execução real** (`radar-scan --scope=trends --pillar=6-mercado-rmbh`) produz **≥1 brief** em `store/briefs/pendente-aprovacao/` com schema válido (spec 004 §4.2), e os eventos `scan-started`, `brief-created` (×N), `scan-finished` aparecem no ledger.
+2. **`radar-scan --dry-run --scope=trends --pillar=mercado-rmbh`** reporta o plano (§7) sem escrever nada em disco — `store/ledger.jsonl` não recebe linhas novas; `store/briefs/` e `store/media/` ficam inalterados.
+3. **Execução real** (`radar-scan --scope=trends --pillar=mercado-rmbh`) produz **≥1 brief** em `store/briefs/pendente-aprovacao/` com schema válido (spec 004 §4.2), e os eventos `scan-started`, `brief-created` (×N), `scan-finished` aparecem no ledger.
 4. **`radar-mv <slug> approve`** (com `hero_choice` setado no frontmatter) move o `.md` para `pendente-publicacao/`, move **apenas** a foto escolhida, apaga os outros candidatos, atualiza `updated_at` e adiciona `mv-approved` ao ledger.
 5. **`radar-mv <slug> reject --reason="..."`** move o `.md` para `rejeitado/`, **apaga todos** os arquivos de mídia em `pendente-aprovacao/<slug>__*`, atualiza `review_notes` no frontmatter e adiciona `mv-rejected` ao ledger.
 6. **Validação JSON entre estágios funciona**: forçar (em teste) researcher a devolver JSON faltando `findings` → skill aborta com mensagem clara e `scan-aborted` no ledger.

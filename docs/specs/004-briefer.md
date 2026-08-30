@@ -125,8 +125,8 @@ ranked_entry:
     geo_hints: ["Belo Horizonte", "BH", "Brasil"]
     raw_excerpts:
       - "Em janeiro de 2026, o Índice FipeZAP de Venda Residencial..."
-    relevance_hint: "Fonte primária de preço residencial em BH. Pilar 6..."
-  pillar: "6-mercado-rmbh"
+    relevance_hint: "Fonte primária de preço residencial em BH. `mercado-rmbh`..."
+  pillar: "mercado-rmbh"
   icp: investidor
   match_score: 0.916
   match_score_breakdown:
@@ -137,7 +137,7 @@ ranked_entry:
     freshness: 0.85
   source_relevance_hints:
     - component: pillar_fit
-      evidence: "headline menciona explicitamente RMBH e valorização — bate Pilar 6"
+      evidence: "headline menciona explicitamente RMBH e valorização — bate `mercado-rmbh`"
     - component: foco_editorial_fit
       evidence: "fonte trata de lote (não casa pronta) — alinha foco declarado"
   why_match: "..."
@@ -167,7 +167,7 @@ vault_paths:
     - /srv/my-mind/Empresas/avanz-imoveis/ops/guardrails.md
   per_pillar:                # resolvido pelo orquestrador a partir de manifest.target_company.per_pillar
     - /srv/my-mind/Empresas/avanz-imoveis/prompts/post-mes.json
-    - /srv/my-mind/Empresas/avanz-imoveis/strategy/content-bank/pilar-6-mercado-rmbh.md
+    - /srv/my-mind/Empresas/avanz-imoveis/strategy/content-bank/pilar-mercado-rmbh.md
   visual_base: /srv/my-mind/Empresas/avanz-imoveis/prompts/visual-base.json
 
 # Paths absolutos dos diretórios de briefs (anti-repetição definitiva — §10)
@@ -250,9 +250,12 @@ source_relevance_hints: array<object>  required  # propaga §4 do researcher + �
     evidence: string
 
 # Match com empresa-alvo — propagado intacto do matcher
-pillar:          enum    required  ["1-imovel","2-decisao","3-inteligencia",
-                                    "5-quem-comprou","6-mercado-rmbh"]
-                                   # NÃO inclui "4-bastidor" (matcher filtra; ver §13)
+pillar:          string  required  # slug do vault, de `vault/pilares.md > Códigos em uso`.
+                                   # Chega pronto do matcher — copie verbatim.
+                                   # Lista fixa aqui seria mentira: o vault é por
+                                   # cliente, e pilar entra e sai. Quem manda é o
+                                   # arquivo do workspace, gerado do banco.
+                                   # `bastidor` não chega aqui (matcher filtra; ver §13)
 icp:             enum|null required  ["comprador","investidor","proprietario", null]
 match_score:     number  required  range: [0, 1]
 match_score_breakdown:  object  required
@@ -382,13 +385,13 @@ researcher) e spec 003 §11 item 5 (validação no matcher). O orquestrador:
 
 | Pilar Avanz | Skill default | Alternativas | Por quê |
 |---|---|---|---|
-| **1-imovel** | `poster-hero` | `ad-creative`, `social-x-post-card` | Posts de imóvel da Avanz têm **foto do imóvel como protagonista** + telefone + logo (`prompts/post-imovel.json` §composicao). O `poster-hero` é o template do OD com canvas grande dedicado a hero visual + texto curto em destaque — exatamente o que `post-imovel.json` pede. `ad-creative` entra como alternativa quando o ângulo é "por que esse passou no nosso filtro" (Pilar 1 Cat. E do content-bank) — copy-first, foto-secundária. |
-| **2-decisao** | `ad-creative` | `social-x-post-card`, `poster-hero` | Pilar 2 é **texto-pesado** — checklist, comparativo, "5 perguntas antes de assinar contrato". O `ad-creative` é a skill marketing/copy-first do OD (Corey Haines marketing skills). `social-x-post-card` é alternativa quando o ângulo é "uma frase forte" (ex.: "A regra dos 30%: a parcela cabe se você fica abaixo de…"). |
-| **3-inteligencia** | `ad-creative` | `social-x-post-card`, `poster-hero` | Pilar 3 (autoridade tech do Ivan) é **insight + dado + posicionamento** — também texto-pesado. `ad-creative` entrega copy estrutural. `social-x-post-card` se a pauta vira "thread Twitter/X" (estrutura clássica do Pilar 3 segundo `content-pillars.md`: "thread de tweet/LinkedIn replicado em IG carrossel"). |
-| **5-quem-comprou** | `poster-hero` | `ad-creative` | Prova social tem **foto da entrega da chave / antes-depois** como protagonista (Pilar 5 content-bank Cat. B: "Formatos visuais"). `poster-hero` cobre o canvas. `ad-creative` quando o ângulo é "marco de cliente N" e o post é mais texto que foto (Pilar 5 content-bank Cat. D, tema #13). |
-| **6-mercado-rmbh** | `ad-creative` | `social-x-post-card`, `poster-hero` | Pilar 6 é **fato → análise → implicação → CTA** (estrutura citada em `content-pillars.md`). Dado numérico + leitura curta cabe em `ad-creative`. `social-x-post-card` ajuda quando o brief vira "tweet de mercado RMBH" autoral do Ivan (formato Pilar 3-adjacente). |
+| **imovel-da-semana** | `poster-hero` | `ad-creative`, `social-x-post-card` | Posts de imóvel da Avanz têm **foto do imóvel como protagonista** + telefone + logo (`prompts/post-imovel.json` §composicao). O `poster-hero` é o template do OD com canvas grande dedicado a hero visual + texto curto em destaque — exatamente o que `post-imovel.json` pede. `ad-creative` entra como alternativa quando o ângulo é "por que esse passou no nosso filtro" (`imovel-da-semana` Cat. E do content-bank) — copy-first, foto-secundária. |
+| **decisao-inteligente** | `ad-creative` | `social-x-post-card`, `poster-hero` | `decisao-inteligente` é **texto-pesado** — checklist, comparativo, "5 perguntas antes de assinar contrato". O `ad-creative` é a skill marketing/copy-first do OD (Corey Haines marketing skills). `social-x-post-card` é alternativa quando o ângulo é "uma frase forte" (ex.: "A regra dos 30%: a parcela cabe se você fica abaixo de…"). |
+| **inteligencia-imobiliaria** | `ad-creative` | `social-x-post-card`, `poster-hero` | `inteligencia-imobiliaria` (autoridade tech do Ivan) é **insight + dado + posicionamento** — também texto-pesado. `ad-creative` entrega copy estrutural. `social-x-post-card` se a pauta vira "thread Twitter/X" (estrutura clássica do `inteligencia-imobiliaria` segundo `content-pillars.md`: "thread de tweet/LinkedIn replicado em IG carrossel"). |
+| **quem-comprou** | `poster-hero` | `ad-creative` | Prova social tem **foto da entrega da chave / antes-depois** como protagonista (`quem-comprou` content-bank Cat. B: "Formatos visuais"). `poster-hero` cobre o canvas. `ad-creative` quando o ângulo é "marco de cliente N" e o post é mais texto que foto (`quem-comprou` content-bank Cat. D, tema #13). |
+| **mercado-rmbh** | `ad-creative` | `social-x-post-card`, `poster-hero` | `mercado-rmbh` é **fato → análise → implicação → CTA** (estrutura citada em `content-pillars.md`). Dado numérico + leitura curta cabe em `ad-creative`. `social-x-post-card` ajuda quando o brief vira "tweet de mercado RMBH" autoral do Ivan (formato `inteligencia-imobiliaria`-adjacente). |
 
-**Pilar 4 (Bastidor)** não aparece nesta tabela: matcher filtra
+**`bastidor`** não aparece nesta tabela: matcher filtra
 (`pillar_fit = 0`, `decision: skip-out-of-scope` — spec 003 §5.1 e §9
 gotcha #6) e nunca chega ao briefer. Se chegar, briefer aborta com
 `decision: skip-validation-failed`, `skip_reason: "pillar-4-out-of-scope"`
@@ -429,12 +432,12 @@ headline / hook / caption / hashtags / CTA a partir do finding promovido
 Cada peça de copy é função de **3 fontes** que o briefer combina:
 
 1. **Prompt da Avanz por pilar** (do `manifest.target_company.per_pillar`):
-   - Pilar 1 → `prompts/post-imovel.json` (composição visual; nesse pilar
+   - `imovel-da-semana` → `prompts/post-imovel.json` (composição visual; nesse pilar
      o "copy" da arte é só o telefone, mas a **caption** do IG precisa ser
      escrita pelo briefer — `post-imovel.json` rege a arte, não a caption).
-   - Pilar 2, 3, 6 → `prompts/post-mes.json` (template institucional);
+   - `decisao-inteligente`, 3, 6 → `prompts/post-mes.json` (template institucional);
      content-bank do pilar dá os ângulos.
-   - Pilar 5 → só content-bank (`pilar-5-quem-comprou.md`); briefer usa
+   - `quem-comprou` → só content-bank (`pilar-quem-comprou.md`); briefer usa
      `post-mes.json` como fallback de visual (§13).
 2. **ICP overlay** (`prompts/icp-modifiers.json`):
    - `tone_overlay.register`, `tone_overlay.emphasis`, `tone_overlay.avoid`
@@ -476,7 +479,7 @@ Pendência em §17 — confirmar com owner.
 | Função | **Primeira frase da caption**. Segura o scroll. |
 | Estilo | 1 frase, declarativa ou interrogativa. Pode parafrasear headline com ângulo emocional/analítico do ICP. |
 | Tom por ICP | `comprador`: humano-próximo, didático. `investidor`: analítico, direto. `proprietario`: consultivo, sereno. (Vem de `icp-modifiers.json#tone_overlay.register`.) |
-| Exemplos OK | "Não é boom. É movimento técnico. Vamos olhar o dado." (Pilar 6, investidor) / "Antes de visitar imóvel, simule no Caixa. Por quê?" (Pilar 2, comprador) |
+| Exemplos OK | "Não é boom. É movimento técnico. Vamos olhar o dado." (`mercado-rmbh`, investidor) / "Antes de visitar imóvel, simule no Caixa. Por quê?" (`decisao-inteligente`, comprador) |
 
 ### 6.4 Caption draft
 
@@ -494,7 +497,7 @@ Pendência em §17 — confirmar com owner.
 |---|---|
 | Quantidade | **5–8** (≠ limite IG de 30 — Avanz prefere enxuto, decisão implícita em `brand.md` "clareza antes de volume") |
 | Sempre incluir | `avanzimoveis` (brand) + **≥1 regional** (`rmbh`, `mateusleme`, `esmeraldas`, `juatuba`, `bh`, `bhmg`, conforme `geo_hints` do finding ou `geografia_fit` do matcher). |
-| Por pilar (sugestão) | Pilar 1: `imovelbh`, `loteamentormbh`, `terreno`. Pilar 2: `decisaoimobiliaria`, `mcmv`, `financiamento`. Pilar 3: `inteligenciaimobiliaria`, `proptech`. Pilar 5: `quemcomprounaavanz` ou `clienteavanz`. Pilar 6: `mercadormbh`, `valorizacao`. |
+| Por pilar (sugestão) | `imovel-da-semana`: `imovelbh`, `loteamentormbh`, `terreno`. `decisao-inteligente`: `decisaoimobiliaria`, `mcmv`, `financiamento`. `inteligencia-imobiliaria`: `inteligenciaimobiliaria`, `proptech`. `quem-comprou`: `quemcomprounaavanz` ou `clienteavanz`. `mercado-rmbh`: `mercadormbh`, `valorizacao`. |
 | Estilo | lowercase, sem acento, sem emoji, sem `#` no JSON (orquestrador adiciona no markdown renderizado). |
 
 ### 6.6 CTA
@@ -507,23 +510,23 @@ Vem **literal** do `icp_modifiers.json` (campo `cta_pattern` por ICP):
 
 Briefer **substitui placeholders** quando aplicável:
 - `AVZ-XXXX` → código do imóvel se vier do finding (raro no 1º slice, só
-  Pilar 1); senão mantém literal `AVZ-RMBH` (referência regional).
+  `imovel-da-semana`); senão mantém literal `AVZ-RMBH` (referência regional).
 - Telefone implícito → não substituir; o número (vindo de
   `manifest.target_company.brand_facts.phone_display`) já está
   no `visual_brief.must_have` da arte (vai aparecer na imagem, não no
   texto).
 
-### 6.7 Pilar 5 (Quem comprou) — caveat
+### 6.7 `quem-comprou` (Quem comprou) — caveat
 
-Pilar 5 só tem `content-bank/pilar-5-quem-comprou.md`, sem prompt JSON
-dedicado. Se algum dia matcher promover finding pra Pilar 5 a partir de
+`quem-comprou` só tem `content-bank/pilar-quem-comprou.md`, sem prompt JSON
+dedicado. Se algum dia matcher promover finding pra `quem-comprou` a partir de
 fonte web (improvável — depoimento real precisa consentimento; spec 003
 §5.1 já filtra), briefer:
 
 - Usa `post-mes.json` como `template_ref_avanz` (fallback visual).
 - Marca em `caption_draft` o disclaimer "(pauta sugerida pelo radar a
   partir de fonte pública; consentimento de cliente real **precisa** ser
-  obtido antes de publicar — ver Pilar 5 `content-pillars.md`)".
+  obtido antes de publicar — ver `quem-comprou` `content-pillars.md`)".
 - `hero_choice = null` recomendado (foto de cliente real **nunca** vem da
   web).
 
@@ -535,9 +538,9 @@ Os 3 campos do `visual_brief` (§4.2) são derivados assim:
 
 Mesma regra do `template_ref_avanz`:
 
-- Pilar 1 → `post-imovel`
+- `imovel-da-semana` → `post-imovel`
 - Pilares 2, 3, 6 → `post-mes`
-- Pilar 5 → `post-mes` (fallback — §6.7)
+- `quem-comprou` → `post-mes` (fallback — §6.7)
 
 ### 7.2 `composition_notes`
 
@@ -552,10 +555,10 @@ Mesma regra do `template_ref_avanz`:
     linha/seta discreta, tabela/comparativo sem virar planilha poluída.
   - `proprietario`: "confiabilidade institucional", ângulos de
     entrada/fachada, estética portfólio premium.
-- Pilar-specific (do content-pillars.md ou content-bank): "Pilar 6 com
-  ângulo de mapa", "Pilar 1 com foto do imóvel como protagonista", etc.
+- Pilar-specific (do content-pillars.md ou content-bank): "`mercado-rmbh` com
+  ângulo de mapa", "`imovel-da-semana` com foto do imóvel como protagonista", etc.
 
-Exemplo (Pilar 6, investidor):
+Exemplo (`mercado-rmbh`, investidor):
 > "Aérea de loteamento em Mateus Leme com overlay numérico grande '+8.4%'
 > em laranja `#F97316`. Sem rosto, sem família — estética analítica
 > (visual_mood.investidor). Bloco institucional inferior com logo Avanz +
@@ -576,8 +579,8 @@ Pode adicionar, conforme pilar/ICP:
   briefer julgar relevante reforçar — recomendado em todo brief até skill
   custom existir)
 - `"tipografia Inter (primária) / Montserrat (secundária)"` (idem)
-- `"foto real do imóvel — sem stock genérico"` (Pilar 1, 5)
-- `"comparativo numérico — não planilha poluída"` (Pilar 2, 6, ICP
+- `"foto real do imóvel — sem stock genérico"` (`imovel-da-semana`, 5)
+- `"comparativo numérico — não planilha poluída"` (`decisao-inteligente`, 6, ICP
   investidor)
 
 ### 7.4 `avoid_visual` (opcional mas recomendado)
@@ -927,18 +930,18 @@ Mesmo padrão da spec 002 / 003:
 
 ### 13.2 Pilar do finding não tem prompt no `per_pillar`
 
-Pilar 5 só tem content-bank `.md` (sem `prompts/post-X.json`):
+`quem-comprou` só tem content-bank `.md` (sem `prompts/post-X.json`):
 - `template_ref_avanz: post-mes` (fallback)
 - `base_template: post-mes` no `visual_brief`
-- content-bank do Pilar 5 entra como contexto extra do briefer (Read)
+- content-bank do `quem-comprou` entra como contexto extra do briefer (Read)
 - Caption recebe disclaimer §6.7
 
 ### 13.3 Pilar do finding inesperado (∉ {1,2,3,5,6})
 
-Matcher já filtra Pilar 4 (spec 003 §5.1 + §9 gotcha #6). Se chegar:
+Matcher já filtra `bastidor` (spec 003 §5.1 + §9 gotcha #6). Se chegar:
 - `decision: skip-validation-failed`
 - `skip_reason: "unexpected_pillar: <pillar>"`
-- Não gera brief; não baixa mídia; loga `ledger_events: [{event:"unexpected-pillar","value":"4-bastidor"}]`.
+- Não gera brief; não baixa mídia; loga `ledger_events: [{event:"unexpected-pillar","value":"bastidor"}]`.
 
 ### 13.4 Guardrail violation na headline/caption
 
@@ -991,7 +994,7 @@ Três findings (do estilo da spec 003 §7), mostrando entrada do matcher,
 saída do briefer (brief simplificado + JSON intermediário) e justificativa
 de skill OD.
 
-### 14.1 Exemplo A — Pilar 6 trends (caminho feliz)
+### 14.1 Exemplo A — `mercado-rmbh` trends (caminho feliz)
 
 **Input (do matcher):**
 
@@ -1006,7 +1009,7 @@ finding:
     - url: https://www.fipe.org.br/static/images/og-fipezap.png
       alt: "Capa Índice FipeZap"
       extracted_from: pdf-parent-og
-pillar: "6-mercado-rmbh"
+pillar: "mercado-rmbh"
 icp: investidor
 match_score: 0.916
 decision: promote-to-brief
@@ -1025,7 +1028,7 @@ decision: promote-to-brief
     "scope": "trends",
     "source_urls": ["https://downloads.fipe.org.br/.../fipezap-202601.pdf"],
     "source_excerpts": ["Em janeiro de 2026, o Índice FipeZAP..."],
-    "pillar": "6-mercado-rmbh",
+    "pillar": "mercado-rmbh",
     "icp": "investidor",
     "match_score": 0.916,
     "topic_hash": "7e3b4c2a1f9d8e0c5b3a2f1e0d9c8b7a6f5e4d3c",
@@ -1091,14 +1094,14 @@ decision: promote-to-brief
 }
 ```
 
-**Skill OD escolhida**: `ad-creative` (default Pilar 6 — §5). Justificativa
+**Skill OD escolhida**: `ad-creative` (default `mercado-rmbh` — §5). Justificativa
 implícita: dado numérico + leitura curta + CTA — copy-first. Alternativas:
 `social-x-post-card` (se editor decidir transformar em "tweet de mercado")
 ou `poster-hero` (se editor optar por canvas vertical com foto aérea).
 
 ---
 
-### 14.2 Exemplo B — Pilar 1 imóvel (caminho feliz)
+### 14.2 Exemplo B — `imovel-da-semana` imóvel (caminho feliz)
 
 **Input (do matcher — finding atípico no scope `trends` mas plausível em
 `competitors` ou `local`):**
@@ -1114,14 +1117,14 @@ finding:
     - url: https://www.hojeemdia.com.br/image/.../mg050.jpg
       alt: "Trecho duplicado da MG-050"
       extracted_from: og:image
-pillar: "1-imovel"     # Pilar 1 — ângulo "imóvel da semana em região com infra nova"
+pillar: "imovel-da-semana"     # `imovel-da-semana` — ângulo "imóvel da semana em região com infra nova"
 icp: comprador
 match_score: 0.72
 decision: promote-to-brief
 ```
 
 Briefer sintetiza o ângulo "lote em Mateus Leme se valoriza com infra
-nova — esse aqui economiza 15 min de BH" — Pilar 1 Cat. C tema #13
+nova — esse aqui economiza 15 min de BH" — `imovel-da-semana` Cat. C tema #13
 ("Infra recente — Asfalto, iluminação, comércio novo: o que isso muda
 no preço") do content-bank.
 
@@ -1135,7 +1138,7 @@ no preço") do content-bank.
     "slug": "2026-W22-002_lote-em-mateus-leme-com-15-min-a-menos-pra-bh-mg-050",
     "scope": "local",
     "source_urls": ["https://www.hojeemdia.com.br/horizontes/mg-050-mateus-leme"],
-    "pillar": "1-imovel",
+    "pillar": "imovel-da-semana",
     "icp": "comprador",
     "od_skill_ref": "poster-hero",
     "od_skill_alternatives": ["ad-creative"],
@@ -1165,9 +1168,9 @@ no preço") do content-bank.
 }
 ```
 
-**Skill OD**: `poster-hero` (default Pilar 1 — §5). Foto do imóvel
+**Skill OD**: `poster-hero` (default `imovel-da-semana` — §5). Foto do imóvel
 protagonista. Alternativa: `ad-creative` se editor decidir focar no
-ângulo analítico "MG-050 → valorização" (vira mais Pilar 6).
+ângulo analítico "MG-050 → valorização" (vira mais `mercado-rmbh`).
 
 ---
 
@@ -1182,7 +1185,7 @@ finding:
   title: "Valor: lotes RMBH valorizam 8.4% no Q1/2026"
   summary: "Reportagem do Valor reproduz dados FipeZap Q1/2026..."
   source_key: valor
-pillar: "6-mercado-rmbh"
+pillar: "mercado-rmbh"
 icp: investidor
 match_score: 0.78
 decision: promote-to-brief    # matcher LIBEROU (title difere do brief A já criado)
@@ -1198,7 +1201,7 @@ topic_hash(headline_C) = sha1(normalize("lote rmbh subiu 8 4 q1 análise bairro"
 brief A em pendente-aprovacao/ tem:
   topic_hash: 7e3b4c2a...       # de "lote rmbh valorizou 8 4 q1 2026 mais subiu"
   source_urls: [https://downloads.fipe.org.br/.../fipezap-202601.pdf]
-  pillar: 6-mercado-rmbh
+  pillar: mercado-rmbh
   icp: investidor
 
 # Hash difere (e2a5 != 7e3b), URLs não overlap... mas:
@@ -1261,8 +1264,8 @@ flagrados — fica no §15 (gotcha).
 | 3 | **Headline "ideal" vs guardrails Avanz.** Opus tende a soltar "última oportunidade!" e "imperdível" em contexto de notícia quente — esses são proibidos (`guardrails.md` + `content-pillars.md > O que NÃO entra`). | Auto-check pós-geração com keyword list (§13.4); 2 retries; depois abort. Lista mantida no prompt do agente — atualizar se Avanz adicionar termo. |
 | 4 | **Hashtags: IG aceita 30, Avanz prefere 5–8.** Tentação de "encher" pra ranking. | Hardcoded em §6.5 (5–8). `avanzimoveis` + ≥1 regional sempre. Briefer auto-ajusta se sai do range. |
 | 5 | **Cloudinary acontece DEPOIS.** Briefer só baixa local. `cloud_url` e `cloudinary_public_id` ficam **sempre `null`** no brief criado pelo briefer — `radar-handoff` (spec 007) preenche depois de o editor aprovar `hero_choice` e mover pra `pendente-publicacao/`. | Schema (§4.2) exige campos `null` por default. Briefer não tem credencial Cloudinary, não tenta upload. |
-| 6 | **Pilar 4 NÃO chega aqui.** Matcher filtra (spec 003 §5.1 + §9 gotcha #6). | Briefer rejeita defensivamente em §13.3 (`unexpected_pillar`). Não confiar exclusivamente no matcher — defesa em profundidade. |
-| 7 | **Content-bank tem múltiplos ângulos.** Pilar 1 tem 20 temas / 5 categorias; Pilar 6 tem 25/6. Tentação de fundir 2–3 ângulos numa só headline → vira pauta confusa. | **Um ângulo por brief.** Briefer escolhe **um** tema do content-bank (o mais aderente ao finding) e segue ele. Outros ângulos viram briefs separados em outras execuções (anti-repetição §10 garante que não vira spam). |
+| 6 | **`bastidor` NÃO chega aqui.** Matcher filtra (spec 003 §5.1 + §9 gotcha #6). | Briefer rejeita defensivamente em §13.3 (`unexpected_pillar`). Não confiar exclusivamente no matcher — defesa em profundidade. |
+| 7 | **Content-bank tem múltiplos ângulos.** `imovel-da-semana` tem 20 temas / 5 categorias; `mercado-rmbh` tem 25/6. Tentação de fundir 2–3 ângulos numa só headline → vira pauta confusa. | **Um ângulo por brief.** Briefer escolhe **um** tema do content-bank (o mais aderente ao finding) e segue ele. Outros ângulos viram briefs separados em outras execuções (anti-repetição §10 garante que não vira spam). |
 | 8 | **Findings "mesma notícia, fonte diferente" passam o anti-repetição.** Ex.: FipeZap publica relatório (fonte A); Valor noticia o mesmo dado (fonte B). Title difere, headline pode divergir levemente, `source_urls` não overlap, hash não bate. | Limite conhecido. Mitigação parcial: matcher já filtra com `pillar+icp em 14d` (spec 003 §8.3) **mas só em `publicado/`** — in-flight só barra em hash OR URLs overlap. Editor humano pega na revisão. Não é falha — é trade-off de design. Cobrir com regra extra "in-flight 7d + pillar+icp+geografia" fica como pendência futura (não bloqueia 1º slice). |
 | 9 | **Skill OD escolhida sem ler `SKILL.md` em runtime.** Briefer não usa Read pra olhar `/srv/apps/open-design/skills/<slug>/SKILL.md` em runtime — usa a matriz §5 hardcoded no prompt do agente. | Vantagem: determinístico, sem custo de Read extra. Desvantagem: matriz desatualiza se nova skill entra no OD. Mitigação: spec 010 (skill custom `avanz-instagram-post`) re-cobre a matriz. Até lá, owner pode editar `od_skill_ref` no `.md` antes do `mv approve`. |
 | 10 | **`source_excerpts` precisa ser literal.** Briefer pode parafrasear no `caption_draft` (PT-BR Avanz), mas `source_excerpts[]` precisa ser **trecho exato** do `raw_excerpt` do finding — pra auditoria. | Validação simples: orquestrador checa que cada entrada de `source_excerpts[]` é substring de algum `raw_excerpt` (ou `raw_excerpts[]`) do finding original. Se não bater, valida-fail. |
@@ -1273,7 +1276,7 @@ flagrados — fica no §15 (gotcha).
    + prompt cobrindo as regras desta spec (matriz §5, geração de copy §6,
    visual_brief §7, hero handling §8, naming §9, anti-rep §10, política
    agregadores §11, output §12, fallbacks §13).
-2. **Dry-run com 3 findings de teste** (cobrindo Pilar 1, 2/3/6, 5):
+2. **Dry-run com 3 findings de teste** (cobrindo `imovel-da-semana`, 2/3/6, 5):
    briefer devolve JSON parseável conforme §4.1; orquestrador valida
    `brief` contra §4.2 e materializa `.md` corretamente.
 3. **Anti-repetição definitiva funciona** (§10): plantar brief

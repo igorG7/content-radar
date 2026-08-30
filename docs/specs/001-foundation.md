@@ -8,7 +8,7 @@ autor: claude (handoff p/ owner igorg7)
 empresa_alvo: avanz-imoveis
 escopo: foundation + 1º slice vertical (researcher → matcher → briefer manual, sem planner)
 changelog:
-  - "v0.10.0 (2026-05-28): audit cruzado pré-implementação resolve 5 incoerências detectadas entre specs/manifest/vault. (1 crítica) Schema 002↔003 alinhado: 002 v0.2.0 ganha `finding_id`, `fetched_at`, `geo_hints[]` + lista canônica de geo_keywords (§4.4) + `raw_excerpt` → `raw_excerpts` (array); 003 v0.2.0 renomeia `source` → `source_key` e documenta extras propagados. (2 média) Schema 003→004 alinhado: 003 v0.2.0 renomeia `topic_hash` → `topic_hash_matcher` no output do `ranked[]` e adiciona `source_relevance_hints[]` (derivado do breakdown). (3 média) Telefone Avanz canonicalizado: novo bloco `manifest.target_company.brand_facts` (phone_display, phone_e164, phone_secondary_e164, main_channel); 004 v0.1.2 e 007 v0.1.1 deixam de hardcodar — apontam pro manifest. (4 baixa) `manifest.target_company.per_pillar[\"1-imovel\"]` ganha `pilar-1-imovel-da-semana.md`. (5 baixa) Enum `od_skill_ref` em 004 §4.2 reduzido a 3 valores (skills sem atribuição na matriz §5 saem do enum). Implementação fica destravada."
+  - "v0.10.0 (2026-05-28): audit cruzado pré-implementação resolve 5 incoerências detectadas entre specs/manifest/vault. (1 crítica) Schema 002↔003 alinhado: 002 v0.2.0 ganha `finding_id`, `fetched_at`, `geo_hints[]` + lista canônica de geo_keywords (§4.4) + `raw_excerpt` → `raw_excerpts` (array); 003 v0.2.0 renomeia `source` → `source_key` e documenta extras propagados. (2 média) Schema 003→004 alinhado: 003 v0.2.0 renomeia `topic_hash` → `topic_hash_matcher` no output do `ranked[]` e adiciona `source_relevance_hints[]` (derivado do breakdown). (3 média) Telefone Avanz canonicalizado: novo bloco `manifest.target_company.brand_facts` (phone_display, phone_e164, phone_secondary_e164, main_channel); 004 v0.1.2 e 007 v0.1.1 deixam de hardcodar — apontam pro manifest. (4 baixa) `manifest.target_company.per_pillar[\"imovel-da-semana\"]` ganha `pilar-imovel-da-semana-da-semana.md`. (5 baixa) Enum `od_skill_ref` em 004 §4.2 reduzido a 3 valores (skills sem atribuição na matriz §5 saem do enum). Implementação fica destravada."
   - "v0.9.0 (2026-05-27): spec 007 (`radar-handoff`) escrita (1320 linhas) — fecha a última peça do 1º slice. Cobre upload Cloudinary via signed POST em bash puro (curl + sha1sum + jq), modo placeholder pra rodar sem credenciais (sentinel `<PENDING_CLOUDINARY>`), template completo do README do package, brief simplificado pro humano operar no Smart Design, idempotência granular (sem `--force`: pula upload mas re-renderiza package). §3.1 marca radar-handoff ✅; §9 item 7 ✅; §12 reordenado. **TODAS as specs do 1º slice escritas** — implementação pode começar mesmo sem Cloudinary (via `--placeholder-mode`). Pendência menor herdada: confirmar signed vs unsigned upload (spec 007 §18). Nenhuma decisão §11 nova."
   - "v0.8.0 (2026-05-27): spec 005 (`radar-scan` + `radar-mv`) escrita (990 linhas) — fecha as duas skills de orquestração do 1º slice. §3.1 marca radar-scan e radar-mv ✅; §9 item 5 ✅; §12 reordenado (spec 005 sai dos pendentes). Pipeline fim-a-fim agora tem todas as specs escritas — só falta spec 007 (radar-handoff + Cloudinary, bloqueada por credenciais) pra completar o slice mínimo. Nenhuma decisão §11 nova."
   - "v0.7.0 (2026-05-27): spec 004 (`instagram-briefer`) escrita (1293 linhas) — fecha schema do brief (formaliza JSON-schema antes esboçado em §6.1), define matriz pilar→skill do Open Design (§5 da 004), descreve geração de copy/visual + hero handling via Bash+curl, anti-repetição definitiva headline-based, política §11.P agregadores. §3.2 e §9 atualizados marcando briefer ✅; §12 reordenado. Pendência menor herdada: confirmar headline `maxLength: 90` (spec 004 §17). Após este bump, 3/4 subagentes estão especificados (researcher, matcher, briefer); planner fica pra spec 011."
@@ -302,11 +302,11 @@ source_excerpts:
   - "Lotes em RMBH valorizaram 8.4% no Q1 2026..."
 
 # Match com empresa-alvo (algoritmo + pesos: spec 003 §5)
-pillar: "6-mercado-rmbh"
+pillar: "mercado-rmbh"
 icp: investidor
 match_score: 0.82                 # weighted sum dos 5 componentes abaixo
 match_score_breakdown:
-  pillar_fit: 0.90                # peso 0.30 — finding mapeia limpo no Pilar 6
+  pillar_fit: 0.90                # peso 0.30 — finding mapeia limpo no `mercado-rmbh`
   foco_editorial_fit: 0.85        # peso 0.25 — lotes/RMBH bate com foco declarado
   geografia_fit: 0.90             # peso 0.20 — Mateus Leme = núcleo RMBH
   icp_fit: 0.80                   # peso 0.15 — investidor, dados de valorização
@@ -315,7 +315,7 @@ match_score_breakdown:
 # fontes que enriqueceram o score (origem por componente)
 source_relevance_hints:
   - component: pillar_fit
-    evidence: "headline menciona explicitamente RMBH e valorização — bate Pilar 6"
+    evidence: "headline menciona explicitamente RMBH e valorização — bate `mercado-rmbh`"
   - component: foco_editorial_fit
     evidence: "fonte trata de lote (não casa pronta) — alinha foco declarado"
 why_match: |
@@ -414,16 +414,16 @@ target_per_week: 10                # §11.H — owner setou; > recomendação Av
 
 # Plano editorial — semana 2026-W22
 
-## Segunda 2026-05-25 — Pilar 3 (Inteligência Imobiliária)
+## Segunda 2026-05-25 — `inteligencia-imobiliaria` (Inteligência Imobiliária)
 - (slot vazio)
 
-## Terça 2026-05-26 — Pilar 1 (Imóvel da semana)
+## Terça 2026-05-26 — `imovel-da-semana` (Imóvel da semana)
 - [2026-W22-003](../briefs/pendente-publicacao/2026-W22-003_avz-1247-sitio-mateus-leme.md)
 
-## Quinta 2026-05-28 — Pilar 6 (Mercado RMBH) ← alterna com Pilar 2
+## Quinta 2026-05-28 — `mercado-rmbh` (Mercado RMBH) ← alterna com `decisao-inteligente`
 - [2026-W22-001](../briefs/pendente-aprovacao/2026-W22-001_fipezap-bh-lote-valorizacao-q1.md)
 
-## Sábado 2026-05-30 — Pilar 1 (Imóvel da semana)
+## Sábado 2026-05-30 — `imovel-da-semana` (Imóvel da semana)
 - (slot vazio)
 
 ## Reativos (sem dia fixo)
@@ -604,7 +604,7 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 
 **O que entra:**
 
-- Skill `radar-scan` aceitando `scope=trends` e `pillar_filter=6-mercado-rmbh`.
+- Skill `radar-scan` aceitando `scope=trends` e `pillar_filter=mercado-rmbh`.
 - 3 subagentes (`market-researcher`, `avanz-matcher`, `instagram-briefer`).
 - Saída em `briefs/pendente-aprovacao/` + candidatos de imagem em
   `media/pendente-aprovacao/`.
@@ -627,7 +627,7 @@ e persistir em `.local/open-design-basic-auth.txt` (chmod 600, gitignored).
 
 **Critério de pronto do primeiro slice:**
 
-1. `radar-scan --scope=trends --pillar=6-mercado-rmbh` roda sem erro.
+1. `radar-scan --scope=trends --pillar=mercado-rmbh` roda sem erro.
 2. **Output do researcher passa validação JSON-schema** (schema em spec 002 §4):
    campos obrigatórios presentes, tipos corretos, `published_at` ISO 8601
    válido, `image_candidates[]` bem-formado.

@@ -322,9 +322,59 @@ const simularVarredura: Ferramenta = {
   },
 };
 
+const vault: Ferramenta = {
+  nome: "vault_da_marca",
+  descricao:
+    "Os blocos do vault desta empresa — identidade e origem, voz da marca, foco editorial, área de atuação, públicos, pilares, cadência, banco de temas, identidade visual e guardrails. É o documento onde o cliente descreve a própria marca, e a fonte de tudo que se afirma sobre ela. Sem argumento, devolve a lista com um resumo de cada bloco; com `bloco`, devolve o corpo inteiro daquele.",
+  parametros: {
+    bloco: {
+      tipo: "string",
+      descricao:
+        "Slug do bloco, como aparece na listagem (ex.: identidade, voz, guardrails). Omita para ver a lista.",
+      obrigatorio: false,
+    },
+  },
+  async executar(store, args) {
+    const blocos = await store.listarBlocos();
+    const pedido = typeof args.bloco === "string" ? args.bloco.trim() : "";
+
+    if (pedido) {
+      const achado = blocos.find((b) => b.slug === pedido);
+      if (!achado) {
+        return {
+          erro: `não há bloco "${pedido}"`,
+          disponiveis: blocos.map((b) => b.slug),
+        };
+      }
+      return {
+        slug: achado.slug,
+        titulo: achado.titulo,
+        corpo: achado.corpo,
+        preenchido: achado.corpo.trim().length > 0,
+        atualizado_em: achado.atualizadoEm,
+      };
+    }
+
+    /**
+     * A listagem devolve o começo de cada bloco, não o corpo inteiro: são dez
+     * blocos e o de temas sozinho passa de cem linhas. Quem precisar do texto
+     * pede o bloco pelo slug — é uma chamada a mais e um contexto muito menor.
+     */
+    return {
+      blocos: blocos.map((b) => ({
+        slug: b.slug,
+        titulo: b.titulo,
+        preenchido: b.corpo.trim().length > 0,
+        inicio: b.corpo.trim().slice(0, 240),
+      })),
+    };
+  },
+};
+
 export const FERRAMENTAS: Ferramenta[] = [
   escoposDeBusca,
   vocabulario,
+  vault,
   configuracao,
   resumoDaFila,
   varreduraAtual,
