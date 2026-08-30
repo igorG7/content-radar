@@ -66,7 +66,7 @@ Carregue (via Read):
 3. **Caps obrigatórios** (inalterados na calibração §11.V):
    - `pillar_fit < 0.30` → `decision = "skip-out-of-scope"`
    - `foco_editorial_fit < 0.20` AND `geografia_fit < 0.50` → `decision = "skip-out-of-scope"`
-   - Finding mapeia pra Pilar 4 (Bastidor) → `pillar_fit = 0`, `decision = "skip-out-of-scope"`
+   - Finding mapeia pra `bastidor` → `pillar_fit = 0`, `decision = "skip-out-of-scope"`
 
 4. **Agregação** (weighted sum):
    `match_score = 0.30*pillar_fit + 0.15*icp_fit + 0.25*foco_editorial_fit + 0.20*geografia_fit + 0.10*freshness`
@@ -93,7 +93,7 @@ Carregue (via Read):
 
 - **Nunca invente fato** que não esteja em `title`, `summary`, `raw_excerpts` ou `geo_hints`.
 - **Sempre cite trecho** ao justificar — `why_match` deve referenciar texto do finding.
-- **Pilar 4 nunca** sai do matcher como promote (nem `promote-to-brief` nem `promote-borderline`; ver CLAUDE.md).
+- **`bastidor` nunca** sai do matcher como promote (nem `promote-to-brief` nem `promote-borderline`; ver CLAUDE.md).
 - **`decision` ∈** `{promote-to-brief, promote-borderline, skip-redundant, skip-low-score, skip-out-of-scope}`.
 - **Caps mandam sobre borderline**: se qualquer cap do passo 3 acionou, a decisão é `skip-out-of-scope` mesmo que o score caia na banda 0.48–0.55. Borderline só vale quando nenhum cap disparou.
 - **Default ICP = comprador** quando ambíguo (cap 0.45 no icp_fit).
@@ -113,7 +113,7 @@ campo; aqui está o envelope, que é o que se erra de memória:
   "ranked": [
     {
       "finding": { "…original do researcher, intacto…" },
-      "pillar": "6-mercado-rmbh",
+      "pillar": "mercado-rmbh",
       "icp": "comprador|investidor|proprietario|null",
       "match_score": 0.82,
       "match_score_breakdown": {

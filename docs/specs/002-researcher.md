@@ -63,7 +63,7 @@ Estrutura que o `radar-scan` (spec 005) passa pro agente via prompt
 
 ```yaml
 scope: trends                # obrigatório; chave de manifest.search_scopes
-pillar_filter: "6-mercado-rmbh"   # opcional; prioriza tema deste pilar
+pillar_filter: "mercado-rmbh"   # opcional; prioriza tema deste pilar
 window_days: 30              # default 30; descarta findings mais antigos
 target_count: 10             # default = manifest.funnel.candidates_per_week_target.
                              # agente busca até ~target_count * 1.5 pra dar margem ao matcher
@@ -81,7 +81,7 @@ vault_paths:                 # trechos extraídos pelo orquestrador (agente não
     excecao_casas: "MCMV com simulação Caixa prévia"
     geografia: "RMBH (Mateus Leme, Esmeraldas, Juatuba prioritários)"
   pillar_brief:              # só se pillar_filter setado
-    id: "6-mercado-rmbh"
+    id: "mercado-rmbh"
     tese: "Mateus Leme/Esmeraldas/Juatuba lê notícia local; Avanz vira referência"
     nao_fazer: "repostar notícia sem agregar análise"
 ```
@@ -298,7 +298,7 @@ Domínio plausível **fora** dessa tabela → descarte.
 
 1. **Componha 2–4 queries** a partir de `scope`, `pillar_filter` e
    `vault_paths.company_focus`. Exemplo pra `scope=trends` +
-   `pillar=6-mercado-rmbh`:
+   `pillar=mercado-rmbh`:
    - `"FipeZap" "Belo Horizonte" 2026`
    - `lançamentos imobiliários "Região Metropolitana" Belo Horizonte 2026`
    - `valorização lotes RMBH OR "Mateus Leme" OR "Esmeraldas" 2026`
@@ -348,13 +348,13 @@ Apenas o JSON. Nada antes, nada depois. Schema completo na §4 da
 
 ## 7. Exemplos
 
-### 7.1 Exemplo A — `scope=trends`, `pillar=6-mercado-rmbh`
+### 7.1 Exemplo A — `scope=trends`, `pillar=mercado-rmbh`
 
 **Input passado ao agente:**
 
 ```yaml
 scope: trends
-pillar_filter: "6-mercado-rmbh"
+pillar_filter: "mercado-rmbh"
 window_days: 30
 target_count: 10
 max_per_source: 3
@@ -370,7 +370,7 @@ vault_paths:
     excecao_casas: "MCMV com simulação Caixa prévia"
     geografia: "RMBH (Mateus Leme, Esmeraldas, Juatuba prioritários)"
   pillar_brief:
-    id: "6-mercado-rmbh"
+    id: "mercado-rmbh"
     tese: "quem está em Mateus Leme/Esmeraldas/Juatuba lê notícia local; Avanz vira referência da região"
     nao_fazer: "repostar notícia sem agregar análise"
 ```
@@ -399,7 +399,7 @@ vault_paths:
       "raw_excerpts": [
         "Em janeiro de 2026, o Índice FipeZAP de Venda Residencial registrou variação de -0,03%. Belo Horizonte apresentou preço médio de R$ 10.640/m²..."
       ],
-      "relevance_hint": "Fonte primária de preço residencial em BH. Pilar 6 (Mercado RMBH) gosta; foco Avanz é lote/sítio — matcher decide ângulo (ex.: contraponto a valorização de lote)."
+      "relevance_hint": "Fonte primária de preço residencial em BH. `mercado-rmbh` gosta; foco Avanz é lote/sítio — matcher decide ângulo (ex.: contraponto a valorização de lote)."
     },
     {
       "finding_id": "f_002",
@@ -419,7 +419,7 @@ vault_paths:
     }
   ],
   "meta": {
-    "scope": "trends", "pillar_filter": "6-mercado-rmbh",
+    "scope": "trends", "pillar_filter": "mercado-rmbh",
     "window_days": 30, "target_count": 10,
     "total_searched": 14, "total_returned": 2, "total_skipped": 12,
     "skipped_reasons": { "out_of_window": 5, "duplicate_url": 2, "fetch_failed": 1, "paywall": 3, "source_not_allowed": 1 },
@@ -474,7 +474,7 @@ não-validado neste documento normativo):
       "raw_excerpts": [
         "A duplicação parcial da MG-050, entregue nesta semana, encurta em cerca de 15 minutos o trajeto entre Juatuba e a capital..."
       ],
-      "relevance_hint": "Notícia 100% local RMBH com efeito direto na valorização de lote em Mateus Leme — gancho forte pra Pilar 6 com ângulo analítico Avanz."
+      "relevance_hint": "Notícia 100% local RMBH com efeito direto na valorização de lote em Mateus Leme — gancho forte pra `mercado-rmbh` com ângulo analítico Avanz."
     }
   ],
   "meta": {
@@ -546,7 +546,7 @@ com a implementação no 1º slice):
       input do exemplo §7.1 devolve JSON parseável.
 - [ ] Output passa por JSON Schema validator (orquestrador implementa;
       schema vem desta spec §4).
-- [ ] Em 3 runs consecutivas com `scope=trends` + `pillar=6-mercado-rmbh`,
+- [ ] Em 3 runs consecutivas com `scope=trends` + `pillar=mercado-rmbh`,
       retorna ≥ 5 findings válidos no total (não vazio).
 - [ ] Anti-fonte funciona: forçar o agente a buscar `caixa.gov.br` num
       scope que **não** inclui `caixa` → não vem no output.

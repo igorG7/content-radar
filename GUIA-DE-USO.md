@@ -38,7 +38,7 @@ com o brief, a foto hero e o passo-a-passo de operação.
 - ❌ Não publica no Instagram (publicação é **manual**).
 - ❌ Não chama a API do Open Design no 1º slice (humano opera a web UI).
 - ❌ Não inventa fontes fora de `manifest.search_scopes.*.sources`.
-- ❌ Não gera Pilar 4 (Bastidor) — isso é stories, decisão humana.
+- ❌ Não gera `bastidor` — isso é stories, decisão humana.
 
 ---
 
@@ -118,7 +118,7 @@ radar-scan ..."). Os argumentos abaixo são o `argument-hint` de cada skill.
 ### Passo 1 — Gerar pautas: `radar-scan`
 
 ```
-/radar-scan --scope=trends --pillar=6-mercado-rmbh
+/radar-scan --scope=trends --pillar=mercado-rmbh
 ```
 
 **Argumentos** (de [`.claude/skills/radar-scan/SKILL.md`](./.claude/skills/radar-scan/SKILL.md)):
@@ -126,18 +126,18 @@ radar-scan ..."). Os argumentos abaixo são o `argument-hint` de cada skill.
 | Arg | Obrigatório | Valores | Default |
 |---|---|---|---|
 | `--scope` | sim | `trends`, `competitors`, `seasonal`, `cases`, `local` | — |
-| `--pillar` | não | `1-imovel`, `2-decisao`, `3-inteligencia`, `5-quem-comprou`, `6-mercado-rmbh` | todos |
+| `--pillar` | não | `imovel-da-semana`, `decisao-inteligente`, `inteligencia-imobiliaria`, `quem-comprou`, `mercado-rmbh` | todos |
 | `--target-count` | não | inteiro | `manifest.funnel.candidates_per_week_target` (=10) |
 | `--dry-run` | não | flag | off |
 | `--scan-id` | não | string | auto (`<YYYY-Www>-scan-<NNN>`) |
 
-> `--pillar=4-bastidor` é **erro fatal** de propósito (Bastidor está fora do
+> `--pillar=bastidor` é **erro fatal** de propósito (Bastidor está fora do
 > escopo do radar).
 
 **Sempre comece com `--dry-run`** para ver o plano sem efeitos colaterais:
 
 ```
-/radar-scan --scope=trends --pillar=6-mercado-rmbh --dry-run
+/radar-scan --scope=trends --pillar=mercado-rmbh --dry-run
 ```
 
 Em dry-run a skill **não** invoca subagentes, **não** escreve em `store/` e
@@ -228,10 +228,10 @@ subir a foto (baixar do `cloud_url` se preciso), gerar a arte, exportar e
 
 ```
 # 1. ver o plano
-/radar-scan --scope=trends --pillar=6-mercado-rmbh --dry-run
+/radar-scan --scope=trends --pillar=mercado-rmbh --dry-run
 
 # 2. gerar de verdade
-/radar-scan --scope=trends --pillar=6-mercado-rmbh
+/radar-scan --scope=trends --pillar=mercado-rmbh
 
 # 3. revisar os .md em store/briefs/pendente-aprovacao/ e setar hero_choice
 
@@ -307,7 +307,7 @@ ledger. Use sempre que estiver inseguro sobre o que vai acontecer.
 | Sintoma | Onde checar |
 |---|---|
 | Skill não aparece com `/` | cwd está dentro de `/srv/apps/content-radar/`? |
-| `--pillar=4-bastidor` falha | é esperado — Pilar 4 é fora de escopo |
+| `--pillar=bastidor` falha | é esperado — `bastidor` é fora de escopo |
 | Scan não gera nenhum brief | provável skip por redundância / baixo score — veja `store/ledger.jsonl` (`skip-*`) |
 | Handoff aborta sem subir foto | falta `.local/cloudinary.env` → use `--placeholder-mode` |
 | Histórico de transições | `store/ledger.jsonl` (append-only, 1 evento por linha) |
