@@ -69,6 +69,33 @@ const APELIDOS: Record<string, string[]> = {
   source_urls: ["source"],
 };
 
+/**
+ * Códigos posicionais de pilar, do tempo em que o store era arquivo.
+ *
+ * A migração para o banco renomeou os pilares de `2-decisao` para o slug
+ * estável `decisao-inteligente`, e o importador histórico traduz
+ * (`db/seed/importar.ts`). A ingestão não traduzia — e em 2026-08-30 um brief
+ * escrito com o nome antigo custou 42 minutos e sete dólares: recusa, transação
+ * desfeita, zero briefs, com a pauta pronta e correta em tudo o mais.
+ *
+ * Traduzir aqui é contenção, não correção — a causa eram os prompts, corrigidos
+ * no mesmo dia. Isto existe para que o **próximo** desvio de nome entre com
+ * aviso em vez de virar prejuízo. Pelo mesmo motivo do `APELIDOS` acima: cada
+ * uso vira aviso, e se a lista começar a crescer a resposta deixa de ser
+ * apelido e passa a ser validação.
+ *
+ * Não é uma tradução geral de pilar: são os seis códigos que existiram, e
+ * cliente novo nenhum os terá.
+ */
+const PILAR_ANTIGO: Record<string, string> = {
+  "1-imovel": "imovel-da-semana",
+  "2-decisao": "decisao-inteligente",
+  "3-inteligencia": "inteligencia-imobiliaria",
+  "4-bastidor": "bastidor",
+  "5-quem-comprou": "quem-comprou",
+  "6-mercado-rmbh": "mercado-rmbh",
+};
+
 /** Lê o campo pelo nome do schema, ou por um apelido conhecido. */
 function campo(
   data: Record<string, unknown>,
@@ -165,7 +192,22 @@ export async function ingerir(
             "lido do markdown, não do .json — campos podem ter ficado no corpo",
         });
       }
-      const pilar = str(data.pillar);
+      const pilarBruto = str(data.pillar);
+      /**
+       * Traduz o código antigo **antes** de conferir, e avisa. Sem isto o
+       * `!temPilar.has(...)` recusa um pilar que existe, só escrito no
+       * vocabulário anterior — e uma recusa desfaz a varredura inteira.
+       */
+      const traduzido =
+        pilarBruto && PILAR_ANTIGO[pilarBruto] ? PILAR_ANTIGO[pilarBruto] : null;
+      if (traduzido) {
+        avisos.push({
+          onde: slug,
+          detalhe: `pilar veio na numeração antiga (${pilarBruto}); lido como ${traduzido}`,
+        });
+        data.pillar = traduzido;
+      }
+      const pilar = traduzido ?? pilarBruto;
       const publico = str(data.icp);
 
       if (!pilar || !temPilar.has(pilar)) {
